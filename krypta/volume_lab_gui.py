@@ -149,12 +149,23 @@ class VolumeLabWindow(tk.Toplevel):
         if self.busy:
             return
         data = {key: value.get() for key, value in self.forms[action].items()}
-        for key, val in data.items():
-            if key in {"password", "confirmation", "new_password", "old_password"}:
+        required = {
+            "create": {"image", "envelope", "recovery", "password", "confirmation"},
+            "verify": {"image", "envelope", "receipt"},
+            "import": {"image", "envelope", "receipt", "source"},
+            "export": {"image", "envelope", "receipt", "name", "output"},
+            "rotate": {"image", "envelope", "receipt", "new_image", "new_envelope",
+                       "new_recovery", "new_password", "confirmation"},
+            "recover": {"envelope", "recovery", "new_envelope", "password", "confirmation"},
+        }[action]
+        for key in {"password", "confirmation", "new_password", "old_password"}:
+            if key in self.forms[action]:
                 self.forms[action][key].set("")
-            elif key not in {"recovery", "old_recovery"} and not val.strip():
-                messagebox.showwarning("KRYPTA Volume Lab", "Uzupełnij wymagane pole.", parent=self)
-                return
+        if any(not data[key].strip() for key in required):
+            messagebox.showwarning("KRYPTA Volume Lab",
+                                   "Uzupełnij wymagane pole.", parent=self)
+            data.clear()
+            return
         if action in {"verify", "import", "export"}:
             if bool(data.get("password")) == bool(data.get("recovery")):
                 messagebox.showerror("KRYPTA Volume Lab",
