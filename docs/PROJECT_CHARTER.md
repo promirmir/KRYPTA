@@ -4,6 +4,14 @@
 **Repozytorium:** `promirmir/KRYPTA` · **PRIVATE do osobnej decyzji właściciela**  
 **Zasada:** to dokument nadrzędny wobec planów i opisów. Zmiana celów wymaga wyraźnej decyzji właściciela; każdą propozycję odstępstwa należy oznaczyć jako *odstępstwo*, a nie po cichu przedefiniować projekt.
 
+## Priorytet absolutny (decyzja właściciela)
+
+**P1 — własny, autorski, niezależny system szyfrowania KRYPTA o ambicji przewyższenia każdego istniejącego rozwiązania w istotnych, porównywalnych kryteriach bezpieczeństwa.** Jest to cel rozwoju od początku do zakończenia projektu, a nie opcja ani propozycja zmiany kierunku.
+
+Nie budujemy nakładki na BitLocker, LUKS czy VeraCrypt. **Najpierw własny silnik woluminów i jego niezawodność**, następnie integracje Windows/Linux/Android i dopracowanie pozostałych modułów. Wygląd i funkcje poboczne nie mogą zastąpić prac nad bezpieczeństwem rdzenia.
+
+Docelowa przewaga ma obejmować weryfikowalne właściwości: autentykację danych i metadanych, wykrywanie rollback, ochronę kluczy i krótkiego PIN-u przy skopiowanym szyfrogramie, odporność na przerwanie zasilania, odzyskiwanie i migracje kluczy, ochronę rozruchu, zmniejszanie powierzchni ataku przez autonomiczne AI oraz elastyczność postkwantową. **Najwyższa odporność jest celem, nie istniejącym faktem; nie można z góry dowieść przewagi nad każdym znanym i niejawnym produktem.** Autorska warstwa formatów i polityk nie oznacza zastąpienia sprawdzonych prymitywów własnym, niezbadanym szyfrem.
+
 ## Cel bez zmian
 
 **KRYPTA ma być autorskim, niezależnym systemem szyfrowania, a nie nakładką na BitLocker, LUKS, VeraCrypt lub inne istniejące systemy.** Zewnętrzne mechanizmy wolno wykorzystać tylko do **diagnostyki, porównania, interoperacyjności lub awaryjnej migracji**, nigdy jako własny silnik KRYPTA.
