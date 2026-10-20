@@ -92,10 +92,15 @@ class KryptaFuseOps(Operations):
         self._fs.stat(name)
         return name
 
-    def _fh(self, fh: int):
+    def _fh(self, fh: int, path: str | None = None):
         if type(fh) is not int or fh not in self._handles:
             raise FuseOSError(errno.EBADF)
-        return self._handles[fh]
+        entry = self._handles[fh]
+        # A valid handle does not authorize a DIFFERENT path. This matters
+        # even on a research mount: callbacks must never cross file identity.
+        if path is not None and self._filename(path) != entry[0]:
+            raise FuseOSError(errno.EBADF)
+        return entry
 
     def _alloc(self, name, mode, append):
         fh = self._next_handle
@@ -128,6 +133,14 @@ class KryptaFuseOps(Operations):
     @_api
     def open(self, path, flags):
         name = self._file_exists(path)
+        if type(flags) is not int or flags < 0:
+            raise FuseOSError(errno.EINVAL)
+        # Never advertise unsupported Linux descriptor semantics as success:
+        # no path-only FDs, no tmpfiles, no exclusive-create on an old path.
+        if any(flags & getattr(os, name, 0) for name in ("O_PATH", "O_TMPFILE", "O_DIRECTORY")):
+            raise FuseOSError(errno.EOPNOTSUPP)
+        if flags & os.O_CREAT and flags & os.O_EXCL:
+            raise FuseOSError(errno.EEXIST)
         # POSIX access-mode mask uses low two bits. Python for Windows does
         # not export os.O_ACCMODE, but test the mapping on both platforms.
         mode = flags & 0o3
@@ -141,15 +154,17 @@ class KryptaFuseOps(Operations):
 
     @_api
     def create(self, path, mode, fi=None):
-        if not stat.S_ISREG(stat.S_IFREG | mode):
+        if type(mode) is not int or mode < 0:
             raise FuseOSError(errno.EINVAL)
+        if stat.S_IFMT(mode) not in (0, stat.S_IFREG):
+            raise FuseOSError(errno.EOPNOTSUPP)
         name = self._filename(path)
         self._fs.write_file(name, b"", replace=False)
         return self._alloc(name, os.O_RDWR, False)
 
     @_api
     def read(self, path, size, offset, fh):
-        name, mode, _ = self._fh(fh)
+        name, mode, _ = self._fh(fh, path)
         if mode == os.O_WRONLY:
             raise FuseOSError(errno.EBADF)
         if type(size) is not int or type(offset) is not int or offset < 0 or size < 0:
@@ -160,7 +175,7 @@ class KryptaFuseOps(Operations):
 
     @_api
     def write(self, path, data, offset, fh):
-        name, mode, append = self._fh(fh)
+        name, mode, append = self._fh(fh, path)
         if mode == os.O_RDONLY:
             raise FuseOSError(errno.EBADF)
         if type(offset) is not int or offset < 0 or not isinstance(data, bytes):
@@ -181,7 +196,7 @@ class KryptaFuseOps(Operations):
     def truncate(self, path, length, fh=None):
         name = self._file_exists(path)
         if fh is not None:
-            handle_name, mode, _ = self._fh(fh)
+            handle_name, mode, _ = self._fh(fh, path)
             if handle_name != name or mode == os.O_RDONLY:
                 raise FuseOSError(errno.EACCES)
         if type(length) is not int or length < 0 or length > MAX_FILE_BYTES:
@@ -211,19 +226,19 @@ class KryptaFuseOps(Operations):
 
     @_api
     def release(self, path, fh):
-        self._fh(fh)
+        self._fh(fh, path)
         del self._handles[fh]
         return 0
 
     @_api
     def flush(self, path, fh):
-        self._fh(fh)
+        self._fh(fh, path)
         # Underlying ResearchVolume performs a flush/fsync per commit.
         return 0
 
     @_api
     def fsync(self, path, datasync, fh):
-        self._fh(fh)
+        self._fh(fh, path)
         os.fsync(self._fs._volume._f.fileno())
         return 0
 
