@@ -1,5 +1,12 @@
 # KRYPTA
 
+**NADRZĘDNY CEL PROJEKTU:** niezależny, własny, transparentny system szyfrowania woluminów — **NIE nakładka na BitLocker/LUKS/VeraCrypt**. Diagnostyka szyfrowania innych produktów jest wyłącznie pomocnicza. Docelowo każdy nowy zapis na chronionym dysku zostaje zaszyfrowany bez udziału użytkownika. Osobne tryby: Windows (systemowy i zewnętrzne dyski), Linux, Android i sejf haseł. Krótki PIN jest dostępny, lecz sprzętowa odporność na odgadywanie jest osobnym, wymaganym mechanizmem.
+
+**Wymagania właściciela zapisane w:** [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md). **Oryginalna konstrukcja kryptograficzna, odizolowana badawczo:** [docs/HORIZON_CRYPTO_RFC.md](docs/HORIZON_CRYPTO_RFC.md) i [research/horizon_lab.py](research/horizon_lab.py).
+
+**Ważne:** własny system i własna konstrukcja nie oznaczają w tym momencie udowodnionej przewagi nad istniejącymi produktami ani szyfrowania certyfikowanego, niełamliwego przez przyszłe AI lub komputery kwantowe. Produkcyjne FDE i niezależnie limitowane PIN-y nadal NIE istnieją.
+
+
 **SECURITY WORKSTATION · v0.4.0-alpha · PRIVATE DEVELOPMENT BUILD**
 
 > **RESEARCH ONLY. NOT AUDITED. NOT APPROVED FOR PROTECTING IMPORTANT DATA.**
@@ -30,10 +37,10 @@ KRYPTA is developed for **Windows x64 (`.exe`)**, **Linux x64 (ELF)** and **Andr
 | Module | Status | Minimum architecture requirement |
 |:--|:--|:--|
 | File Vault | **Research prototype** | Independent crypto/security audit and fuzz testing required before production |
-| Drive Shield — external disks / USB | **Not implemented** | Reviewed volume-encryption backend + independent key provisioning and recovery |
-| System Shield — Windows boot | **Not implemented** | Windows-supported full-disk engine, TPM 2.0, measured boot, recovery tests |
+| Drive Shield — external disks / USB | **Not implemented** | Original KRYPTA virtual volume backend, key protection and tested recovery (not BitLocker/LUKS integration) |
+| System Shield — Windows boot | **Not implemented** | Original KRYPTA system-volume engine, secure boot chain, TPM 2.0, measured boot and recovery tests |
 | Password Shield | **Not implemented** | Proper OS-level secret handling and per-use authentication integrations |
-| Android Shield | **Not implemented** | Android File-Based Encryption, hardware Gatekeeper/Weaver/Keystore APIs |
+| Android Shield | **Not implemented** | Original vault for app-controlled data; privileged custom Android OS integration for actual full-device encryption |
 | Hardware-backed anti-brute-force | **Not implemented** | TPM/secure element enforcement, rollback protection and recovery model |
 | Security audit / certification | **Not completed** | Third-party review, tests and reproducible releases |
 
