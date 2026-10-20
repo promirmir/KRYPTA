@@ -1,38 +1,51 @@
-# Building KRYPTA on Windows, Linux and Android
+# KRYPTA — kompilacje i pobieranie
 
-**2026-10-20 · INTERNAL / RESEARCH ALPHA**
+**Status: wewnętrzne kompilacje rozwojowe.** GitHub Actions tworzy wersje dla Windows x64, Linux x64 i Androida. Pliki nie są jeszcze audytowanymi ani podpisanymi produkcyjnie wydaniami.
 
-## Current functionality
+## Pobieranie użytkownika
 
-| Target | Artifact | What it can actually do |
+Główny adres: **[GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**. Skonfigurowano workflow [publikacji trzech platform](../.github/workflows/publish-preview.yml), który po udanych testach i kompilacjach tworzy osobne, **prywatne prerelease** z plikami:
+
+| System | Plik | Funkcja |
 |---|---|---|
-| Windows x64 | `KRYPTA.exe` (unsigned alpha, PyInstaller) | Desktop GUI; research file vault for disposable individual files only |
-| Linux x64 | `KRYPTA` ELF executable (runner-compatible, not universal) | Same desktop research file-vault GUI |
-| Android | `app-debug.apk` (Android-native Java) | Navigation/status interface ONLY; no encryption or device locking |
+| Windows x64 | KRYPTA-Windows-x64.exe | Graficzne szyfrowanie/odszyfrowywanie wskazanych plików |
+| Linux x64 | KRYPTA-Linux-x64 | Graficzne szyfrowanie/odszyfrowywanie wskazanych plików |
+| Android | KRYPTA-Android-debug.apk | Szyfrowanie/odszyfrowywanie wskazanych plików za pomocą AES-256-GCM oraz Android Keystore |
 
-**None of the three is approved for production protection.** Whole-system encryption, external-volume encryption, TPM anti-brute-force, password manager and Android system-FBE control are NOT implemented.
+Każdy plik wykonywalny ma odpowiadający mu załącznik SHA-256. Dla Androida dołączona jest lista żądanych uprawnień.
 
-## Private CI builds
+Workflow uruchamia się po zmianach kodu na gałęzi main lub jawnie ręcznie (Run workflow). Publikuje pliki tylko, gdy wszystkie trzy platformy i testy zakończą się powodzeniem. Każdy build ma oddzielny niezmienny tag wskazujący commit — nie nadpisuje poprzedniego wydania.
 
-Go to **Actions** inside the private `promirmir/KRYPTA` repository:
+**Releases i pliki mogą pobierać tylko osoby z dostępem do prywatnego repozytorium.** Bez tego GitHub może wyświetlić 404.
 
-- `KRYPTA / Desktop alpha builds` builds on `windows-2022` and `ubuntu-22.04`. Workflows run on source changes or manually via **Run workflow**. Windows artifact contains an `.exe`; Linux artifact contains a compiled ELF binary. Results are uploaded to Actions artifacts with 14-day retention.
-- `KRYPTA / Android UI research APK` runs on source changes under `android/**`, or manually; compiles a **debug** APK with Gradle / Android SDK. Obtain the APK from Actions artifacts only after a successful run.
+## Co jest w aplikacjach
 
-The workflows do not publish a GitHub Release or make a repository public. GitHub artifact access still follows repository permissions. Do not distribute APK debug signing keys.
+Windows i Linux: File Vault (.kry) obsługuje autoryzowane szyfrowanie pojedynczych plików, AES-256-GCM i wyprowadzanie klucza z hasła przez Argon2id. Kod PVIMG/PFS i Linux FUSE znajduje się w repozytorium jako osobne narzędzia; GUI nie szyfruje automatycznie dysku systemowego.
 
-## Local development
+Android: KRYPTA-MOBILE/1 obsługuje wybrane pliki w Storage Access Framework, AES-256-GCM i klucz zawinięty przez Android Keystore. Jest to inny format niż desktop .kry. Zwykła aplikacja APK nie szyfruje całego telefonu.
 
-```sh
+## Krytyczne ostrzeżenia przed pobraniem
+
+- Windows EXE nie ma podpisu wydawcy. Nie zalecamy obchodzenia ostrzeżeń SmartScreen.
+- Linux ELF zależy od zgodnych bibliotek systemowych oraz Tk; uruchamiaj po sprawdzeniu SHA-256.
+- Android APK jest podpisany **debugowo**, co nie zapewnia stałego klucza podpisywania wydań; aktualizacja kolejnej wersji może wymagać odinstalowania. Android Keystore jest związany z urządzeniem i aplikacją, a **utrata/odinstalowanie może trwale uniemożliwić odszyfrowanie** poprzednich plików.
+- Nie istnieje produkcyjny system odzyskiwania kluczy, ochrona całych dysków ani udowodniony sprzętowo limit prób krótkiego PIN-u.
+- Nie przeprowadzono niezależnego audytu bezpieczeństwa. Korzystaj wyłącznie z kopii danych do testowania.
+
+## Dodatkowe tymczasowe artefakty Actions
+
+Oddzielne workflow [desktop](../.github/workflows/build-desktop.yml) oraz [Android](../.github/workflows/build-android.yml) nadal przesyłają ZIP-y jako artefakty GitHub Actions. Te pliki zwykle wygasają po 14 dniach i nie są przeznaczone do prezentowania jako stałe linki pobierania.
+
+## Kompilowanie lokalne
+
+Python 3.10+ oraz pakiety projektu, PyInstaller 6.16:
+
+~~~sh
 python -m pip install -e '.[test]' pyinstaller==6.16.0
 python -m pytest -q
 python -m PyInstaller --noconfirm --clean --onefile --windowed --name KRYPTA krypta/desktop_entry.py
-```
+~~~
 
-Windows: `dist/KRYPTA.exe`. Linux: `dist/KRYPTA` (build on Linux; do not cross-compile via PyInstaller). Linux binaries are tied to runner libc dependencies: test across intended distributions before shipping. On Linux ensure Tk runtime packages are installed. Windows binaries are unsigned: SmartScreen may warn. Do not bypass security prompts to run untrusted binaries.
+Windows: dist/KRYPTA.exe. Linux: dist/KRYPTA (budować na Linux). Android: JDK 17, Android SDK 35, Gradle 8.9 oraz komendy Gradle testDebugUnitTest, assembleDebug, lintDebug.
 
-APK source lives in `android/` and uses the Android Gradle Plugin 8.7.3, JDK 17 and Android SDK 35. The workflow uses a fixed Gradle version 8.9; CI build success is required before treating it as built.
-
-## Release gates (not met)
-
-Security audit; reproducible/attested dependency chain; FDE-specific tests; recovery and fault injection; code signing with protected publisher keys; independent testing on real devices. Public releases only after owner authorization.
+Produkcję 1.0 można zatwierdzić dopiero po spełnieniu [wymagań ukończenia](PRODUCT_ACCEPTANCE.md): odzyskiwanie, audyt, zgodność z systemami i sprzętem, bezpieczeństwo kluczy, aktualizacje oraz podpisane dystrybucje.
