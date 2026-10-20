@@ -8,13 +8,15 @@ KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Lin
 
 **[ZOBACZ WSZYSTKIE PLIKI DO POBRANIA — GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**
 
+**Bezpośrednie pliki z potwierdzonego wydania [krypta-dev-2-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-2-1) (20.10.2026):**
+
 | System | Plik do pobrania | Główna funkcja |
 |---|---|---|
-| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases)** | Graficzny File Vault — szyfrowanie i odszyfrowywanie wybranych plików |
-| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases)** | Graficzny File Vault; dodatkowy kod systemu plików i montowania FUSE |
-| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
+| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-2-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault — szyfrowanie i odszyfrowywanie wybranych plików |
+| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-2-1/KRYPTA-Linux-x64)** | Graficzny File Vault; dodatkowy kod systemu plików i montowania FUSE |
+| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-2-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
 
-Pobierz odpowiedni plik z sekcji **Assets** wybranego wydania. Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. Repozytorium jest **prywatne**, dlatego wydania są widoczne tylko dla osób z dostępem.
+Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze wersje znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. Repozytorium jest **prywatne**, dlatego wydania są widoczne tylko dla osób z dostępem.
 
 **Status: kompilacje rozwojowe, a nie certyfikowane wydania produkcyjne.** Korzystaj wyłącznie z kopii danych testowych. Aplikacje nie szyfrują jeszcze całego dysku systemowego ani całego telefonu.
 
