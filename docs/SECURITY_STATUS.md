@@ -14,6 +14,12 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
+## Sparse PVIMG/1 verified compact-copy (2026-10-20)
+
+The `PagedResearchVolume.export_compacted_copy()` API authenticates the live source state, streams allocated sectors to a separate exclusive-create image with a new image ID, and verifies the complete destination against the source. Failure injection covers corrupt source data, interrupted destination writes, existing destination files, output-path replacement and preservation of source bytes. `read_at()` now rejects unaligned ranges that touch more than the allowed number of sectors. See [PVIMG design and limits](PAGED_VOLUME_RESEARCH.md) and `tests/test_paged_compaction.py`.
+
+This is a **file-image development component**, not an online disk compactor or physical storage guarantee. The original file remains intact, old ciphertext is not erased, and no independent trusted rollback receipt store exists.
+
 ## Android selected-file research vault (2026-10-20)
 
 The Android **0.5.0 research APK** now implements actual selected-file encryption/decryption through `android/app/src/main/java/io/krypta/research/VaultFormat.java` and an Android Keystore wrapping key (`AndroidVaultKey.java`). Each file uses a random 256-bit DEK; encrypted 64-KiB chunks and an authenticated terminal record use AES-256-GCM. The code is separate from both desktop `.kry` and experimental HORIZON `.kvi` formats.

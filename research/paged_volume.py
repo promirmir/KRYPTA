@@ -408,6 +408,8 @@ class PagedResearchVolume:
             return b""
         start = offset // BLOCK_BYTES
         end = (offset + length - 1) // BLOCK_BYTES
+        if end - start + 1 > MAX_TX_BLOCKS:
+            raise PagedVolumeError("Read spans too many sectors")
         combined = b"".join(self.read(index) for index in range(start, end + 1))
         begin = offset % BLOCK_BYTES
         return combined[begin:begin + length]
@@ -438,25 +440,95 @@ class PagedResearchVolume:
             updates[index] = bytes(plaintext)
         return self.write_many(updates)
 
-    def verify_all(self) -> dict:
-        """Expensive opt-in verification of every allocated data sector."""
+    def _allocated_indices(self):
+        """Yield live sector indices without materializing the whole sparse map."""
         self._check()
-        sectors = 0
+
         def walk(ref, level, prefix):
-            nonlocal sectors
             if ref is None:
                 return
             slots = self._node(ref, level, prefix, self._commit_offset)
-            for slot in slots:
-                child_idx = prefix * FANOUT + int(slot)
+            for slot in sorted(slots, key=int):
+                address = prefix * FANOUT + int(slot)
                 if level:
-                    walk(slots[slot], level - 1, child_idx)
+                    yield from walk(slots[slot], level - 1, address)
                 else:
-                    self.read(child_idx)
-                    sectors += 1
-        walk(self.root, ROOT_LEVEL, 0)
+                    yield address
+
+        yield from walk(self.root, ROOT_LEVEL, 0)
+
+    def verify_all(self) -> dict:
+        """Read and authenticate all *live* encrypted sectors."""
+        self._check()
+        sectors = 0
+        for index in self._allocated_indices():
+            self.read(index)
+            sectors += 1
         return {"verified_sectors": sectors, "sequence": self.sequence,
                 "receipt": self.receipt}
+
+    def export_compacted_copy(self, destination: str | Path) -> dict:
+        """Export live sectors to an independently authenticated NEW image.
+
+        Source stays unchanged and locked. The destination has fresh image ID,
+        salts, nonces, sector generations and commit receipt; this deliberately
+        does not update or transfer an external anti-rollback trust anchor.
+        Filesystem/OS metadata outside this block layer is not migrated here.
+
+        On failure, attempt to remove ONLY the newly created destination inode;
+        do not follow symlink swaps, overwrite targets, or remove the source.
+        """
+        self._check()
+        target = Path(destination)
+        if target.resolve(strict=False) == self.path.resolve(strict=False):
+            raise PagedVolumeError("Source and compacted destination must differ")
+        if target.suffix.lower() != ".kpv":
+            raise PagedVolumeError("Destination must be a separate .kpv test file")
+
+        # Authenticate every live source sector before constructing output.
+        source_report = self.verify_all()
+        created_identity = None
+        try:
+            with PagedResearchVolume(target, self.key, create=True) as compact:
+                created_identity = os.fstat(compact._f.fileno())
+                batch = {}
+                for index in self._allocated_indices():
+                    batch[index] = self.read(index)
+                    if len(batch) == MAX_TX_BLOCKS:
+                        compact.write_many(batch)
+                        batch.clear()
+                if batch:
+                    compact.write_many(batch)
+
+                output_report = compact.verify_all()
+                if output_report["verified_sectors"] != source_report["verified_sectors"]:
+                    raise PagedVolumeError("Compacted image sector count mismatch")
+                # Check equality on both independently authenticated images.
+                for index in self._allocated_indices():
+                    if not hmac.compare_digest(self.read(index), compact.read(index)):
+                        raise PagedVolumeError("Compacted image verification mismatch")
+                if compact.id == self.id or compact.receipt == self.receipt:
+                    raise PagedVolumeError("Compacted image reused source identity")
+                return {
+                    "source_sequence": self.sequence,
+                    "source_receipt": self.receipt,
+                    "source_image_id": self.id.hex(),
+                    "destination_sequence": compact.sequence,
+                    "destination_receipt": compact.receipt,
+                    "destination_image_id": compact.id.hex(),
+                    "sectors_verified": source_report["verified_sectors"],
+                }
+        except BaseException:
+            if created_identity is not None:
+                try:
+                    actual = os.stat(target, follow_symlinks=False)
+                    if (stat.S_ISREG(actual.st_mode) and
+                            (actual.st_dev, actual.st_ino) ==
+                            (created_identity.st_dev, created_identity.st_ino)):
+                        target.unlink()
+                except OSError:
+                    pass  # report original failure; do not remove unrelated paths
+            raise
 
     def close(self) -> None:
         if not self._closed:
