@@ -211,11 +211,12 @@ class PagedFileSystem:
         used = {index for name, desc in self._files.items() if name != filename
                 for index in desc["blocks"]}
         allocation = []
-        for index in range(CATALOGUE_SECTORS, MAX_BLOCKS):
-            if index not in used:
-                allocation.append(index)
-                if len(allocation) == needed:
-                    break
+        if needed:
+            for index in range(CATALOGUE_SECTORS, MAX_BLOCKS):
+                if index not in used:
+                    allocation.append(index)
+                    if len(allocation) == needed:
+                        break
         if len(allocation) < needed:
             raise PagedFSError("Not enough encrypted logical sectors")
         updates = {
