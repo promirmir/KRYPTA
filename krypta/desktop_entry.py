@@ -28,9 +28,38 @@ def run_self_test() -> int:
     return 0
 
 
+def run_volume_self_test() -> int:
+    """Check the *packaged* independent VIMG test engine, not any real disk."""
+    import secrets
+    from research.virtual_device import open_research_device
+    from research.volume_image import BLOCK_BYTES
+
+    with tempfile.TemporaryDirectory(prefix="krypta-vimg-package-test-") as directory:
+        image = Path(directory) / "disposable.kvi"
+        key = secrets.token_bytes(32)
+        offset = BLOCK_BYTES - 3
+        sample = b"KRYPTA-INDEPENDENT-BLOCK-TEST" * 10
+        with open_research_device(image, key, create=True) as device:
+            device.seek(offset)
+            if device.write(sample) != len(sample):
+                raise RuntimeError("Virtual volume did not complete the test write")
+            device.seek(offset)
+            if device.read(len(sample)) != sample:
+                raise RuntimeError("Virtual volume read/write mismatch")
+            expected_receipt = device.commit_receipt
+        with open_research_device(
+                image, key, expected_sequence=1, expected_receipt=expected_receipt) as device:
+            device.seek(offset)
+            if device.read(len(sample)) != sample:
+                raise RuntimeError("Packaged VIMG restore mismatch")
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
         return run_self_test()
+    if len(sys.argv) == 2 and sys.argv[1] == "--volume-self-test":
+        return run_volume_self_test()
     if len(sys.argv) != 1:
         return 2
     from krypta.gui import main as gui_main
