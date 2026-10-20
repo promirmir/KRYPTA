@@ -13,6 +13,12 @@
 - Nazwy plików używają UTF-8 NFC (w tym PL, RU, ZH), ale ograniczamy znaki nieprzenośne lub niebezpieczne w Windows/Linux. Brak katalogów podrzędnych, ACL i dowiązań.
 - `research/fs_demo.py` tworzy losowe jednorazowe klucze i pliki wyłącznie w katalogu tymczasowym. Po teście usuwa syntetyczny obraz wraz z kluczem.
 
+## Kontrola integralności i kopia zwartego stanu
+
+- `ResearchFileSystem.verify_all()` weryfikuje odczytem **wszystkie obecnie widoczne pliki**, znaczniki uwierzytelnienia sektorów i SHA-256 zawartości. Nie zmienia obrazu ani nie zwraca jawnych danych.
+- `ResearchVolume.export_compacted_copy(new_path)` tworzy **nowy** zaszyfrowany obraz z aktualnych sektorów; dotychczasowy zostaje nietknięty. Nowy obraz dostaje nowy identyfikator i nowy niezależny `commit_receipt`. Nie zastępuje bezpiecznego odzyskiwania, automatycznej kompakcji ani kasowania historycznych szyfrogramów.
+- Patrz [migracja badawcza](VIMG_LIVE_MIGRATION.md). Nie zastępować automatycznie obrazu przy aktywnym woluminie.
+
 ## Granice ochrony
 
 **To nie jest jeszcze szyfrowanie transparentne na poziomie całego systemu operacyjnego.** Gdy zewnętrzna aplikacja korzysta z API `ResearchFileSystem`, dane są szyfrowane automatycznie. Zapis do dowolnego katalogu Windows/Linux nie przechodzi przez KRYPTA bez osobnej implementacji i integracji systemowej.
