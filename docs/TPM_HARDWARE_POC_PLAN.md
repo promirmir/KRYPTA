@@ -1,6 +1,6 @@
 # TPM 2.0 — non-exportable key proof of concept (design gate)
 
-Status: proposed, not implemented. **This is not a short-PIN anti-brute-force claim.**
+Status: opt-in disposable-key test script prepared and its no-key default validated in Windows CI; **physical TPM key testing has NOT been performed.** This is not a short-PIN anti-brute-force claim.
 
 ## Objective
 
@@ -40,3 +40,10 @@ For disk encryption choose an audited backend, test removable drive recovery/por
 ## Release blockers
 
 Independent cryptographic review, threat-model tests, repeated power-loss and rollback simulations, signed builds, recovery and upgrade tests, independent audit. Until then keep repository PRIVATE and mark builds RESEARCH ONLY.
+
+
+## Implementation status
+
+- `windows/Test-KryptaTpmKey.ps1` exists as a manual **opt-in** proof of concept. Normal invocation without `-RunDisposableTest` reports `NOT_RUN` and must not create/delete any key.
+- Windows GitHub Actions statically checks script syntax and its default no-key path. This is **not** a TPM signing test or evidence of hardware throttling.
+- Running the opt-in key creation path requires explicit operator approval on a noncritical TPM-equipped Windows test device; cleanup and provider behavior must be recorded.
