@@ -1,80 +1,84 @@
 # KRYPTA
 
-**Niezależny system szyfrowania danych i woluminów — rozwijany z myślą o kompletnym produkcie dla Windows, Linux i Android.**
+**System szyfrowania plików i rozwijany własny silnik zaszyfrowanych woluminów.** Windows · Linux · Android.
 
-KRYPTA jest osobnym projektem bezpieczeństwa, niezależnym od AuronQ. Jej zadaniem jest dostarczenie własnego silnika szyfrowania woluminów i zarządzania kluczami, **bez wykorzystywania BitLocker, LUKS ani VeraCrypt jako silnika szyfrującego**. Docelowo chroniony wolumin ma działać normalnie po odblokowaniu, a wszystkie zapisy mają być automatycznie szyfrowane. Produktem końcowym mają być aplikacje i odpowiednie komponenty systemowe dla Windows i Linux oraz aplikacja i możliwe do uzyskania mechanizmy ochrony dla Androida.
+KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Linux i Android umożliwiają lokalne szyfrowanie oraz odszyfrowywanie **wskazanych plików**. Rozwój obejmuje także własne zaszyfrowane woluminy, system plików, odzyskiwanie oraz zabezpieczanie kluczy.
 
-**Ambicja jakościowa:** osiągnięcie najlepszego poziomu bezpieczeństwa w mierzalnych zastosowaniach, w tym możliwość niezależnej oceny dla podmiotów o wysokich wymaganiach. To cel, nie obecnie wykazana przewaga ani certyfikacja.
+## 📥 Pobierz aplikację
 
-**Obecny stan (20 października 2026): rozwój przed wydaniem produkcyjnym.** Szyfrowanie wybranych plików na komputerze oraz Androidzie jest zaimplementowane. Szyfrowanie dysków systemowych, automatyczna ochrona wszystkich zapisów Windows i sprzętowe zabezpieczenie krótkiego PIN-u **nie są jeszcze gotowymi funkcjami**. Obecnych wersji nie należy używać jako jedynego zabezpieczenia ważnych danych. Nie przeprowadzono niezależnego audytu kryptograficznego.
+**[ZOBACZ WSZYSTKIE PLIKI DO POBRANIA — GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**
 
-![KRYPTA desktop interface](assets/matrix-ui.png)
-
-## Zakres produktu i bieżąca dostępność
-
-| Komponent | Faktycznie dostępne | Brakujące elementy do ukończenia |
+| System | Plik do pobrania | Główna funkcja |
 |---|---|---|
-| **File Vault — Windows/Linux** | Szyfrowanie i odszyfrowywanie wskazanych plików; CLI i GUI; AES-256-GCM, Argon2id, uwierzytelnienie i opcjonalny oddzielny plik klucza | Audyt, rozszerzone testy bezpieczeństwa, lepsza kontrola dostępu do pamięci i plików wyjściowych |
-| **Encrypted Volume Core** | Własny VIMG/0 z uwierzytelnionymi transakcjami i nowy PVIMG/1 z hierarchicznym indeksem oraz logiczną przestrzenią 1 GiB; oba działają na wydzielonych obrazach plikowych | Skalowalność produkcyjna, kompakcja, sprawdzone odzyskiwanie po awarii, sprzętowa ochrona kluczy |
-| **Linux volume** | Odczyt/zapis przez własny silnik KRYPTA i adapter FUSE w ograniczonym woluminie; potwierdzony montaż w jednej maszynie CI | Pełna semantyka systemu plików, wieloplatformowe testy montowania i awarii oraz wdrożenie produkcyjne |
-| **Windows Drive Shield** | Kod diagnostyczny i komponenty silnika plikowego | Rzeczywiste montowanie chronionych woluminów, obsługa USB/SSD/HDD, podpisane komponenty i testy odzyskiwania |
-| **Windows System Shield** | Dokumentacja architektury | Szyfrowanie dysku systemowego, ochrona rozruchu, sterownik, bezpieczna migracja i odtwarzanie |
-| **Android File Vault** | Szyfrowanie/odszyfrowywanie wybranych plików przez KRYPTA-MOBILE/1 i Android Keystore w APK 0.5.0 | Bezpieczny eksport/backup kluczy, testy na fizycznych urządzeniach, stabilna podpisana wersja |
-| **Android full-device integration** | Niezaimplementowana | Zwykły APK nie ma uprawnień do zastąpienia szyfrowania całego telefonu; wymaga odpowiedniego komponentu systemowego |
-| **Password Shield** | Niezaimplementowany | Sejf sekretów, ponowna autoryzacja, bezpieczne kopie i audyt |
-| **Short-PIN protection** | PIN można wprowadzić w File Vault | Brak niezależnej sprzętowej ochrony i ograniczania prób — krótki PIN sam w sobie pozwala na odgadywanie offline |
+| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases)** | Graficzny File Vault — szyfrowanie i odszyfrowywanie wybranych plików |
+| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases)** | Graficzny File Vault; dodatkowy kod systemu plików i montowania FUSE |
+| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
 
-Szczegółowe dowody i ograniczenia: [Stan bezpieczeństwa](docs/SECURITY_STATUS.md). Wymagania pełnego produktu: [Kryteria ukończenia](docs/PRODUCT_ACCEPTANCE.md) i [karta projektu](docs/PROJECT_CHARTER.md).
+Pobierz odpowiedni plik z sekcji **Assets** wybranego wydania. Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. Repozytorium jest **prywatne**, dlatego wydania są widoczne tylko dla osób z dostępem.
 
-## Własna architektura szyfrowania
+**Status: kompilacje rozwojowe, a nie certyfikowane wydania produkcyjne.** Korzystaj wyłącznie z kopii danych testowych. Aplikacje nie szyfrują jeszcze całego dysku systemowego ani całego telefonu.
 
-KRYPTA rozdziela warstwy: format woluminu i jego transakcje, ochronę kluczy, szyfrowanie rekordów, system plików, adapter systemowy i interfejs. Własny projekt formatu, indeksu i zarządzania dostępem nie wymaga wymyślania od podstaw niezweryfikowanego matematycznie szyfru. Sprawdzone prymitywy można wykorzystać w niezależnym silniku KRYPTA.
+![KRYPTA — interfejs Windows/Linux](assets/matrix-ui.png)
 
-- **File Vault v2:** losowy klucz danych 256 bitów, AES-256-GCM, Argon2id + HKDF-SHA-256, kontrola integralności każdego fragmentu i końca pliku.
-- **KRYPTA-VIMG/0:** transakcyjne zapisy sektorów w małym zaszyfrowanym obrazie i uwierzytelnione metadane.
-- **KRYPTA-PVIMG/1:** oddzielny format z hierarchicznym indeksem COW, uwierzytelnionym korzeniem i rzadką logiczną przestrzenią adresową. **Nie zastępuje automatycznie VIMG/0.**
-- **HORIZON/0:** konstrukcja szyfrowania rekordów wykorzystująca AES-256-GCM i ChaCha20-Poly1305; nie ma niezależnego dowodu, że taka kompozycja przewyższa sam sprawdzony AEAD.
+## Możliwości KRYPTA
 
-Samo uwierzytelnianie bloków nie wykryje przywrócenia całego starego, poprawnego obrazu. Tę gwarancję zapewni dopiero niezależnie chroniony i aktualizowany stan kontrolny. Nie jest jeszcze wdrożony. Nie ma też obecnie sprzętowo wymuszanego limitu prób przy krótkim PIN-ie.
+| Funkcja | Windows | Linux | Android |
+|---|:---:|:---:|:---:|
+| Graficzny interfejs | ✅ | ✅ | ✅ |
+| Szyfrowanie i odszyfrowywanie wybranych plików | ✅ | ✅ | ✅ |
+| AES-256-GCM z uwierzytelnieniem integralności | ✅ | ✅ | ✅ |
+| Hasło i Argon2id | ✅ | ✅ | — |
+| Android Keystore i uwierzytelnienie urządzenia | — | — | ✅ |
+| Własny silnik zaszyfrowanych woluminów PVIMG/1 | W kodzie | W kodzie | — |
+| Potwierdzone montowanie zaszyfrowanego katalogu przez FUSE | — | ✅ osobne narzędzie | — |
+| Transparentne szyfrowanie całego urządzenia | ❌ | ❌ | ❌ |
+| Sprzętowy limit prób krótkiego PIN-u | ❌ | ❌ | ❌ |
+| Zweryfikowane przenośne odzyskiwanie kluczy | ❌ | ❌ | ❌ |
 
-## Pobieranie i uruchamianie obecnego kodu
+### Windows i Linux — File Vault
 
-Repozytorium jest **PRIVATE**. Workflow GitHub Actions przygotowuje wewnętrzne pliki Windows `.exe`, Linux ELF i Android `.apk`. Są to kompilacje rozwojowe, nie opublikowane i audytowane wydania. Nie należy udostępniać ich jako gotowego szyfrowania całych urządzeń.
+Szyfrowanie wybranych plików do formatu KRYPTA przy użyciu AES-256-GCM, losowego klucza danych, Argon2id i opcjonalnego pliku klucza. Dane pozostają lokalne; hasło nie jest przekazywane przez argumenty CLI. Przy pomocy graficznej aplikacji można wybrać plik i wykonać szyfrowanie lub odszyfrowanie.
 
-Windows: Python 3.10+ z Tkinterem:
+### Android — File Vault
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[test]"
-python -m krypta gui
-```
+KRYPTA-MOBILE/1 pozwala zaszyfrować i odszyfrować wybrany dokument z użyciem AES-256-GCM i urządzeniowego Android Keystore. Aplikacja nie ma uprawnień do zastąpienia szyfrowania całej pamięci telefonu. **Android i desktop mają obecnie różne formaty plików.**
 
-CLI, przykładowe operacje na **danych testowych**:
+### Encrypted Volume Engine — Linux i Windows
 
-```powershell
-python -m krypta --help
-python -m krypta gen-keyfile example.key
-python -m krypta encrypt example.txt example.kry --keyfile example.key
-python -m krypta info example.kry
-python -m krypta decrypt example.kry recovered.txt --keyfile example.key
-python -m pytest -q
-```
+KRYPTA-PVIMG/1 ma własny uwierzytelniony wielopoziomowy indeks, szyfrowanie sektorów i transakcje copy-on-write. W Linux pomyślnie zweryfikowano **rzeczywiste montowanie FUSE** i operacje na pliku 610 KiB. Obecny zaszyfrowany katalog PFS/1 jest płaski i obsługuje do 128 plików, każdy do 960 KiB. **1 GiB logicznej przestrzeni adresowej silnika nie jest gwarancją 1 GiB użytecznej pojemności.**
 
-Hasło jest pobierane interaktywnie, nie z argumentów wiersza poleceń. Operacje nie powinny nadpisywać istniejącego pliku wyjściowego; oryginalny plik pozostaje bez zmian. Używaj jedynie kopii danych, które możesz utracić. Instrukcje kompilacji: [Build and release](docs/BUILD_AND_RELEASE.md); ograniczenia Androida: [Android README](android/README.md).
+[Stan funkcji i bezpieczeństwa](docs/SECURITY_STATUS.md) · [Linux FUSE — dowody](docs/PVIMG_LINUX_FUSE.md) · [Plan ukończenia wersji 1.0](docs/PRODUCT_ACCEPTANCE.md)
 
-## Jawny nagłówek szyfrowanych plików
+## Instalowanie i bezpieczeństwo pobierania
 
-Format `.kry` zawiera czytelny, niezaszyfrowany identyfikator KRYPTA i informacje o zastosowanym mechanizmie ochrony. Komunikat **nie stanowi atestu, podpisu producenta ani dowodu certyfikacji**. Jego uwierzytelnienie następuje w toku poprawnego odszyfrowania. Krótki PIN bez niezależnego silnego sekretu nadal podlega atakom słownikowym na kopię szyfrogramu. Istniejących nagłówków i komunikatów bezpieczeństwa nie wolno zmieniać w sposób, który fałszywie podnosi poziom gwarancji lub łamie kompatybilność plików.
+**Windows:** pobierz plik EXE i sprawdź jego SHA-256. EXE nie ma produkcyjnego podpisu wydawcy, więc Windows może ostrzegać. Nie obchodź ostrzeżeń systemu bez sprawdzenia pochodzenia pliku.
 
-## Bezpieczeństwo i prywatność
+**Linux:** pobierz plik KRYPTA-Linux-x64. Wymaga kompatybilnego środowiska graficznego oraz bibliotek Tk. Uruchom:
 
-KRYPTA jest projektowana jako system offline-first, bez wymaganego konta i telemetrii. Żadne szyfrowanie dysku nie zabezpieczy samo w sobie danych przed złośliwym kodem, który ma uprawnienia do ich odczytania **po odblokowaniu** urządzenia. Przed wydaniem końcowym wymagane są: testy utraty zasilania, odzyskiwania kluczy i danych, odporności na odgadywanie PIN-u, izolacji procesu, parserów, zgodności z systemami i niezależny audyt. Na dziś nie ma podstaw do określania KRYPTA jako certyfikowanej, wojskowo zatwierdzonej, „niełamliwej” ani odpornej na wszystkie przyszłe komputery kwantowe.
+~~~bash
+chmod +x KRYPTA-Linux-x64
+./KRYPTA-Linux-x64
+~~~
 
-## Lokalizacje i rozwój
+**Android:** pobierz APK debug. Jego podpis **nie jest stabilnym podpisem produkcyjnym**. Nowy APK może wymagać ponownego zainstalowania, a odinstalowanie, reset Android Keystore lub utrata urządzenia mogą **nieodwracalnie uniemożliwić odszyfrowanie** danych. Nie używaj go do jedynych kopii dokumentów.
 
-Interfejsy mają katalog 11 języków: polski, angielski, rosyjski, uproszczony chiński, hiszpański, arabski, hindi, portugalski, francuski, niemiecki i indonezyjski. Tłumaczenia komunikatów bezpieczeństwa wymagają przeglądu przed wydaniem.
+## Docelowe funkcje produktu
 
-Priorytet prac: **ukończenie i weryfikacja silnika woluminów → bezpieczne klucze i odzyskiwanie → realne montowanie Windows/Linux → systemowe szyfrowanie/boot → Android i sejf → testy końcowe i niezależna ocena**. Rozbudowa wyglądu nie może wyprzedzać bezpieczeństwa i podstawowej funkcjonalności.
+1. Pełne, automatyczne szyfrowanie woluminów Windows i Linux.
+2. Obsługa dysków USB, SSD i HDD oraz bezpieczny proces odzyskiwania.
+3. Sprzętowo chronione klucze i krótkie PIN-y z rzeczywistą blokadą prób odgadywania.
+4. Ochrona rozruchu i dysków systemowych po weryfikacji na odizolowanym sprzęcie.
+5. Bezpieczna integracja z Androidem w zakresie, na jaki pozwalają uprawnienia systemu.
+6. Niezależny audyt, testy awarii i porównanie z uznanymi rozwiązaniami.
 
-Wydanie produkcyjne można ogłosić dopiero po spełnieniu [kryteriów ukończenia](docs/PRODUCT_ACCEPTANCE.md). Repozytorium ma pozostać **PRIVATE** aż do wyraźnej decyzji właściciela.
+**Celem jest najwyższa mierzalna jakość zabezpieczeń.** Nie deklarujemy przewagi nad każdym innym systemem bez testów porównawczych, audytu i dowodów.
+
+## Dokumentacja i rozwój
+
+[Architektura](docs/ARCHITECTURE.md) · [Wymagania wersji 1.0](docs/PRODUCT_ACCEPTANCE.md) · [Instrukcja budowania](docs/BUILD_AND_RELEASE.md) · [Bezpieczeństwo](SECURITY.md) · [Testy i kompilacje](https://github.com/promirmir/KRYPTA/actions)
+
+---
+
+### English
+
+**KRYPTA** is an independent encryption project for Windows, Linux and Android. **[Download the development EXE, Linux executable and Android APK from GitHub Releases](https://github.com/promirmir/KRYPTA/releases).** Selected-file encryption works on all three platforms; the authenticated encrypted-volume engine and Linux FUSE integration are under development. These versions do **not** protect full system disks/phones and do not have production key recovery, independent audit or guaranteed secure short-PIN protection. Use disposable test data only. Downloads are private to repository collaborators.
