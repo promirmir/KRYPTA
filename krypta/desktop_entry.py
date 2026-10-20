@@ -55,11 +55,45 @@ def run_volume_self_test() -> int:
     return 0
 
 
+def run_filesystem_self_test() -> int:
+    """Exercise packaged KRYPTA-FS + authenticated copy using disposable data."""
+    import secrets
+    from research.fs_image import ResearchFileSystem
+    from research.volume_image import ResearchVolume
+    with tempfile.TemporaryDirectory(prefix="krypta-fs-package-test-") as directory:
+        root = Path(directory)
+        original = root / "synthetic-source.kvi"
+        migrated = root / "synthetic-compacted.kvi"
+        key = secrets.token_bytes(32)
+        with ResearchVolume(original, key, create=True) as volume:
+            filesystem = ResearchFileSystem.format(volume)
+            for i in range(6):
+                filesystem.write_file("test-data.txt", f"synthetic revision {i}".encode(),
+                                      replace=i > 0)
+            filesystem.write_file("Zażółć_你好.txt", b"another test")
+            checked = filesystem.verify_all()
+            if checked["files_verified"] != 2:
+                raise RuntimeError("Packaged filesystem integrity count mismatch")
+            migration = volume.export_compacted_copy(migrated)
+            if migration["source_receipt"] != filesystem.receipt:
+                raise RuntimeError("Compacted copy source receipt mismatch")
+        with ResearchVolume(migrated, key, expected_receipt=migration["new_receipt"]) as fresh:
+            restored = ResearchFileSystem(fresh)
+            if restored.read_file("test-data.txt") != b"synthetic revision 5":
+                raise RuntimeError("Packaged encrypted filesystem restore mismatch")
+            if restored.read_file("Zażółć_你好.txt") != b"another test":
+                raise RuntimeError("Packaged multilingual filename mismatch")
+            if restored.verify_all()["files_verified"] != 2:
+                raise RuntimeError("Packaged new image integrity sweep failed")
+    return 0
+
 def main() -> int:
     if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
         return run_self_test()
     if len(sys.argv) == 2 and sys.argv[1] == "--volume-self-test":
         return run_volume_self_test()
+    if len(sys.argv) == 2 and sys.argv[1] == "--filesystem-self-test":
+        return run_filesystem_self_test()
     if len(sys.argv) != 1:
         return 2
     from krypta.gui import main as gui_main
