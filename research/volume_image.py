@@ -225,7 +225,13 @@ class ResearchVolume:
                         manifest["id"] != self.id.hex() or not isinstance(manifest["entries"], dict) or
                         len(manifest["entries"]) > MAX_BLOCKS):
                     raise VolumeImageError("Inconsistent commit state")
+                # The authenticated bytes, not merely the decoded JSON object,
+                # must have the one canonical representation produced by KRYPTA.
+                # Otherwise duplicate keys, whitespace or reordered fields could
+                # acquire different interpretations in other implementations.
                 current = manifest["entries"]
+                if content != _manifest_bytes(manifest["seq"], self.id, current):
+                    raise VolumeImageError("Noncanonical authenticated commit manifest")
                 for k, info in current.items():
                     if not isinstance(k, str) or not k.isascii() or not k.isdecimal() or str(int(k)) != k or not 0 <= int(k) < MAX_BLOCKS:
                         raise VolumeImageError("Invalid sector identity")
