@@ -1,5 +1,7 @@
 # KRYPTA / product engineering roadmap
 
+**Kryterium zamknięcia prac:** [PRODUCT_ACCEPTANCE.md](PRODUCT_ACCEPTANCE.md). Każdy moduł ma zostać ukończony i sprawdzony na rzeczywistej platformie; pośrednie obrazy plikowe oraz badania kryptograficzne są etapami wdrożenia, nie docelową funkcją produktu.
+
 **Binding product goals:** [PROJECT_CHARTER](PROJECT_CHARTER.md). **Own cryptographic research:** [HORIZON_CRYPTO_RFC](HORIZON_CRYPTO_RFC.md). Existing OS encryption diagnostics are not a substitute for KRYPTA's own engine.
 
 Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Working research components include desktop single-file File Vault, experimental HORIZON/VIMG/FS image and virtual-stream modules (not mountable operating-system drives), and Android 0.5 selected-file encryption (not whole-phone encryption). Full transparent disk encryption, production recovery and trustworthy short-PIN anti-brute-force protection remain unimplemented.

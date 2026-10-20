@@ -396,6 +396,48 @@ class PagedResearchVolume:
     def write(self, index: int, data: bytes) -> int:
         return self.write_many({index: data})
 
+    def read_at(self, offset: int, length: int) -> bytes:
+        """Bounded logical byte-range read over authenticated sparse sectors."""
+        self._check()
+        if (type(offset) is not int or type(length) is not int or
+                offset < 0 or length < 0 or
+                offset + length > MAX_BLOCKS * BLOCK_BYTES or
+                length > MAX_TX_BLOCKS * BLOCK_BYTES):
+            raise PagedVolumeError("Invalid bounded logical read range")
+        if length == 0:
+            return b""
+        start = offset // BLOCK_BYTES
+        end = (offset + length - 1) // BLOCK_BYTES
+        combined = b"".join(self.read(index) for index in range(start, end + 1))
+        begin = offset % BLOCK_BYTES
+        return combined[begin:begin + length]
+
+    def write_at(self, offset: int, data: bytes) -> int:
+        """Atomic bounded byte-range update; all touched sectors commit together.
+
+        Partial sectors are authenticated before re-encryption. The write is
+        rejected without side effects if it crosses the end of the logical
+        image or exceeds the per-transaction sector cap.
+        """
+        self._check()
+        if (type(offset) is not int or offset < 0 or
+                not isinstance(data, bytes) or not data or
+                offset + len(data) > MAX_BLOCKS * BLOCK_BYTES):
+            raise PagedVolumeError("Invalid logical byte-range write")
+        start = offset // BLOCK_BYTES
+        end = (offset + len(data) - 1) // BLOCK_BYTES
+        if end - start + 1 > MAX_TX_BLOCKS:
+            raise PagedVolumeError("Too many sectors in one byte-range transaction")
+        updates = {}
+        for index in range(start, end + 1):
+            sector_start = index * BLOCK_BYTES
+            left = max(offset, sector_start)
+            right = min(offset + len(data), sector_start + BLOCK_BYTES)
+            plaintext = bytearray(self.read(index))
+            plaintext[left - sector_start:right - sector_start] = data[left - offset:right - offset]
+            updates[index] = bytes(plaintext)
+        return self.write_many(updates)
+
     def verify_all(self) -> dict:
         """Expensive opt-in verification of every allocated data sector."""
         self._check()

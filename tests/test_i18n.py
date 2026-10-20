@@ -54,3 +54,21 @@ def test_no_language_changes_encrypted_file_header_protocol():
     assert b'KRYPTA-FILE/2' in _notice(False)
     assert b'Argon2id' in _notice(False)
     assert b'END KRYPTA NOTICE' in _notice(False)
+
+@pytest.mark.parametrize('lang', sorted(LANGUAGES))
+def test_mobile_ui_describes_existing_selected_file_encryption(lang):
+    """No outdated 'interface only / no file encryption' capability claims."""
+    message = CATALOG[lang]['mobile_file_body']
+    assert 'AES-256-GCM' in message
+    assert 'Android Keystore' in message
+    assert CATALOG[lang]['mobile_status'].strip()
+    assert CATALOG[lang]['mobile_not_protected'].strip()
+    # The Android file vault is a real selected-file feature, not phone-wide FDE.
+    # Native encryption/decryption entrypoints are checked separately by Java tests.
+
+
+def test_mobile_capability_regression_in_english_and_polish():
+    assert 'SELECTED FILES' in CATALOG['en']['mobile_not_protected']
+    assert 'WYBRANE PLIKI' in CATALOG['pl']['mobile_not_protected']
+    assert 'INTERFACE ONLY' not in CATALOG['en']['mobile_status']
+    assert 'TYLKO INTERFEJS' not in CATALOG['pl']['mobile_status']
