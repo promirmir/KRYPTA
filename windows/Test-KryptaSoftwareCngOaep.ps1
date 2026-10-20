@@ -31,7 +31,7 @@ try {
     # null is an ephemeral, unnamed key: it is not installed persistently.
     $key = [System.Security.Cryptography.CngKey]::Create(
         [System.Security.Cryptography.CngAlgorithm]::Rsa, $null, $params)
-    if ($key.Provider.Provider -ne $providerName -or $null -ne $key.KeyName) {
+    if ($key.Provider.Provider -ne $providerName -or (-not [string]::IsNullOrEmpty($key.KeyName))) {
         throw ('Unexpected CNG attributes: provider=' + $key.Provider.Provider + '; name-present=' + [bool]$key.KeyName)
     }
     $rsa = [System.Security.Cryptography.RSACng]::new($key)
