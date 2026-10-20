@@ -46,12 +46,15 @@ jobs:
         run: |
           if (!(Test-Path 'dist/KRYPTA.exe')) { throw 'EXE build not found' }
           Get-FileHash 'dist/KRYPTA.exe' -Algorithm SHA256
+          $probe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--self-test' -Wait -PassThru
+          if ($probe.ExitCode -ne 0) { throw "Packaged Windows EXE self-test failed: $($probe.ExitCode)" }
       - name: Verify Linux output
         if: runner.os == 'Linux'
         run: |
           test -s dist/KRYPTA
           chmod +x dist/KRYPTA
           sha256sum dist/KRYPTA
+          ./dist/KRYPTA --self-test
       - name: Upload private research artifact
         uses: actions/upload-artifact@v4
         with:
