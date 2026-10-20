@@ -46,7 +46,8 @@ def main() -> int:
         key = secrets.token_bytes(32)
         marker = b"SYNTHETIC-KRYPTA-FUSE-CI-PROBE-ONLY" * 8
         with ResearchVolume(image, key, create=True) as volume:
-            ResearchFileSystem.format(volume)
+            fs = ResearchFileSystem.format(volume)
+            expected_receipt = fs.receipt
         input_fd, output_fd = os.pipe()
         proc = None
         mounted = False
@@ -56,6 +57,7 @@ def main() -> int:
                 "--image", str(image),
                 "--mountpoint", str(mountpoint),
                 "--key-fd", str(input_fd),
+                "--expected-receipt", expected_receipt,
                 "--accept-research-risk",
             ]
             proc = subprocess.Popen(
