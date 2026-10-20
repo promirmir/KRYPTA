@@ -1,7 +1,8 @@
 # KRYPTA-FS/0 — Linux FUSE research mount adapter
 
-**Status: opt-in research adapter, NOT a tested real mount, production filesystem,
-full-disk encryption, boot protection or suitable storage for important files.**
+**Status: opt-in research adapter with one verified disposable Linux kernel FUSE
+mount in GitHub Actions (2026-10-20). NOT a production filesystem, full-disk
+encryption, boot protection or suitable storage for important files.**
 
 The binding [Project Charter](PROJECT_CHARTER.md) requires an **independent**
 KRYPTA encrypted-volume engine. Linux FUSE is solely a Linux kernel **I/O
@@ -44,9 +45,13 @@ encrypted history has a 64-MiB physical image limit.
 
 Before using FUSE you need Linux with \`/dev/fuse\`, \`fusermount3\` (or
 \`fusermount\`), the optional \`fusepy\` Python binding and matching libfuse.
-Actual mount startup, unmount recovery, kernel error propagation and host
-compatibility **have not been exercised** by GitHub Actions. Do not test on a
-machine storing unique user data.
+Actual Linux kernel mount, file operations, unmount and authenticated
+reopen were exercised on a disposable Ubuntu 22.04 GitHub-hosted runner in
+[successful integration CI run 39460873238](https://github.com/promirmir/KRYPTA/actions/runs/39460873238).
+The job log explicitly reports **PASS: genuine disposable Linux kernel FUSE
+mount/write/read/rename/unlink/unmount/reopen**. This is a **single environment
+smoke test**, not verified support for all distributions, power loss, recovery,
+full POSIX operations or system disks. Do not test on a host storing unique data.
 
 Example creates an image in a temporary directory, generates an **ephemeral
 32-byte random key in RAM**, then starts the foreground mount. When the mount
@@ -92,6 +97,7 @@ KRYPTA-HORIZON/VIMG/FS engine is the encryption backend.
 
 The test distinguishes outcomes:
 - **PASS** in the test output: actual Linux kernel FUSE mount/unmount exercised.
+  First confirmed PASS: [GitHub Actions run 39460873238](https://github.com/promirmir/KRYPTA/actions/runs/39460873238), Ubuntu 22.04.
 - **SKIPPED (exit 77)**: runner lacks `/dev/fuse`, usable fusepy/libfuse or user
   mount support; this is NOT evidence of an actual mount.
 - **FAIL**: integration failed and needs triage before claims of compatibility.
