@@ -19,6 +19,7 @@ from .fs_image import (
 )
 from .volume_image import BLOCK_BYTES, MAX_BLOCKS, ResearchVolume, VolumeImageError
 from .paged_fs import PagedFileSystem
+from .paged_fs2 import PagedFS2, MAGIC as PFS2_MAGIC
 from .paged_volume import PagedResearchVolume, PagedVolumeError, MAX_IMAGE_BYTES
 
 # Optional package: pytest can exercise the adapter on Windows/Linux even if
@@ -71,8 +72,8 @@ class KryptaFuseOps(Operations):
     malware with root privileges, untrusted FUSE peers or a compromised host.
     """
 
-    def __init__(self, fs: ResearchFileSystem | PagedFileSystem):
-        if not isinstance(fs, (ResearchFileSystem, PagedFileSystem)):
+    def __init__(self, fs: ResearchFileSystem | PagedFileSystem | PagedFS2):
+        if not isinstance(fs, (ResearchFileSystem, PagedFileSystem, PagedFS2)):
             raise TypeError("Expected KRYPTA authenticated filesystem")
         fs._check()
         self._fs = fs
@@ -189,6 +190,8 @@ class KryptaFuseOps(Operations):
             raise FuseOSError(errno.EINVAL)
         if size > self._max_file_bytes:
             raise FuseOSError(errno.EFBIG)
+        if isinstance(self._fs, PagedFS2):
+            return self._fs.read_range(name, offset, size)
         return self._fs.read_file(name)[offset:offset + size]
 
     @_api
@@ -198,6 +201,14 @@ class KryptaFuseOps(Operations):
             raise FuseOSError(errno.EBADF)
         if type(offset) is not int or offset < 0 or not isinstance(data, bytes):
             raise FuseOSError(errno.EINVAL)
+        if isinstance(self._fs, PagedFS2):
+            if append:
+                offset = self._fs.stat(name)["size"]
+            if offset + len(data) > self._max_file_bytes:
+                raise FuseOSError(errno.EFBIG)
+            if data:
+                self._fs.write_at(name, offset, data)
+            return len(data)
         previous = self._fs.read_file(name)
         if append:
             offset = len(previous)
@@ -219,6 +230,9 @@ class KryptaFuseOps(Operations):
                 raise FuseOSError(errno.EACCES)
         if type(length) is not int or length < 0 or length > self._max_file_bytes:
             raise FuseOSError(errno.EFBIG)
+        if isinstance(self._fs, PagedFS2):
+            self._fs.truncate_file(name, length)
+            return 0
         old = self._fs.read_file(name)
         new = old[:length].ljust(length, b"\0")
         if old != new:
@@ -269,7 +283,7 @@ class KryptaFuseOps(Operations):
         logical_total = self._max_blocks - self._catalogue_sectors
         total = min(logical_total, getattr(self._fs, "physical_quota_blocks", logical_total))
         available = max(0, total - used)
-        if isinstance(self._fs, PagedFileSystem):
+        if isinstance(self._fs, (PagedFileSystem, PagedFS2)):
             # The physical append-only journal fills after repeated overwrites.
             # This is a conservative estimate, not an allocated-space promise.
             physical_used = os.fstat(self._fs._volume._f.fileno()).st_size
@@ -367,7 +381,10 @@ def mount_paged_image(volume: PagedResearchVolume, mountpoint: str):
         raise PermissionError("Mountpoint must be user-owned and mode 0700")
     if os.path.realpath(volume.path).startswith(os.path.realpath(folder) + os.sep):
         raise ValueError("Encrypted image cannot reside within its own mountpoint")
-    fs = PagedFileSystem(volume)
+    # Version selection relies exclusively on authenticated sector content.
+    # PFS/1 stays fully backward compatible; PFS/2 uses an independent marker.
+    header = volume.read(0)
+    fs = PagedFS2(volume) if header.startswith(PFS2_MAGIC) else PagedFileSystem(volume)
     return FUSE(KryptaFuseOps(fs), folder, foreground=True, nothreads=True,
                 allow_other=False, default_permissions=True,
                 fsname="KRYPTA-PVIMG-DEVELOPMENT")
