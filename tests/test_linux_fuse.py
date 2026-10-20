@@ -216,7 +216,7 @@ def test_opt_in_mount_requires_empty_owned_directory(system, tmp_path, monkeypat
         return "MOCK MOUNT ONLY"
     monkeypatch.setattr(linux_fuse, "FUSE", mock_fuse)
     folder = tmp_path / "mount"
-    folder.mkdir()
+    folder.mkdir(mode=0o700)
     assert linux_fuse.mount_research_image(vol, str(folder)) == "MOCK MOUNT ONLY"
     obj, directory, opts = calls[0]
     assert isinstance(obj, KryptaFuseOps)
@@ -235,3 +235,19 @@ def test_mount_rejects_image_within_mountpoint(system, tmp_path, monkeypatch):
     # Even when not actually mounting, reject an image below a mountpoint.
     with pytest.raises(ValueError):
         linux_fuse.mount_research_image(vol, str(tmp_path))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Linux-only mount security checks")
+def test_mount_refuses_root_or_world_accessible_mountpoint(system, tmp_path, monkeypatch):
+    _, _, vol, _, _ = system
+    monkeypatch.setattr(linux_fuse, "FUSE", lambda *a, **k: 0)
+    folder = tmp_path / "private"
+    folder.mkdir(mode=0o700)
+    original_getuid = linux_fuse.os.getuid
+    monkeypatch.setattr(linux_fuse.os, "getuid", lambda: 0)
+    with pytest.raises(PermissionError, match="as root"):
+        linux_fuse.mount_research_image(vol, str(folder))
+    monkeypatch.setattr(linux_fuse.os, "getuid", original_getuid)
+    folder.chmod(0o755)
+    with pytest.raises(PermissionError, match="private"):
+        linux_fuse.mount_research_image(vol, str(folder))
