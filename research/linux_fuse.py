@@ -23,7 +23,7 @@ from .volume_image import BLOCK_BYTES, MAX_BLOCKS, ResearchVolume, VolumeImageEr
 # the machine does not have libfuse or the 'fusepy' Python distribution.
 try:
     from fuse import FUSE, FuseOSError, Operations
-except ImportError:
+except (ImportError, OSError):
     FUSE = None
 
     class Operations:
@@ -128,7 +128,9 @@ class KryptaFuseOps(Operations):
     @_api
     def open(self, path, flags):
         name = self._file_exists(path)
-        mode = flags & os.O_ACCMODE
+        # POSIX access-mode mask uses low two bits. Python for Windows does
+        # not export os.O_ACCMODE, but test the mapping on both platforms.
+        mode = flags & 0o3
         if mode not in (os.O_RDONLY, os.O_WRONLY, os.O_RDWR):
             raise FuseOSError(errno.EINVAL)
         if flags & os.O_TRUNC:
