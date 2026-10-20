@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'windows/Get-KryptaTpmReadiness.ps1'
+      - 'windows/Test-KryptaTpmKey.ps1'
       - 'krypta/hardware_readiness.py'
       - 'tests/test_hardware_readiness.py'
       - '.github/workflows/tpm-readiness.yml'
@@ -29,6 +30,21 @@ jobs:
           if ($result.security_assurance.tpm_key_operations_tested -ne $false) { throw 'No key test was performed' }
           Write-Host "TPM present: $($result.tpm.present); KSP opened: $($result.platform_crypto_provider.can_open)"
           Write-Host 'This GitHub runner is NOT a valid hardware-PIN anti-hammering test.'
+      - name: Verify disposable key test is strictly opt-in (no hardware action)
+        shell: pwsh
+        run: |
+          $parseTokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path './windows/Test-KryptaTpmKey.ps1').Path,
+            [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) { throw 'TPM prototype PowerShell parse failed' }
+          $probe = & ./windows/Test-KryptaTpmKey.ps1 | ConvertFrom-Json
+          if ($probe.Status -ne 'NOT_RUN') { throw 'Unexpected TPM key creation on default invocation' }
+          if ($probe.EncryptionEnabled -ne $false) { throw 'Incorrect encryption status' }
+          if ($probe.EnforcedPinRetryLimitVerified -ne $false) { throw 'Incorrect PIN protection status' }
+          if ($probe.SignatureVerified -ne $false) { throw 'No signing operation may run by default' }
+          Write-Host 'PowerShell parsed; opt-in default reported NOT_RUN; no key created'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
