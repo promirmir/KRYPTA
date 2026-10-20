@@ -65,11 +65,20 @@ def _open_regular(path: Path, create: bool) -> BinaryIO:
     try:
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             raise VolumeImageError("Only regular files are accepted")
-        # Refuse more than one process using one image simultaneously on POSIX.
-        # Windows cross-process exclusion is NOT yet implemented: single writer only.
+        # Single writer across processes on POSIX and Windows.
         if os.name == "posix":
             import fcntl
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        elif os.name == "nt":
+            import msvcrt
+            # Lock a sentinel byte BEYOND the maximum image size, avoiding
+            # Windows mandatory byte-range locks on actual encrypted data.
+            # The kernel releases the lock when this fd is closed/crashes.
+            os.lseek(fd, MAX_IMAGE_BYTES + 4096, os.SEEK_SET)
+            try:
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            finally:
+                os.lseek(fd, 0, os.SEEK_SET)
         return os.fdopen(fd, "r+b", buffering=0)
     except BaseException:
         os.close(fd)
@@ -96,6 +105,7 @@ class ResearchVolume:
         self.sequence = -1
         self.commit_receipt = None  # needs storage outside the attacker-controlled image
         self._poisoned = False
+        self._recovery_trim_offset = None
         try:
             if create:
                 self.id = secrets.token_bytes(16)
@@ -116,6 +126,10 @@ class ResearchVolume:
             if expected_receipt is not None and not hmac.compare_digest(
                     self.commit_receipt, expected_receipt):
                 raise VolumeImageError("External commit receipt mismatch; possible rollback")
+            # Do NOT mutate the image before validating caller-supplied trust
+            # anchors: a rejected/wrong-key/rollback probe must be read-only.
+            if not create:
+                self._trim_uncommitted_tail()
         except BaseException:
             self._f.close()
             self._closed = True
@@ -227,12 +241,16 @@ class ResearchVolume:
         self.sequence = seq
         self.entries = good_entries
         self.commit_receipt = receipt
-        if last_end < total:
-            # Only append records after the most recent completed valid commit
-            # are discarded. A prior complete commit failing MAC never falls back.
-            self._f.truncate(last_end)
+        # Delay destructive tail cleanup until all external expected
+        # sequence / receipt checks pass in __init__.
+        self._recovery_trim_offset = last_end if last_end < total else None
+
+    def _trim_uncommitted_tail(self) -> None:
+        if self._recovery_trim_offset is not None:
+            self._f.truncate(self._recovery_trim_offset)
             self._f.flush()
             os.fsync(self._f.fileno())
+            self._recovery_trim_offset = None
 
     def _check_open(self):
         if self._closed:
