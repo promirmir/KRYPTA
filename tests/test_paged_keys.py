@@ -130,7 +130,7 @@ def test_envelope_byte_tamper_and_duplicate_keys_rejected(case, tmp_path):
     payload = json.loads(case["envelope"].read_text())
     payload["password_nonce"] = "AAAAAAAAAAAAAAAA"
     altered = tmp_path / "altered.pvkey"
-    altered.write_text(json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")) + "\n")
+    altered.write_bytes((json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")) + "\n").encode("ascii"))
     if os.name == "posix":
         altered.chmod(0o600)
     with pytest.raises(PagedKeyError, match="authentication failed"):
