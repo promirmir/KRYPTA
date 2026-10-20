@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .core import CryptoError, decrypt_file, encrypt_file, file_info, generate_keyfile
 from .i18n import LANGUAGES, normalize_language, translate
+from .volume_status import inspect_volumes
 
 INK = '#080F0C'
 PANEL = '#0D1812'
@@ -192,6 +193,20 @@ class KryptaApp(tk.Tk):
         self.future_copy.pack(anchor='w', padx=25)
         self._label(self.future_panel, '\n' + self._t('future_warning'),
                     GREEN_DIM, 9, True).pack(anchor='w', padx=25, pady=(25, 20))
+        # Windows BitLocker / Linux LUKS state is OS-managed; this UI ONLY reads it.
+        self.volume_scan_button = ttk.Button(
+            self.future_panel, text='SCAN SYSTEM / USB ENCRYPTION (READ-ONLY)',
+            command=self._scan_volumes, style='KV.TButton')
+        self.volume_scan_results = tk.Text(
+            self.future_panel, height=9, bg=PANEL_ALT, fg=TEXT,
+            font=(self._font_family(), 9), wrap='word', relief='flat',
+            padx=14, pady=10, state='disabled', highlightthickness=1,
+            highlightbackground=BORDER)
+        self.volume_scan_note = self._label(
+            self.future_panel,
+            'OS-managed transparent encryption only. Detection does not enable encryption, '
+            'verify TPM PIN limits or protect an unlocked device.',
+            AMBER, 9, justify='left', wraplength=680)
         card = tk.Frame(self.vault_panel, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
         card.pack(fill='x')
         pad = tk.Frame(card, bg=PANEL)
@@ -257,6 +272,9 @@ class KryptaApp(tk.Tk):
         summaries = ('', self._t('future_drive'), self._t('future_system'),
                      self._t('future_password'), self._t('future_android'))
         self.active_module = index
+        self.volume_scan_button.pack_forget()
+        self.volume_scan_results.pack_forget()
+        self.volume_scan_note.pack_forget()
         for i, btn in enumerate(self.module_buttons):
             selected = i == index
             btn.configure(bg=PANEL_ALT if selected else INK,
@@ -277,6 +295,32 @@ class KryptaApp(tk.Tk):
             self.future_heading.configure(text=f'0{index+1}  /  {names[index]}')
             self.future_copy.configure(text=summaries[index])
             self.future_panel.pack(fill='both', expand=True)
+            if index in (1, 2):
+                self.volume_scan_button.pack(anchor='w', padx=25, pady=(0, 12))
+                self.volume_scan_results.pack(fill='x', padx=25)
+                self.volume_scan_note.pack(fill='x', padx=25, pady=(10, 20))
+
+    def _scan_volumes(self):
+        """Run strictly read-only operating-system checks off the UI thread."""
+        if self.busy:
+            return
+        self.volume_scan_button.configure(state='disabled')
+        def work():
+            try:
+                report = inspect_volumes()
+                presentation = json.dumps(report, ensure_ascii=False, indent=2)
+            except Exception:
+                presentation = "UNKNOWN: could not inspect encryption status"
+            def done():
+                if not self.winfo_exists():
+                    return
+                self.volume_scan_results.configure(state='normal')
+                self.volume_scan_results.delete('1.0', 'end')
+                self.volume_scan_results.insert('end', presentation)
+                self.volume_scan_results.configure(state='disabled')
+                self.volume_scan_button.configure(state='normal')
+            self.after(0, done)
+        threading.Thread(target=work, daemon=True).start()
 
     def _field(self, parent, label, var, role):
         frame = tk.Frame(parent, bg=PANEL)
