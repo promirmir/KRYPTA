@@ -8,7 +8,11 @@ no complete POSIX semantics, trusted anti-rollback anchor or secure deletion.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
+import os
+from pathlib import Path
+import stat
 import struct
 from typing import Any
 
@@ -205,37 +209,66 @@ class PagedFileSystem:
         return result
 
     def write_file(self, filename: str, data: bytes, *, replace: bool = False) -> int:
-        """Commit complete encrypted contents + directory in one transaction."""
+        """Update only modified encrypted data sectors and the catalogue.
+
+        An existing file's contents and digest are authenticated BEFORE its
+        sector references are reused. The new catalogue plus every changed
+        data sector is published in ONE PVIMG commit. Existing sector indices
+        remain stable when possible, avoiding whole-file re-encryption on
+        small changes. Old ciphertext versions remain in the append-only log.
+        """
         self._check()
         filename = _name(filename)
         if not isinstance(data, bytes) or len(data) > MAX_FILE_BYTES:
             raise PagedFSError("File size exceeds atomic 960 KiB limit")
-        if filename in self._files and not replace:
+        exists = filename in self._files
+        if exists and not replace:
             raise FileExistsError(filename)
-        if filename not in self._files and len(self._files) >= MAX_FILES:
+        if not exists and len(self._files) >= MAX_FILES:
             raise PagedFSError("Maximum encrypted file count reached")
+
+        old_entry = self._files.get(filename)
+        if exists:
+            # Verify the previous ciphertext and file-level hash before
+            # exposing/preserving any previous authenticated sector pointer.
+            old_plaintext = self.read_file(filename)
+            if old_plaintext == data:
+                return self._sequence
+            previous_blocks = old_entry["blocks"]
+        else:
+            previous_blocks = []
+
         needed = (len(data) + BLOCK_BYTES - 1) // BLOCK_BYTES
-        used = {index for name, desc in self._files.items() if name != filename
-                for index in desc["blocks"]}
-        allocation = []
-        if needed:
-            for index in range(CATALOGUE_SECTORS, MAX_BLOCKS):
-                if index not in used:
-                    allocation.append(index)
-                    if len(allocation) == needed:
+        existing = list(previous_blocks[:needed])
+        additional = needed - len(existing)
+        if additional:
+            # Never overlap a currently referenced file sector. Dropped
+            # sectors can be reused only by a LATER logical allocation.
+            used = {sector for desc in self._files.values()
+                    for sector in desc["blocks"]}
+            for sector in range(CATALOGUE_SECTORS, MAX_BLOCKS):
+                if sector not in used:
+                    existing.append(sector)
+                    if len(existing) == needed:
                         break
-        if len(allocation) < needed:
+        if len(existing) < needed:
             raise PagedFSError("Not enough encrypted logical sectors")
-        updates = {
-            sector: data[i * BLOCK_BYTES:(i + 1) * BLOCK_BYTES].ljust(BLOCK_BYTES, b"\x00")
-            for i, sector in enumerate(allocation)
-        }
-        new_files = dict(self._files)
-        new_files[filename] = {
-            "size": len(data), "blocks": allocation,
+
+        updates = {}
+        for i, sector in enumerate(existing):
+            current = data[i * BLOCK_BYTES:(i + 1) * BLOCK_BYTES].ljust(
+                BLOCK_BYTES, b"\x00")
+            # Compare authenticated full ciphertext-backed sectors, not just
+            # file bytes; shrinking a file must zero its final padded sector.
+            if i >= len(previous_blocks) or self._volume.read(sector) != current:
+                updates[sector] = current
+
+        files = dict(self._files)
+        files[filename] = {
+            "size": len(data), "blocks": existing,
             "sha256": hashlib.sha256(data).hexdigest(),
         }
-        return self._commit(new_files, updates)
+        return self._commit(files, updates)
 
     def delete_file(self, filename: str) -> int:
         self._check()
@@ -256,6 +289,69 @@ class PagedFileSystem:
         files = dict(self._files)
         files[new] = files.pop(old)
         return self._commit(files)
+
+    def export_live_files(self, destination: str | Path) -> dict:
+        """Create a verified, separate PVIMG-PFS/1 image with ONLY live files.
+
+        Unlike raw sector compaction, this reconstructs the current logical
+        filesystem catalogue. Deleted files and freed logical sectors are not
+        copied into the NEW image. Old image/history remains untouched: this
+        is NOT secure erasure or trusted anti-rollback migration.
+
+        Existing destination paths are never overwritten. Failed copies are
+        removed only when their inode still matches the one just created.
+        """
+        self._check()
+        target = Path(destination)
+        if target.resolve(strict=False) == self._volume.path.resolve(strict=False):
+            raise PagedFSError("Source and target must be separate images")
+        if target.suffix.lower() != ".kpv":
+            raise PagedFSError("New filesystem image must have .kpv suffix")
+
+        # Full preflight before creating *anything* at the destination.
+        source = self.verify_all()
+        names = self.list_files()
+        identity = None
+        try:
+            with PagedResearchVolume(target, self._volume.key, create=True) as new_volume:
+                identity = os.fstat(new_volume._f.fileno())
+                new_fs = PagedFileSystem.format(new_volume)
+                for filename in names:
+                    # Authentication occurs before any plaintext is re-encrypted.
+                    new_fs.write_file(filename, self.read_file(filename))
+                copied = new_fs.verify_all()
+                if (copied["files_verified"] != source["files_verified"] or
+                        copied["bytes_verified"] != source["bytes_verified"] or
+                        new_volume.id == self._volume.id):
+                    raise PagedFSError("Verified logical migration mismatch")
+                # Independently compare all authenticated file plaintexts.
+                for filename in names:
+                    if not hmac.compare_digest(
+                        self.read_file(filename), new_fs.read_file(filename)
+                    ):
+                        raise PagedFSError("Copied encrypted file content mismatch")
+                self._check()
+                return {
+                    "source_image_id": self._volume.id.hex(),
+                    "source_sequence": self._sequence,
+                    "source_receipt": source["receipt"],
+                    "destination_image_id": new_volume.id.hex(),
+                    "destination_sequence": new_volume.sequence,
+                    "destination_receipt": copied["receipt"],
+                    "files_verified": copied["files_verified"],
+                    "bytes_verified": copied["bytes_verified"],
+                }
+        except BaseException:
+            if identity is not None:
+                try:
+                    current = os.stat(target, follow_symlinks=False)
+                    if (stat.S_ISREG(current.st_mode)
+                            and (current.st_dev, current.st_ino) ==
+                            (identity.st_dev, identity.st_ino)):
+                        target.unlink()
+                except OSError:
+                    pass  # Preserve original failure and unrelated paths.
+            raise
 
     def append_file(self, filename: str, data: bytes) -> int:
         if not isinstance(data, bytes):

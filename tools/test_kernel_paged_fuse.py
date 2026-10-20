@@ -82,6 +82,17 @@ def main() -> int:
             first.write_bytes(marker)
             if first.read_bytes() != marker:
                 raise AssertionError("Large encrypted file read/write mismatch")
+            before_small_edit = image.stat().st_size
+            with first.open("r+b") as handle:
+                handle.seek(300000)
+                if handle.write(b"XYZ") != 3:
+                    raise AssertionError("Short random overwrite through kernel FUSE")
+            marker = marker[:300000] + b"XYZ" + marker[300003:]
+            if first.read_bytes() != marker:
+                raise AssertionError("Encrypted partial overwrite mismatch")
+            # A 3-byte update must not re-encrypt the entire 610-KiB file.
+            if image.stat().st_size - before_small_edit >= 180_000:
+                raise AssertionError("Small file edit unexpectedly rewrote too much encrypted data")
             if b"larger-than-old-engine.bin" in image.read_bytes() or marker[:96] in image.read_bytes():
                 raise AssertionError("Plaintext/name appears in encrypted image")
             renamed = folder / "renamed-encrypted.bin"

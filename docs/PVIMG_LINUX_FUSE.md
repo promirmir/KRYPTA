@@ -13,12 +13,21 @@
 - Operacje niemożliwe do poprawnej realizacji (ACL, stałe atrybuty czasu, chmod/chown, katalogi, symlinki, hard linki) są jawnie odrzucane. Operacje na otwartych plikach nie implementują jeszcze wszystkich reguł POSIX.
 - Katalog i pliki są niewidoczne w postaci jawnej w obrazie hosta, ale nazwa KRYPTA, rozmiar obrazu i wzorzec przyrostu dziennika są jawne.
 
+## Usprawniony zapis i odzyskiwanie żywych plików
+
+- Przy zamianie zawartości pliku `PagedFileSystem.write_file(..., replace=True)` najpierw uwierzytelnia istniejące dane i SHA-256, zachowuje niezmienione odnośniki sektorów, a do jednej transakcji PVIMG zapisuje wyłącznie **zmienione sektory** wraz z katalogiem. Zapisy identycznych danych nie zwiększają licznika transakcji.
+- Nowe `PagedFileSystem.export_live_files(new_path)` tworzy **oddzielny**, świeżo szyfrowany obraz. Kopiuje tylko pliki nadal widoczne w katalogu, sprawdza dane przed kopiowaniem i weryfikuje wszystkie pliki w obrazie wynikowym. Usunięte pliki oraz porzucone sektory nie są przenoszone do nowego obrazu.
+- Źródło pozostaje niezmienione. Plik wyjściowy nie może istnieć wcześniej. Przy wykrytym błędzie kopiowania usuwany jest tylko nowo utworzony plik, o ile nie został podmieniony pod tą ścieżką.
+- Nowy obraz ma **odrębny identyfikator, licznik i receipt**. Zewnętrzne zaufane potwierdzenie aktualnego stanu należy obsłużyć osobno; stary receipt nie autoryzuje nowego obrazu. Nie jest to bezpieczne wymazywanie starego nośnika ani gwarancja przetrwania fizycznej utraty zasilania.
+
+Dowody: `tests/test_paged_incremental.py`, `tests/test_pfs_live_export.py` oraz test prawdziwego montowania FUSE z trzybajtową modyfikacją pliku 610 KiB.
+
 ## Bezpieczeństwo i ograniczenia
 
 - **Brak zaufanej ochrony przed rollback.** Sam poprawny HMAC dawnej wersji obrazu nie wystarcza; wymagany jest najnowszy zaufany receipt przechowywany niezależnie.
 - **Brak bezpiecznego wymazywania**: usunięcie pliku usuwa wpis katalogowy, nie dawny szyfrogram ze wszystkich historycznych rekordów PVIMG. Eksport kompaktujący na poziomie bloków może zachowywać osierocone sektory.
 - Nieprzetestowana odporność na rzeczywiste zaniki zasilania, przywracanie TPM, błędy sprzętowe, root-malware i ataki na niezależnie nieaudytowaną konstrukcję HORIZON/0.
-- Obsługa FUSE jest synchroniczna i jednowątkowa; każde nadpisanie pliku szyfruje go ponownie w całości. To ogranicza wydajność i liczbę trwałych zapisów.
+- Obsługa FUSE jest synchroniczna i jednowątkowa. Zmiana pliku wymaga obecnie odczytu i weryfikacji całej jego zawartości, ale na dysku ponownie szyfrowane są **tylko zmienione sektory** i 16 sektorów katalogu. Nadal nie zapewnia to wydajności produkcyjnego systemu plików.
 - **Nie używać na fizycznych dyskach, partycjach systemowych ani z jedyną kopią danych.** System nie jest gotowy do produkcyjnego użycia.
 - Format PVIMG-PFS/1 ma odrębny nagłówek. Ani starsze pliki `.kvi`, ani pliki `.kry` nie są automatycznie konwertowane.
 
@@ -30,4 +39,4 @@ Test montowania z prawdziwym jądrem: `tools/test_kernel_paged_fuse.py`. GitHub 
 
 ## Warunki dalszych prac
 
-W następnej fazie konieczne jest przetestowanie wielomegabajtowych plików bez przepisywania całej zawartości przy każdym `write`, trwałej struktury katalogów, poprawnej semantyki POSIX, ograniczonej pamięci i pełnego odtwarzania po awarii. Dopiero wtedy uzasadniona będzie warstwa stabilnego montowania dysków wymiennych i prace nad Windows.
+W następnej fazie konieczne jest rozszerzenie **rozmiaru plików ponad 960 KiB** i ograniczenie potrzeby odczytu całego pliku podczas drobnego zapisu, wdrożenie trwałej struktury katalogów, poprawnej semantyki POSIX, ograniczonej pamięci i pełnego odtwarzania po awarii. Dopiero wtedy uzasadniona będzie warstwa stabilnego montowania dysków wymiennych i prace nad Windows.

@@ -14,6 +14,14 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
+## PVIMG-PFS/1 selective encrypted-sector writes and logical recovery export (2026-10-20)
+
+`research/paged_fs.py` now verifies a replaced file's original encrypted data and digest, preserves unchanged authenticated data-sector references and encrypts only changed sectors in a single atomic PVIMG catalogue/data transaction. An identical replacement performs no filesystem commit. Both changes are regression-tested without altering VIMG/0 or the on-disk PFS/1 format.
+
+The new `PagedFileSystem.export_live_files()` creates a **separate no-overwrite encrypted image** containing only the currently listed and verified files. Unlike lower-level sector-copy migration, it excludes unlinked file records and orphaned filesystem sectors. It verifies new copies, reports independent image identity and receipt, leaves the source intact, and checks destination inode before cleanup on a failed copy.
+
+**Not secure erasure or independent anti-rollback:** deleted ciphertext remains in the original image and potentially in flash wear-leveling/history; the new image has no trusted receipt anchor automatically provisioned. No real power-loss durability, Windows disk mount or full-system protection claim is made. [Design](PVIMG_LINUX_FUSE.md).
+
 ## Linux PVIMG-PFS/1 filesystem integration (2026-10-20)
 
 The implementation adds `research/paged_fs.py` (authenticated flat file catalogue) and `research/linux_mount_paged.py` on top of existing PVIMG/1 and the Linux FUSE adapter. The transaction limit currently restricts **individual files to 960 KiB** with up to 128 flat entries. A separate CI workflow distinguishes genuine Linux kernel FUSE mount PASS from infrastructure SKIP, while cross-platform unit tests verify byte writes, integrity, no-overwrite and failure recovery.
