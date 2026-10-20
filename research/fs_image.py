@@ -180,6 +180,24 @@ class ResearchFileSystem:
             raise ResearchFSError("Encrypted file digest mismatch")
         return plaintext
 
+    def verify_all(self) -> dict:
+        """Authenticate every current file and expose only aggregate counts.
+
+        This method is read-only. It verifies all live sector AEAD tags, the
+        per-file SHA-256 checksums, allocation consistency and the encrypted
+        catalogue validated at mount. It cannot prove historical secure
+        deletion or detect whole-image rollback without an EXTERNAL receipt.
+        """
+        self._check()
+        _validate_catalogue({"version": 0, "files": self._files})
+        total = 0
+        for filename in sorted(self._files):
+            data = self.read_file(filename)
+            total += len(data)
+        self._check()
+        return {"files_verified": len(self._files), "bytes_verified": total,
+                "sequence": self._last_sequence, "receipt": self._volume.commit_receipt}
+
     def _commit_files(self, files: dict[str, dict], updates: dict[int, bytes] | None = None) -> int:
         self._check()
         _validate_catalogue({"version": 0, "files": files})
