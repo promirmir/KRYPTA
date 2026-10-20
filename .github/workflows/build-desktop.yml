@@ -53,6 +53,8 @@ jobs:
           if ($probe.ExitCode -ne 0) { throw "Packaged Windows EXE self-test failed: $($probe.ExitCode)" }
           $volumeProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--volume-self-test' -Wait -PassThru
           if ($volumeProbe.ExitCode -ne 0) { throw "Packaged Windows independent volume smoke test failed: $($volumeProbe.ExitCode)" }
+          $filesystemProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--filesystem-self-test' -Wait -PassThru
+          if ($filesystemProbe.ExitCode -ne 0) { throw "Packaged Windows filesystem/migration test failed: $($filesystemProbe.ExitCode)" }
       - name: Verify Linux output
         if: runner.os == 'Linux'
         run: |
@@ -61,6 +63,7 @@ jobs:
           (cd dist && sha256sum KRYPTA > KRYPTA.sha256 && sha256sum -c KRYPTA.sha256)
           ./dist/KRYPTA --self-test
           ./dist/KRYPTA --volume-self-test
+          ./dist/KRYPTA --filesystem-self-test
       - name: Upload private research artifact
         uses: actions/upload-artifact@v4
         with:
