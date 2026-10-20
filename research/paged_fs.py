@@ -12,7 +12,7 @@ import json
 import struct
 from typing import Any
 
-from .fs_image import ResearchFSError, _name
+from .fs_image import ResearchFSError, _name as _validate_name
 from .paged_volume import (
     BLOCK_BYTES, MAX_BLOCKS, MAX_TX_BLOCKS, MAX_IMAGE_BYTES,
     PagedResearchVolume,
@@ -29,6 +29,13 @@ _HEADER = len(FS_MAGIC) + 4
 
 class PagedFSError(ResearchFSError):
     """Invalid, inconsistent or unsupported paged filesystem operation."""
+
+
+def _name(value: str) -> str:
+    try:
+        return _validate_name(value)
+    except ResearchFSError as exc:
+        raise PagedFSError(str(exc)) from exc
 
 
 def _pairs(items: list[tuple[str, Any]]) -> dict:
