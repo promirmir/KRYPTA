@@ -123,18 +123,18 @@ class VirtualBlockStream(io.RawIOBase):
         # cannot promise durability against buggy controllers or firmware.
         if self.closed:
             raise ValueError("Encrypted research device is closed")
-        self._volume._check_open()
+        # Volume commits already flush and fsync; IOBase.close calls flush.
+        # Do not hide a poisoned write failure; read/write checks enforce it.
 
     def close(self) -> None:
         if not self.closed:
             try:
+                # io.IOBase.close invokes flush before marking this stream closed.
+                super().close()
+            finally:
                 if self._owns_volume:
                     self._volume.close()
-            finally:
-                # io.IOBase.close() invokes flush(); avoid accessing volume
-                # after the owned handle is intentionally closed.
-                self._owns_volume = False
-                super().close()
+                    self._owns_volume = False
 
 
 def open_research_device(path, key: bytes, *, create: bool = False,
