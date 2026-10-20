@@ -1,7 +1,16 @@
 name: KRYPTA / file vault tests
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+# Only the latest PR head is relevant: previous unfinished test runs for the
+# same PR can otherwise monopolize Windows runners and delay security reviews.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:

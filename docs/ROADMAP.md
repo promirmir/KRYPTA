@@ -17,6 +17,15 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 
 **Other UI features, badges and secondary integrations must not take priority over this independent volume engine.**
 
+## PVKEY/1 — hasło i niezależny klucz odzyskiwania
+
+- [x] Oddzielenie losowego klucza woluminu od hasła i zapis dwóch uwierzytelnionych opakowań AES-256-GCM: Argon2id/HKDF oraz niezależny 256-bitowy sekret odzyskiwania.
+- [x] Odzyskiwanie dostępu po utracie hasła bez nadpisywania starszego pliku bundle; tworzenie `.kpv` i prywatnych plików kluczy z zakazem nadpisania.
+- [x] Linux FUSE może odblokować testowy obraz przez bundle i hasło przesyłane potokiem, bez surowego klucza w argumentach.
+- [ ] Prawdziwa rotacja DEK po kompromitacji poprzedniego hasła, sprzętowa kotwica `receipt`, TPM/HSM z limitowaniem prób PIN, podpisane interfejsy i testy na urządzeniach.
+
+[Dokumentacja i zagrożenia](PVKEY_PASSWORD_RECOVERY.md). Nie reklamować ochrony krótkiego PIN jako odpornej na atak offline.
+
 ## PFS/2 — atomowe pliki do 32 MiB na Linux
 
 - [x] Oddzielny format `KRYPTA-PFS/2` — obecny format PFS/1 pozostaje niezmieniony.

@@ -1,4 +1,4 @@
-"""Opt-in Linux FUSE entrypoint for an EXISTING KRYPTA-PFS/1 .kpv test file.
+"""Opt-in Linux FUSE entrypoint for an EXISTING KRYPTA PFS/1 or PFS/2 test image.
 
 No image formatting, disk enumeration, root privilege, key in argv/env or
 automatic trusted-receipt creation. Ordinary file only, private mountpoint.
@@ -8,22 +8,33 @@ from __future__ import annotations
 import argparse
 import platform
 import sys
+from pathlib import Path
 
 from .linux_mount import read_test_key_fd
+from .paged_key_cli import read_password_fd
+from .paged_keys import unlock_password, unlock_recovery, PagedKeyError, _new_private_file
 from .linux_fuse import mount_paged_image
 from .paged_volume import PagedResearchVolume
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="KRYPTA-PFS/1 development filesystem on a disposable .kpv file"
+        description="KRYPTA-PFS/1 or PFS/2 encrypted development filesystem"
     )
     parser.add_argument("--image", required=True, help="Existing formatted .kpv file")
     parser.add_argument("--mountpoint", required=True, help="Empty private directory (0700)")
-    parser.add_argument("--key-fd", type=int, required=True,
-                        help="Pipe/socket descriptor containing a 32-byte key")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--key-fd", type=int,
+                        help="Legacy pipe/socket containing raw 32-byte volume key")
+    source.add_argument("--envelope",
+                        help="Encrypted password/recovery bundle (.pvkey)")
+    parser.add_argument("--password-fd", type=int,
+                        help="Pipe/socket supplying long passphrase without argv/env")
+    parser.add_argument("--recovery", help="Independent 32-byte recovery file, instead of password")
     parser.add_argument("--expected-receipt", required=True,
                         help="Latest trusted 64-hex receipt held OUTSIDE the image")
+    parser.add_argument("--final-receipt-out",
+                        help="Optional NEW no-overwrite file for receipt AFTER successful unmount")
     parser.add_argument("--accept-development-risk", action="store_true",
                         help="Acknowledge this is NOT a production filesystem")
     args = parser.parse_args(argv)
@@ -32,11 +43,44 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Explicit risk acknowledgement is required")
     if platform.system() != "Linux":
         parser.error("The FUSE adapter runs only on Linux")
-    key = read_test_key_fd(args.key_fd)
+    if args.key_fd is not None:
+        if args.password_fd is not None or args.recovery is not None:
+            parser.error("Raw key descriptor cannot be mixed with password/recovery")
+        key, expected_image_id = read_test_key_fd(args.key_fd), None
+    else:
+        if args.recovery is not None and args.password_fd is not None:
+            parser.error("Choose either recovery file or password descriptor")
+        if args.recovery is not None:
+            key, expected_image_id = unlock_recovery(args.envelope, args.recovery)
+        else:
+            if args.password_fd is None:
+                parser.error("Encrypted envelope requires --password-fd or --recovery")
+            key, expected_image_id = unlock_password(
+                args.envelope, read_password_fd(args.password_fd)
+            )
     with PagedResearchVolume(
         args.image, key, create=False, expected_receipt=args.expected_receipt
     ) as volume:
+        if expected_image_id is not None and volume.id != expected_image_id:
+            raise PagedKeyError("Encrypted credential belongs to a different volume")
         mount_paged_image(volume, args.mountpoint)
+        # A fresh receipt is mandatory for the NEXT trusted open after writes.
+        # The selected location is not automatically a trusted anti-rollback
+        # store. Users must transfer it to independent protected storage.
+        final_receipt = volume.receipt
+        if args.final_receipt_out is not None:
+            dest = Path(args.final_receipt_out)
+            resolved = dest.resolve(strict=False)
+            image = Path(args.image).resolve(strict=False)
+            mountroot = Path(args.mountpoint).resolve(strict=False)
+            if (resolved == image or resolved == mountroot or
+                    mountroot in resolved.parents or
+                    (args.envelope and resolved == Path(args.envelope).resolve(strict=False)) or
+                    (args.recovery and resolved == Path(args.recovery).resolve(strict=False))):
+                raise PagedKeyError("Unsafe external receipt destination")
+            _new_private_file(dest, (final_receipt + "\n").encode("ascii"))
+        print("FINAL RECEIPT:", final_receipt)
+        print("Store the latest receipt in independently trusted storage before the next mount.")
     return 0
 
 

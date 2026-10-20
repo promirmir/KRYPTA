@@ -14,6 +14,12 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
+## PVKEY/1 — Argon2id-protected volume keys and independent recovery (2026-10-20)
+
+The new `research/paged_keys.py` versioned envelope protects a randomly generated PVIMG volume key with an Argon2id-derived AES-256-GCM wrapping key (64 MiB, 3 iterations) and independently encrypts the same key for a randomly generated 256-bit recovery secret. It binds both authenticated slots to the volume image ID. `research/paged_key_cli.py` supports safe exclusive-creation setup, integrity verification with an external receipt, and non-overwrite password recovery. The optional Linux FUSE mount path now supports password or recovery envelope unlock without raw key bytes on argv.
+
+**Crucial limits:** a copied envelope still allows offline password guesses; this is NOT TPM-protected PIN authentication. Rewrapping a password does not revoke the original password or old copies of its envelope. The independent receipt must still be held in genuinely trusted external storage and updated on changes. Hardware key custody, real-world recovery across OS devices, Windows protected ACL testing and an independent audit remain incomplete. [Architecture / limitations](PVKEY_PASSWORD_RECOVERY.md).
+
 ## KRYPTA-PFS/2 — 32-MiB encrypted files and single-commit publication (2026-10-20)
 
 New distinct on-disk catalogue `research/paged_fs2.py` supports sparse individual files up to **32 MiB**, with 64-KiB encrypted directory metadata, bounded per-sector AEAD reads, authenticated SHA-256 and data operations usable by the Linux FUSE adapter. PVIMG/1 now offers a separately named `write_many_atomic_large()` covering 8,208 sectors (32-MiB data plus 16 directory sectors) in **one** authenticated root commit.
