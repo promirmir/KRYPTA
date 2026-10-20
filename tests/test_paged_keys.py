@@ -205,3 +205,22 @@ def test_case_does_not_leak_secret_in_source_image(case):
     assert PASSWORD.encode("utf-8") not in raw
     assert case["recovery"].read_bytes() not in raw
     assert case["envelope"].read_bytes() not in raw
+
+
+def test_partial_credential_fsync_failure_removes_only_created_file(case, tmp_path, monkeypatch):
+    import research.paged_keys as keys
+    from research.paged_keys import _new_private_file
+
+    fresh = tmp_path / "not-left-behind.pvkey"
+    old_sync = keys.os.fsync
+
+    def fail_sync(fd):
+        raise OSError("synthetic credential fsync interruption")
+
+    monkeypatch.setattr(keys.os, "fsync", fail_sync)
+    with pytest.raises(OSError, match="synthetic credential"):
+        _new_private_file(fresh, b"SECRET-MUST-NOT-REMAIN")
+    monkeypatch.setattr(keys.os, "fsync", old_sync)
+    assert not fresh.exists()
+    assert case["envelope"].exists()
+    assert case["recovery"].exists()
