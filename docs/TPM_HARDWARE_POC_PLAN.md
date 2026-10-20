@@ -47,3 +47,28 @@ Independent cryptographic review, threat-model tests, repeated power-loss and ro
 - `windows/Test-KryptaTpmKey.ps1` exists as a manual **opt-in** proof of concept. Normal invocation without `-RunDisposableTest` reports `NOT_RUN` and must not create/delete any key.
 - Windows GitHub Actions statically checks script syntax and its default no-key path. This is **not** a TPM signing test or evidence of hardware throttling.
 - Running the opt-in key creation path requires explicit operator approval on a noncritical TPM-equipped Windows test device; cleanup and provider behavior must be recorded.
+
+## Milestone 1b: disposable 256-bit data-key wrapping (NEW RESEARCH PROBE)
+
+`windows/Test-KryptaTpmWrap.ps1` is a separate, opt-in experiment:
+
+- The **default invocation** returns `NOT_RUN` immediately and does not request or modify a TPM key.
+- With `-RunDisposableTest` on explicitly designated disposable Windows hardware, it attempts a newly generated, uniquely named **Microsoft Platform Crypto Provider** RSA key with export disabled.
+- A random 256-bit *test* secret is locally wrapped and unwrapped using **RSA-OAEP-SHA256**. The script compares the recovered bytes without printing any key material and best-effort clears managed byte arrays.
+- It attempts one PKCS#8 export to verify that specific API rejects private material, then deletes the specifically named key with a fresh handle.
+- Unexpected creation/wrapping results fail closed. If deletion fails, the report contains the *generated test-key name* to permit reviewed manual cleanup. No existing key, actual encrypted file, recovery policy or disk is touched.
+- This probe **does not** authenticate a human PIN, rate-limit authorization attempts, configure TPM PCR/boot policy, provide recovery, or validate anti-rollback. **Do not wire it into File Vault or present it as disk protection.**
+- RSA-OAEP hardware support and key ownership/cleanup remain to be tested on real TPM 2.0 hardware. PowerShell syntax/default-path GitHub tests are necessary but insufficient.
+- Managed-runtime secret arrays cannot guarantee zeroization of all native provider internals or copies. Never feed a real disk DEK to this script.
+
+### Explicit opt-in test on a designated disposable test Windows machine only
+
+```powershell
+# SAFE DEFAULT: inspect the contract, do not create any key
+.\windows\Test-KryptaTpmWrap.ps1
+
+# HARDWARE EXPERIMENT — only after operator reviews and explicitly accepts risks
+.\windows\Test-KryptaTpmWrap.ps1 -RunDisposableTest
+```
+
+Do not use the second command on your main Windows computer, on a production volume, or to justify short PINs as secure.
