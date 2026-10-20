@@ -55,6 +55,22 @@ class KryptaApp(tk.Tk):
         self.keyfile.trace_add('write', lambda *_: self._update_advisory())
         self.mode.trace_add('write', lambda *_: self._set_mode())
         self._update_advisory()
+        self.protocol("WM_DELETE_WINDOW", self._close_workstation)
+
+    def _close_workstation(self):
+        """Never kill a running encrypted-image write by closing the root UI."""
+        from .volume_lab_gui import VolumeLabWindow
+        if any(isinstance(window, VolumeLabWindow) and window.busy
+               for window in self.winfo_children()):
+            messagebox.showwarning(
+                'KRYPTA', 'Trwa zapis zaszyfrowanego obrazu. Poczekaj na wynik.',
+                parent=self)
+            return
+        if self.busy:
+            messagebox.showwarning(
+                'KRYPTA', self._t('processing'), parent=self)
+            return
+        self.destroy()
 
     def _t(self, key):
         return translate(self.language_code, key)
@@ -68,8 +84,12 @@ class KryptaApp(tk.Tk):
             return
         selected = self.active_module
         self.language_code = match
+        # Keep independent Volume Lab Toplevel windows alive, especially
+        # during an encrypted write. A locale change is NEVER permission to
+        # terminate an active COW commit and lose the updated receipt.
         for child in self.winfo_children():
-            child.destroy()
+            if not isinstance(child, tk.Toplevel):
+                child.destroy()
         self._setup_style()
         self._layout()
         self.active_module = 0
