@@ -18,6 +18,15 @@ Workflow uruchamia się po zmianach kodu na gałęzi main lub jawnie ręcznie (R
 
 **Releases i pliki mogą pobierać tylko osoby z dostępem do prywatnego repozytorium.** Bez tego GitHub może wyświetlić 404.
 
+## Alternatywne lokalne kompilacje, gdy GitHub-hosted runners są niedostępne
+
+Gdy zadania GitHub Actions nie dostają runnerów (status `failure` przy pustej liście kroków), nie należy publikować domniemanych nowych plików ani uznawać buildu za zaliczony. Przygotowano niezależne ścieżki kompilowania ze źródeł pobranych z **zaufanego repozytorium**:
+
+- Windows: `powershell -File scripts/Build-Krypta-Windows-Local.ps1`
+- Linux: `bash scripts/build-krypta-linux-local.sh`
+
+Oba skrypty wymagają Python 3.10+, instalują zależności, uruchamiają pełny pytest, budują PyInstaller, a następnie weryfikują **uruchomiony program**, w tym `--paged-volume-self-test` z tworzeniem, importem, eksportem i rotacją klucza na syntetycznych danych. Po sukcesie generują SHA-256. To lokalne **niepodpisane** kompilacje deweloperskie, nie certyfikowany ani opublikowany produkt. Nie omijają wymagań niezależnego audytu i testów na rzeczywistym sprzęcie. [Moduł Volume Lab](VOLUME_LAB_GUI.md).
+
 ## Co jest w aplikacjach
 
 Windows i Linux: File Vault (.kry) obsługuje autoryzowane szyfrowanie pojedynczych plików, AES-256-GCM i wyprowadzanie klucza z hasła przez Argon2id. Kod PVIMG/PFS i Linux FUSE znajduje się w repozytorium jako osobne narzędzia; GUI nie szyfruje automatycznie dysku systemowego.
