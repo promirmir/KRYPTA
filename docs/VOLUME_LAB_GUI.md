@@ -37,6 +37,13 @@ potwierdzenia stanu od użytkownika, pobranego z **niezależnie zaufanego źród
 Po imporcie danych/rotacji interfejs wyświetla **NOWY RECEIPT**, który trzeba
 zapisać poza kopiowalnym obrazem i aktualizować po każdej kolejnej zmianie.
 
+Interfejs wyświetla przycisk **„Zapisz receipt do NOWEGO pliku”** po poprawnej
+operacji. Tworzy on plik w trybie wykluczającym nadpisywanie. Przed zapisem
+aplikacja wyraźnie ostrzega, że przechowywanie `receipt` obok obrazu nie
+zapewnia niezależnej ochrony przeciw rollback. Zmiana języka i próba
+zamknięcia głównego okna nie przerywa aktywnej operacji zapisu obrazu.
+Nadal nie jest to sprzętowy sejf dla najnowszego `receipt`.
+
 - Nie zapisywać automatycznie potwierdzenia odczytanego z niezaufanego obrazu
   jako nowej zaufanej wartości, gdyż usuwałoby to ochronę przed rollback.
 - Utrata bieżącego \`receipt\` może uniemożliwić odblokowanie obrazu
