@@ -2,7 +2,18 @@
 
 **Binding product goals:** [PROJECT_CHARTER](PROJECT_CHARTER.md). **Own cryptographic research:** [HORIZON_CRYPTO_RFC](HORIZON_CRYPTO_RFC.md). Existing OS encryption diagnostics are not a substitute for KRYPTA's own engine.
 
-Status on 2026-10-20: v0.4.0-alpha. **Only the File Vault research prototype is functional.** Other modules appear in the Matrix-inspired desktop shell to make the architecture tangible without pretending to provide protection.
+Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Working research components include desktop single-file File Vault, experimental HORIZON/VIMG/FS image and virtual-stream modules (not mountable operating-system drives), and Android 0.5 selected-file encryption (not whole-phone encryption). Full transparent disk encryption, production recovery and trustworthy short-PIN anti-brute-force protection remain unimplemented.
+
+## First-priority completion sequence — OWN encryption engine
+
+1. Harden independent KRYPTA-HORIZON/VIMG/FS on disposable images: authentication of metadata, state consistency, large capacities, compaction and crash/rollback recovery.
+2. Connect that engine to an actual **mountable KRYPTA volume** with automatically encrypted reads/writes on Windows and Linux, initially only on disposable virtual machines.
+3. Develop protected key lifecycle, recovery and hardware-supported short-PIN security; the PIN must not be the only offline-guessable secret.
+4. Add tested system-boot and removable-drive support; ensure safe recovery and backwards-compatible migrations.
+5. Expand Android from selected-file vault to the strongest independently implemented protection that platform privileges actually allow; a normal APK cannot replace the OS-wide encryption subsystem.
+6. Compare documented guarantees and benchmark real attacks/recovery/performance against existing products. Seek independent evaluation for defense/government adoption, but no unproven superiority claim.
+
+**Other UI features, badges and secondary integrations must not take priority over this independent volume engine.**
 
 ## Stage A: file-format research — in progress
 
