@@ -14,6 +14,14 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
+## KRYPTA-PFS/2 — 32-MiB encrypted files and single-commit publication (2026-10-20)
+
+New distinct on-disk catalogue `research/paged_fs2.py` supports sparse individual files up to **32 MiB**, with 64-KiB encrypted directory metadata, bounded per-sector AEAD reads, authenticated SHA-256 and data operations usable by the Linux FUSE adapter. PVIMG/1 now offers a separately named `write_many_atomic_large()` covering 8,208 sectors (32-MiB data plus 16 directory sectors) in **one** authenticated root commit.
+
+This is not a series of independently committed batches: failure before final root publication must recover the previous directory AND previous external receipt. Adversarial tests include injected commit failure on multi-megabyte writes and authenticated reopening with the old receipt. Existing PFS/1 remains version-separated; no implicit conversion is performed.
+
+Hard limits remain: **512 MiB physical append log, 1-GiB sparse logical addressing, flat directory, no POSIX ACLs, no physical power-cut validation, no external hardware anti-rollback, no production keys or Windows system volume**. [Implementation and test scope](PFS2_LARGE_ATOMIC_FILES.md).
+
 ## PVIMG-PFS/1 selective encrypted-sector writes and logical recovery export (2026-10-20)
 
 `research/paged_fs.py` now verifies a replaced file's original encrypted data and digest, preserves unchanged authenticated data-sector references and encrypts only changed sectors in a single atomic PVIMG catalogue/data transaction. An identical replacement performs no filesystem commit. Both changes are regression-tested without altering VIMG/0 or the on-disk PFS/1 format.
