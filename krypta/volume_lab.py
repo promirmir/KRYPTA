@@ -38,6 +38,20 @@ def _distinct(*paths: str | Path) -> None:
         raise ValueError("Image, key, recovery and output paths must be distinct")
     if any(Path(p).is_symlink() for p in paths):
         raise ValueError("Symlinks are not accepted")
+    # Two different paths can still be hardlinks to the exact same inode.
+    # Reject such aliases before any operation that may write or export.
+    identities = []
+    for p in paths:
+        try:
+            identity = os.stat(p, follow_symlinks=False)
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISREG(identity.st_mode):
+            raise ValueError("Volume Lab accepts regular files only")
+        pair = (identity.st_dev, identity.st_ino)
+        if pair in identities:
+            raise ValueError("Hardlinked file paths must be distinct")
+        identities.append(pair)
 
 
 def _get_key(envelope: str | Path, *, password: str | None = None,
