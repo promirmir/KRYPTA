@@ -46,7 +46,7 @@ def test_formatted_cow_large_file_reopen_and_legacy_separation(tmp_path):
             PagedFileSystem.format(vol)
         receipt = fs.receipt
     assert large[:64] not in path.read_bytes()
-    assert b"żółty" not in path.read_bytes()
+    assert "żółty".encode("utf-8") not in path.read_bytes()
     assert FS_MAGIC not in path.read_bytes()
     with PagedResearchVolume(path, key, expected_receipt=receipt) as vol:
         fs = PagedFileSystem(vol)
