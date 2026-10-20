@@ -49,3 +49,55 @@ def test_volume_lab_sidebar_opens_separate_window_without_enabling_disk_shield()
         labs[0].destroy()
     finally:
         app.destroy()
+
+
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get("DISPLAY"),
+                    reason="Tk requires graphical display")
+def test_volume_lab_receipt_save_never_overwrites_and_root_close_guard(monkeypatch, tmp_path):
+    from krypta.gui import KryptaApp
+    from krypta.volume_lab_gui import VolumeLabWindow
+    import krypta.volume_lab_gui as ui
+    app = KryptaApp()
+    try:
+        app._show_module(5)
+        lab = next(w for w in app.winfo_children() if isinstance(w, VolumeLabWindow))
+        success_messages = []
+        denied_messages = []
+        monkeypatch.setattr(ui.messagebox, "showwarning", lambda *a, **k: None)
+        monkeypatch.setattr(ui.messagebox, "showinfo",
+                            lambda *a, **k: success_messages.append(True))
+        monkeypatch.setattr(ui.messagebox, "showerror",
+                            lambda *a, **k: denied_messages.append(True))
+        monkeypatch.setattr(ui.messagebox, "askyesno", lambda *a, **k: True)
+        destination = tmp_path / "trusted-new.receipt"
+        monkeypatch.setattr(ui.filedialog, "asksaveasfilename",
+                            lambda *a, **k: str(destination))
+        receipt = "a" * 64
+        lab._finish(True, {"receipt": receipt, "operation": "test"})
+        assert str(lab.save_receipt_button["state"]) == "normal"
+        lab._save_receipt()
+        assert destination.read_bytes() == (receipt + "\n").encode()
+        assert success_messages
+        lab._save_receipt()
+        assert denied_messages
+        assert destination.read_bytes() == (receipt + "\n").encode()
+
+        # Changing desktop language must not destroy an open volume window.
+        from krypta.i18n import LANGUAGES
+        other = next(name for code, name in LANGUAGES.items()
+                     if code != app.language_code)
+        app.language_name.set(other)
+        app._language_changed()
+        assert lab.winfo_exists()
+
+        lab.busy = True
+        monkeypatch.setattr("krypta.gui.messagebox.showwarning",
+                            lambda *a, **k: denied_messages.append(True))
+        app._close_workstation()
+        assert app.winfo_exists()
+        assert denied_messages
+        lab.busy = False
+        lab.destroy()
+    finally:
+        if app.winfo_exists():
+            app.destroy()
