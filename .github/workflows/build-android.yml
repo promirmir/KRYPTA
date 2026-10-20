@@ -1,4 +1,4 @@
-name: KRYPTA / Android UI research APK
+name: KRYPTA / Android file vault research APK
 
 on:
   workflow_dispatch:
@@ -43,7 +43,10 @@ jobs:
           gradle-version: '8.9'
       - name: Check shared localization resources
         run: python tools/sync_android_strings.py --check
-      - name: Build debug APK (UI prototype only)
+      - name: Run JVM vault tampering and roundtrip unit tests
+        working-directory: android
+        run: gradle --no-daemon :app:testDebugUnitTest
+      - name: Build debug APK (research File Vault only)
         working-directory: android
         run: gradle --no-daemon :app:assembleDebug
       - name: Android lint (security, compatibility and localized resources)
@@ -65,7 +68,7 @@ jobs:
           sha256sum "$APK" | tee android/KRYPTA-Android-debug.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: KRYPTA-Android-debug-UI-ONLY
+          name: KRYPTA-Android-debug-FileVault-Research
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
             android/KRYPTA-Android-debug.sha256
