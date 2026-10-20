@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_status">نسخة بحثية / ملفات مختارة</string>
+    <string name="vault_warning">لا يشفر KRYPTA الهاتف بالكامل. ملفات اختبار فقط؛ لا استرداد عند فقدان مفتاح Android Keystore.</string>
+    <string name="vault_body">AES-256-GCM وAndroid Keystore. تنسيق KRYPTA-MOBILE/1 غير متوافق مع .kry للحاسوب.</string>
+    <string name="vault_encrypt">تشفير ملف اختباري</string>
+    <string name="vault_decrypt">فك تشفير ملف اختباري</string>
+    <string name="vault_idle">اختر الملف المصدر.</string>
+    <string name="vault_success">اكتملت العملية. احتفظ بالأصل ونسخة احتياطية.</string>
+    <string name="vault_failed">فشلت العملية. قد يكون الناتج ناقصاً؛ احذفه. الأصل محفوظ.</string>
+    <string name="vault_cancelled">أُلغيت العملية.</string>
+    <string name="vault_need_lock">فعّل قفل شاشة آمناً أولاً.</string>
+    <string name="vault_auth_title">تفويض KRYPTA</string>
+    <string name="vault_auth_body">أكد قفل الجهاز لاستخدام المفتاح المحلي. لا يشفر هذا الهاتف بالكامل.</string>
+    <string name="vault_same_file">يجب أن يختلف المصدر عن الوجهة.</string>
+</resources>
