@@ -64,6 +64,10 @@ chmod +x KRYPTA-Linux-x64
 
 **Android:** pobierz APK debug. Jego podpis **nie jest stabilnym podpisem produkcyjnym**. Nowy APK może wymagać ponownego zainstalowania, a odinstalowanie, reset Android Keystore lub utrata urządzenia mogą **nieodwracalnie uniemożliwić odszyfrowanie** danych. Nie używaj go do jedynych kopii dokumentów.
 
+## Odblokowanie zaszyfrowanych woluminów — prace nad kluczami
+
+Własny silnik woluminów otrzymał osobny format `KRYPTA-PVKEY/1`: długie hasło (Argon2id) i **niezależny 256-bitowy klucz odzyskiwania**. Obsługiwane jest również testowe montowanie FUSE z kluczem odblokowanym przez hasło zamiast surowego klucza. Funkcja jest na razie dostępna w narzędziach źródłowych, **nie jako ukończona funkcja pobieranego EXE lub APK**. Krótki PIN bez prawdziwej sprzętowej kontroli prób nie daje odporności na odgadywanie. [Dokumentacja](docs/PVKEY_PASSWORD_RECOVERY.md).
+
 ## Docelowe funkcje produktu
 
 1. Pełne, automatyczne szyfrowanie woluminów Windows i Linux.
