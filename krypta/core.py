@@ -6,10 +6,12 @@ Never rely on this unaudited prototype for irreplaceable data.
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import json
 import os
 import secrets
+import stat
 import struct
 import tempfile
 import unicodedata
@@ -72,17 +74,53 @@ def _json(data: dict) -> bytes:
     return json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode('ascii')
 
 
+@contextlib.contextmanager
+def _open_checked_file(path: Path):
+    """Open a regular input file by descriptor, rejecting POSIX symlink races.
+
+    On POSIX, O_NOFOLLOW prevents replacing a checked file with a symlink
+    between path inspection and open. O_NONBLOCK avoids waiting for a FIFO
+    substituted by an attacker; fstat then rejects non-regular descriptors.
+    Windows reparse points/hostile directories need separate native review.
+    """
+    p = Path(path)
+    if p.is_symlink():
+        raise CryptoError('Dowiązania symboliczne nie są akceptowane')
+    flags = (os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) |
+             getattr(os, 'O_CLOEXEC', 0) | getattr(os, 'O_NONBLOCK', 0) |
+             getattr(os, 'O_BINARY', 0))
+    try:
+        fd = os.open(p, flags)
+    except OSError as exc:
+        raise CryptoError('Nie można bezpiecznie otworzyć pliku wejściowego') from exc
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise CryptoError('Plik wejściowy musi być zwykłym plikiem')
+        with os.fdopen(fd, 'rb') as handle:
+            fd = -1  # fdopen takes ownership
+            yield handle
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
 def _keyfile_digest(path: Path | None) -> bytes | None:
     if path is None:
         return None
-    p = Path(path)
-    if not p.is_file() or p.is_symlink() or p.stat().st_size < 32 or p.stat().st_size > MAX_KEYFILE_BYTES:
-        raise CryptoError('Plik klucza musi być zwykłym plikiem (32 B - 1 MiB)')
-    dig = hashlib.sha256()
-    with p.open('rb') as f:
-        while block := f.read(65536):
-            dig.update(block)
-    return dig.digest()
+    with _open_checked_file(Path(path)) as handle:
+        length = os.fstat(handle.fileno()).st_size
+        if length < 32 or length > MAX_KEYFILE_BYTES:
+            raise CryptoError('Plik klucza musi być zwykłym plikiem (32 B - 1 MiB)')
+        digest = hashlib.sha256()
+        seen = 0
+        while block := handle.read(65536):
+            seen += len(block)
+            if seen > MAX_KEYFILE_BYTES:
+                raise CryptoError('Plik klucza przekracza limit 1 MiB')
+            digest.update(block)
+        if seen != length:
+            raise CryptoError('Plik klucza zmienił rozmiar podczas odczytu')
+        return digest.digest()
 
 
 def _derive_wrap_key(password: str, salt: bytes, keyfile_digest: bytes | None, version: int = 2) -> bytes:
@@ -103,17 +141,21 @@ def _derive_wrap_key(password: str, salt: bytes, keyfile_digest: bytes | None, v
 
 def generate_keyfile(path: str | Path) -> None:
     p = Path(path)
-    if p.exists():
-        raise FileExistsError(f'Plik istnieje: {p}')
-    # Exclusive creation. The 32-byte keyfile must be backed up separately.
-    with p.open('xb') as output:
-        output.write(secrets.token_bytes(32))
-        output.flush()
-        os.fsync(output.fileno())
+    # O_EXCL prevents overwrite; mode 0o600 avoids a permissions window on
+    # POSIX (chmod after creation would be too late). Windows ACL security
+    # is platform-specific and requires independent validation.
+    flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+             getattr(os, 'O_CLOEXEC', 0) | getattr(os, 'O_BINARY', 0))
+    fd = os.open(p, flags, 0o600)
     try:
-        os.chmod(p, 0o600)
-    except OSError:
-        pass
+        with os.fdopen(fd, 'wb') as output:
+            fd = -1
+            output.write(secrets.token_bytes(32))
+            output.flush()
+            os.fsync(output.fileno())
+    finally:
+        if fd >= 0:
+            os.close(fd)
 
 
 def _read_exact(f: BinaryIO, n: int) -> bytes:
@@ -259,7 +301,7 @@ def encrypt_file(source: str | Path, output: str | Path, password: str,
         out.write(MAGIC)
         out.write(struct.pack('>I', len(header)))
         out.write(header)
-        with source.open('rb') as inp:
+        with _open_checked_file(source) as inp:
             index = 0
             while chunk := inp.read(CHUNK_SIZE):
                 if index >= 2**64 - 1:
@@ -317,7 +359,7 @@ def _decrypt_stream(inp: BinaryIO, data_aead: AESGCM, nonce_prefix: bytes,
 def decrypt_file(source: str | Path, output: str | Path, password: str,
                  keyfile: str | Path | None = None) -> None:
     source, output = _prepare_paths(source, output)
-    with source.open('rb') as inp:
+    with _open_checked_file(source) as inp:
         meta, raw_header, header_hash, notice = _read_header(inp)
         digest = _keyfile_digest(Path(keyfile) if keyfile is not None else None)
         if (digest is not None) != meta['keyfile_required']:

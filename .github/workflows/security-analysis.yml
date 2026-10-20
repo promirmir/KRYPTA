@@ -1,0 +1,38 @@
+name: KRYPTA / security analysis
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'krypta/**'
+      - 'pyproject.toml'
+      - '.github/workflows/security-analysis.yml'
+  pull_request:
+    paths:
+      - 'krypta/**'
+      - 'pyproject.toml'
+      - '.github/workflows/security-analysis.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-dependency-audit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install KRYPTA and security analyzers
+        run: |
+          python -m pip install -e '.[test]'
+          python -m pip install 'bandit>=1.7.10,<2' 'pip-audit>=2.7,<3'
+      - name: Validate Python syntax
+        run: python -m compileall -q krypta tests
+      - name: Static analysis for high and medium-severity findings
+        run: python -m bandit -r krypta -q -ll
+      - name: Check installed package vulnerabilities (fail closed)
+        run: python -m pip_audit --strict --progress-spinner off
