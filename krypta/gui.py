@@ -154,7 +154,10 @@ class KryptaApp(tk.Tk):
             ('03', self._t('system_shield'), self._t('planned'), False),
             ('04', self._t('password_shield'), self._t('planned'), False),
             ('05', self._t('android_shield'), self._t('planned'), False),
-            ('06', 'Volume Lab (PFS/2)', 'test images only', True),
+            ('06', 'Woluminy / Volume Lab' if self.language_code == 'pl'
+             else 'Volume Lab (PFS/2)',
+             'tylko testowe .kpv' if self.language_code == 'pl'
+             else 'test .kpv only', True),
         ]
         self.module_buttons = []
         for index, (i, name, status, active) in enumerate(specs):
