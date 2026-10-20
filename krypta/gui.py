@@ -147,13 +147,14 @@ class KryptaApp(tk.Tk):
         sidebar = tk.Frame(main, bg=INK, width=225)
         sidebar.pack(side='left', fill='y', padx=(0, 17))
         sidebar.pack_propagate(False)
-        self._label(sidebar, self._t('modules') + ' / 01—05', GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 14))
+        self._label(sidebar, self._t('modules') + ' / 01—06', GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 14))
         specs = [
             ('01', self._t('file_vault'), self._t('available'), True),
             ('02', self._t('drive_shield'), self._t('planned'), False),
             ('03', self._t('system_shield'), self._t('planned'), False),
             ('04', self._t('password_shield'), self._t('planned'), False),
             ('05', self._t('android_shield'), self._t('planned'), False),
+            ('06', 'Volume Lab (PFS/2)', 'test images only', True),
         ]
         self.module_buttons = []
         for index, (i, name, status, active) in enumerate(specs):
@@ -265,7 +266,16 @@ class KryptaApp(tk.Tk):
                     MUTED, 8).pack(side='right')
 
     def _show_module(self, index):
-        if self.busy or index == self.active_module:
+        if self.busy:
+            return
+        if index == 5:
+            # Volume Lab opens a separate, explicitly labeled disposable-image
+            # window. Keep the normal file vault selection and disk shielding
+            # modules unchanged, and do not suggest system-disk protection.
+            from .volume_lab_gui import open_volume_lab
+            open_volume_lab(self)
+            return
+        if index == self.active_module:
             return
         names = tuple(self._t(key) for key in
                       ('file_vault', 'drive_shield', 'system_shield', 'password_shield', 'android_shield'))
