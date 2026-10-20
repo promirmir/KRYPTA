@@ -17,6 +17,13 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 
 **Other UI features, badges and secondary integrations must not take priority over this independent volume engine.**
 
+## Sprawność zapisu i odzyskiwanie logicznych plików
+
+- [x] Szyfrowanie tylko zmodyfikowanych sektorów przy nadpisaniu istniejącego pliku; pełna autentykacja starej zawartości przed ponownym wykorzystaniem odnośników; pojedynczy atomowy commit katalogu i zmian.
+- [x] Eksport logiczny wyłącznie istniejących plików do nowego zaszyfrowanego obrazu, z pełną weryfikacją i bez automatycznego usuwania oryginału.
+- [ ] Wielomegabajtowe pliki i podkatalogi, ograniczanie ilości pamięci / kosztów odczytu przy aktualizacji kilku bajtów; produkcyjna kompakcja i odzyskiwanie po rzeczywistej awarii.
+- [ ] Zaufane sprzętowe potwierdzenie stanu oraz przenoszenie i odtwarzanie kluczy.
+
 ## Działający adapter systemu plików PVIMG-PFS/1 — etap integracji Linux
 
 - [x] Własny, wersjonowany zaszyfrowany katalog PFS/1 na PVIMG/1; atomowy zapis pliku i katalogu w jednej transakcji.
