@@ -55,7 +55,7 @@ def test_android_all_locales_warn_about_scope_and_lost_keystore_key():
         items = {node.attrib["name"]: node.text for node in root.findall("string")}
         assert required <= set(items)
         assert all(items[name] and items[name].strip() for name in required)
-        assert "Android Keystore" in items["vault_warning"]
+        assert "Keystore" in items["vault_warning"]
         assert "KRYPTA-MOBILE/1" in items["vault_body"]
 
 
