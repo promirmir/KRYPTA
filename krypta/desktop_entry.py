@@ -132,6 +132,57 @@ def run_fuse_adapter_self_test() -> int:
     return 0
 
 
+def run_paged_volume_lab_self_test() -> int:
+    """Packaged PFS2 create/import/verify/export/rekey with disposable data.
+
+    This exercises the same GUI service layer, not just a mocked CLI.
+    Nothing is mounted, and physical/system disks are never enumerated.
+    """
+    from krypta.volume_lab import (
+        create_image, verify_image, import_file, export_file, rotate_image,
+    )
+    with tempfile.TemporaryDirectory(prefix="krypta-pfs2-gui-smoke-") as directory:
+        root = Path(directory)
+        src = root / "synthetic-input.bin"
+        sample = b"KRYPTA DESKTOP PVKEY/1 PFS/2" * 93
+        src.write_bytes(sample)
+        image = root / "synthetic.kpv"
+        envelope = root / "synthetic.pvkey"
+        recovery = root / "synthetic.recovery"
+        password = "Disposable development passphrase 2026!"
+        created = create_image(image, envelope, recovery, password, password)
+        if verify_image(
+            image, envelope, created["receipt"], password=password
+        )["files_verified"] != 0:
+            raise RuntimeError("New packaged PFS2 file list was not empty")
+        addition = import_file(
+            image, envelope, created["receipt"], src, recovery=recovery
+        )
+        if addition["receipt"] == created["receipt"]:
+            raise RuntimeError("Encrypted import failed to advance external receipt")
+        plaintext = root / "exported.bin"
+        export_file(image, envelope, addition["receipt"], src.name, plaintext,
+                    password=password)
+        if plaintext.read_bytes() != sample:
+            raise RuntimeError("Packaged PFS2 authenticated export mismatch")
+        moved = rotate_image(
+            image, envelope, addition["receipt"],
+            root / "rotated.kpv", root / "rotated.pvkey",
+            root / "rotated.recovery",
+            "Another entirely different long passphrase 2026!",
+            "Another entirely different long passphrase 2026!",
+            old_recovery=recovery,
+        )
+        if moved["image_id"] == created["image_id"]:
+            raise RuntimeError("Packaged rotation reused original image identity")
+        if verify_image(
+            root / "rotated.kpv", root / "rotated.pvkey", moved["receipt"],
+            recovery=root / "rotated.recovery"
+        )["files_verified"] != 1:
+            raise RuntimeError("Packaged re-encrypted image validation failed")
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
         return run_self_test()
@@ -141,6 +192,8 @@ def main() -> int:
         return run_filesystem_self_test()
     if len(sys.argv) == 2 and sys.argv[1] == "--fuse-self-test":
         return run_fuse_adapter_self_test()
+    if len(sys.argv) == 2 and sys.argv[1] == "--paged-volume-self-test":
+        return run_paged_volume_lab_self_test()
     if len(sys.argv) != 1:
         return 2
     from krypta.gui import main as gui_main
