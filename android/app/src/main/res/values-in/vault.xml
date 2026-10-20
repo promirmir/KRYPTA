@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_status">ALFA RISET / BERKAS TERPILIH</string>
+    <string name="vault_warning">KRYPTA tidak mengenkripsi seluruh ponsel. Hanya uji coba; tidak ada pemulihan jika kunci Android Keystore hilang.</string>
+    <string name="vault_body">AES-256-GCM dan Android Keystore. KRYPTA-MOBILE/1 tidak kompatibel dengan .kry desktop.</string>
+    <string name="vault_encrypt">ENKRIPSI BERKAS UJI</string>
+    <string name="vault_decrypt">DEKRIPSI BERKAS UJI</string>
+    <string name="vault_idle">Pilih berkas sumber.</string>
+    <string name="vault_success">Selesai. Simpan berkas asli dan cadangan.</string>
+    <string name="vault_failed">Gagal. Hasil mungkin tidak lengkap: hapus. Berkas asli tetap.</string>
+    <string name="vault_cancelled">Dibatalkan.</string>
+    <string name="vault_need_lock">Aktifkan kunci layar aman terlebih dahulu.</string>
+    <string name="vault_auth_title">Otorisasi KRYPTA</string>
+    <string name="vault_auth_body">Konfirmasikan kunci layar untuk menggunakan kunci lokal. Ini bukan enkripsi seluruh ponsel.</string>
+    <string name="vault_same_file">Sumber dan tujuan harus berbeda.</string>
+</resources>
