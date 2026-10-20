@@ -14,6 +14,12 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
+## Desktop PFS/2 Volume Lab (2026-10-20, development branch)
+
+A separately labeled opt-in Tkinter GUI now exposes authenticated operations on disposable ordinary `.kpv` images: create, verify, import/export, password recovery and full-volume key rotation. All existing-image calls **require a caller-supplied externally trusted receipt**, rather than auto-accepting an image's own receipt. Existing output files refuse overwrite; the plaintext import source is not deleted. The desktop PyInstaller release workflow is configured to test the newly packaged backend end-to-end using disposable data.
+
+**Not yet proven as a downloadable feature:** current GitHub-hosted runners cannot be assigned, so no new EXE/ELF containing the code has been built and verified in CI. Development PR requires complete validation before merge. No Windows full-disk encryption, Linux system partition encryption or Android full-device encryption is offered. [Full limitations](VOLUME_LAB_GUI.md).
+
 ## PFS/2 actual volume-key rotation and live-file re-encryption (2026-10-20)
 
 `research/paged_rekey.py` now creates an independently keyed NEW PVIMG/PFS2 encrypted image after verifying all currently live files of a source image against the latest externally trusted receipt. Fresh random 256-bit DEK, new image ID and independent password/recovery slots are created, with source unchanged. Source corruption, wrong old credentials/receipt and partial destination failures cause refusal without overwriting any source. New target is reopened for authenticated final verification. The `research/paged_key_cli.py rotate-volume-key` subcommand keeps passwords out of argv/env.
