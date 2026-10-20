@@ -4,6 +4,14 @@
 
 This page is evidence-based; a passing test is not a proof of confidentiality under every threat model.
 
+## Experimental encrypted volume image — KRYPTA-VIMG/0
+
+Source: `research/volume_image.py`; [design, limitations and safety](VOLUME_IMAGE_V0.md); `research/volume_demo.py`; tests in `tests/test_volume_image.py`.
+
+Research-only regular `.kvi` image, 128 test sectors at 4096 bytes each. The `write()` API automatically encrypts every full sector through HORIZON/0 and updates a HMAC-authenticated append-only metadata map, separated by durable flush attempts. Synthetic crash tests exercise truncation and recovery of the last complete commit; tampering with an authenticated record is rejected. No system disk, mountable virtual block device, Android storage or physical TPM is changed.
+
+**Not achieved:** true transparent filesystem writes, robust multi-sector atomicity, independent anti-rollback anchor, proven OS-level crash durability, key persistence/recovery, hardware PIN attempt limit, complete threat-model hardening or independent evaluation. Serial process ownership on Windows also remains incomplete.
+
 ## Original engine research — HORIZON/0 (2026-10-20)
 
 Product direction is defined by [PROJECT_CHARTER.md](PROJECT_CHARTER.md): KRYPTA's eventual transparent disk encryption **must be an independent system, not a BitLocker or LUKS wrapper**. Existing OS encryption inspection code is an optional read-only diagnostic only.
