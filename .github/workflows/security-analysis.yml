@@ -35,4 +35,4 @@ jobs:
       - name: Static analysis for high and medium-severity findings
         run: python -m bandit -r krypta -q -ll
       - name: Check installed package vulnerabilities (fail closed)
-        run: python -m pip_audit --strict --progress-spinner off
+        run: python -m pip_audit --strict --skip-editable --progress-spinner off
