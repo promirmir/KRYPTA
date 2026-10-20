@@ -3,6 +3,19 @@ package io.krypta.research;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.app.KeyguardManager;
+import android.content.Intent;
+import android.net.Uri;
+import android.provider.DocumentsContract;
+import android.os.Build;
+import android.view.WindowManager;
+import android.widget.Button;
+import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.security.SecureRandom;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.graphics.Color;
@@ -15,9 +28,9 @@ import android.widget.TextView;
 import java.util.Locale;
 
 /**
- * Localized, UI-only architecture scaffold. NO ENCRYPTION IS IMPLEMENTED.
- * Language choice is the only data kept in private app preferences.
- * Android FBE/Keystore integration requires device-aware native implementation.
+ * Multilingual research app with selected-file AES-256-GCM encryption in KRYPTA-MOBILE/1.
+ * AndroidKeyStore holds an authentication-bound nonexportable wrapping key.
+ * NOT phone-wide disk encryption; files are selected via Storage Access Framework.
  */
 public final class MainActivity extends Activity {
     private static final int BG = Color.rgb(7, 14, 11);
@@ -34,6 +47,15 @@ public final class MainActivity extends Activity {
             "हिन्दी", "Português", "Français", "Deutsch", "Bahasa Indonesia"
     };
 
+    private static final int PICK_SOURCE = 101;
+    private static final int AUTHENTICATE = 102;
+    private static final int PICK_OUTPUT = 103;
+    private Uri sourceUri;
+    private Uri destinationUri;
+    private boolean decryptMode;
+    private boolean busy;
+    private TextView vaultResult;
+
     @Override
     protected void attachBaseContext(Context base) {
         String selected = base.getSharedPreferences("krypta-ui", MODE_PRIVATE)
@@ -49,6 +71,7 @@ public final class MainActivity extends Activity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         ScrollView scroll = new ScrollView(this);
@@ -68,13 +91,20 @@ public final class MainActivity extends Activity {
         selector.setContentDescription(getString(R.string.choose_language));
         selector.setOnClickListener(v -> chooseLanguage());
         spacer(content, 25);
-        label(content, getString(R.string.mobile_status), 15, AMBER, true);
-        label(content, getString(R.string.mobile_not_protected), 13, AMBER, false);
+        label(content, getString(R.string.vault_status), 15, AMBER, true);
+        label(content, getString(R.string.vault_warning), 13, AMBER, false);
         spacer(content, 20);
         panel(content, "01 / " + getString(R.string.android_shield), getString(R.string.planned),
                 getString(R.string.mobile_device_body));
-        panel(content, "02 / " + getString(R.string.file_vault), getString(R.string.planned),
-                getString(R.string.mobile_file_body));
+        panel(content, "02 / " + getString(R.string.file_vault), getString(R.string.available),
+                getString(R.string.vault_body));
+        Button enc = actionButton(getString(R.string.vault_encrypt));
+        content.addView(enc);
+        enc.setOnClickListener(v -> startVaultOperation(false));
+        Button dec = actionButton(getString(R.string.vault_decrypt));
+        content.addView(dec);
+        dec.setOnClickListener(v -> startVaultOperation(true));
+        vaultResult = label(content, getString(R.string.vault_idle), 12, PHOSPHOR, false);
         panel(content, "03 / " + getString(R.string.password_shield), getString(R.string.planned),
                 getString(R.string.mobile_password_body));
         panel(content, "04 / " + getString(R.string.drive_shield), getString(R.string.planned),
@@ -83,6 +113,136 @@ public final class MainActivity extends Activity {
         label(content, getString(R.string.mobile_offline), 11, PHOSPHOR, false);
         label(content, getString(R.string.mobile_private), 11, MUTED, false);
         setContentView(scroll);
+    }
+
+    private Button actionButton(String title) {
+        Button button = new Button(this);
+        button.setText(title);
+        button.setTextColor(PHOSPHOR);
+        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(BORDER));
+        button.setAllCaps(false);
+        return button;
+    }
+
+    private void startVaultOperation(boolean decrypt) {
+        if (busy) return;
+        KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+        if (keyguard == null || !keyguard.isDeviceSecure()) {
+            showError(getString(R.string.vault_need_lock));
+            return;
+        }
+        decryptMode = decrypt;
+        sourceUri = null;
+        destinationUri = null;
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType("*/*");
+        startActivityForResult(pick, PICK_SOURCE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK) {
+            if (vaultResult != null) vaultResult.setText(getString(R.string.vault_cancelled));
+            return;
+        }
+        if (requestCode == PICK_SOURCE) {
+            if (data == null || data.getData() == null) return;
+            sourceUri = data.getData();
+            KeyguardManager manager = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+            if (manager == null || !manager.isDeviceSecure()) {
+                showError(getString(R.string.vault_need_lock));
+                return;
+            }
+            Intent confirm = manager.createConfirmDeviceCredentialIntent(
+                    getString(R.string.vault_auth_title), getString(R.string.vault_auth_body));
+            if (confirm == null) {
+                showError(getString(R.string.vault_need_lock));
+                return;
+            }
+            startActivityForResult(confirm, AUTHENTICATE);
+        } else if (requestCode == AUTHENTICATE) {
+            Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            save.addCategory(Intent.CATEGORY_OPENABLE);
+            save.setType("application/octet-stream");
+            save.putExtra(Intent.EXTRA_TITLE, decryptMode
+                    ? "KRYPTA-restored-TEST.bin" : "KRYPTA-encrypted-TEST.kma");
+            startActivityForResult(save, PICK_OUTPUT);
+        } else if (requestCode == PICK_OUTPUT) {
+            if (data == null || data.getData() == null || sourceUri == null) return;
+            destinationUri = data.getData();
+            if (sourceUri.equals(destinationUri)) {
+                showError(getString(R.string.vault_same_file));
+                return;
+            }
+            runVaultWorker();
+        }
+    }
+
+    private void runVaultWorker() {
+        if (busy || sourceUri == null || destinationUri == null) return;
+        busy = true;
+        vaultResult.setText(getString(R.string.processing));
+        final Uri input = sourceUri;
+        final Uri output = destinationUri;
+        final boolean decrypt = decryptMode;
+        new Thread(() -> {
+            File temp = null;
+            boolean success = false;
+            String errorText = null;
+            try {
+                javax.crypto.SecretKey wrapping = AndroidVaultKey.getOrCreate(this);
+                if (decrypt) {
+                    // Authenticate ENTIRE source before exporting any plaintext to SAF.
+                    temp = File.createTempFile("krypta-mobile-", ".tmp", getCacheDir());
+                    try (InputStream in = getContentResolver().openInputStream(input);
+                         FileOutputStream tempOut = new FileOutputStream(temp)) {
+                        if (in == null) throw new java.io.IOException("No input stream");
+                        VaultFormat.decrypt(wrapping, in, tempOut);
+                        tempOut.getFD().sync();
+                    }
+                    try (FileInputStream verified = new FileInputStream(temp);
+                         OutputStream out = getContentResolver().openOutputStream(output, "w")) {
+                        if (out == null) throw new java.io.IOException("No output stream");
+                        byte[] bytes = new byte[64 * 1024];
+                        int count;
+                        while ((count = verified.read(bytes)) != -1) out.write(bytes, 0, count);
+                        out.flush();
+                        java.util.Arrays.fill(bytes, (byte) 0);
+                    }
+                } else {
+                    try (InputStream in = getContentResolver().openInputStream(input);
+                         OutputStream out = getContentResolver().openOutputStream(output, "w")) {
+                        if (in == null || out == null) throw new java.io.IOException("Document provider unavailable");
+                        VaultFormat.encrypt(wrapping, in, out, new SecureRandom());
+                    }
+                }
+                success = true;
+            } catch (Exception e) {
+                // Do not include URIs, user data, cryptographic internals or secrets in logs.
+                errorText = getString(R.string.vault_failed);
+            } finally {
+                if (temp != null && temp.exists()) {
+                    // Best effort only: this is NOT a guarantee of secure deletion from flash.
+                    temp.delete();
+                }
+            }
+            final boolean passed = success;
+            final String message = passed ? getString(R.string.vault_success) : errorText;
+            runOnUiThread(() -> {
+                busy = false;
+                vaultResult.setText(message);
+                new AlertDialog.Builder(this)
+                        .setTitle(passed ? getString(R.string.success) : getString(R.string.failure))
+                        .setMessage(message).setPositiveButton(android.R.string.ok, null).show();
+            });
+        }, "KRYPTA-Mobile-Vault").start();
+    }
+
+    private void showError(String text) {
+        new AlertDialog.Builder(this).setTitle(R.string.failure)
+                .setMessage(text).setPositiveButton(android.R.string.ok, null).show();
     }
 
     private void chooseLanguage() {
