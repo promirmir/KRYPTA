@@ -68,6 +68,10 @@ chmod +x KRYPTA-Linux-x64
 
 Własny silnik woluminów otrzymał osobny format `KRYPTA-PVKEY/1`: długie hasło (Argon2id) i **niezależny 256-bitowy klucz odzyskiwania**. Obsługiwane jest również testowe montowanie FUSE z kluczem odblokowanym przez hasło zamiast surowego klucza. Funkcja jest na razie dostępna w narzędziach źródłowych, **nie jako ukończona funkcja pobieranego EXE lub APK**. Krótki PIN bez prawdziwej sprzętowej kontroli prób nie daje odporności na odgadywanie. [Dokumentacja](docs/PVKEY_PASSWORD_RECOVERY.md).
 
+## Wymiana klucza zaszyfrowanego obrazu — prace nad migracją
+
+Rozwijany silnik może utworzyć **nowy obraz PVIMG/PFS2 z innym losowym kluczem danych**, po zweryfikowaniu i ponownym zaszyfrowaniu aktualnych plików. Nowy obraz otrzymuje również nowy klucz odzyskiwania i hasło. Operacja nie nadpisuje źródła. **Stare kopie obrazu posiadane przez inne osoby pozostają odczytywalne za pomocą starego klucza** — zmiana klucza nie cofa wcześniejszego ujawnienia danych. Jest to nadal funkcja narzędzi programistycznych, nie gotowej aplikacji EXE/APK. [Zasady rotacji i ograniczenia](docs/PFS2_DATA_KEY_ROTATION.md).
+
 ## Docelowe funkcje produktu
 
 1. Pełne, automatyczne szyfrowanie woluminów Windows i Linux.

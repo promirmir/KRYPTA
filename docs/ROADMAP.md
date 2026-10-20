@@ -17,6 +17,15 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 
 **Other UI features, badges and secondary integrations must not take priority over this independent volume engine.**
 
+## PFS/2 — prawdziwa wymiana klucza danych DEK
+
+- [x] Nowy 256-bitowy klucz danych i nowe opakowania hasła/odzyskiwania dla **nowego** zaszyfrowanego obrazu, z pełnym kopiowaniem wyłącznie istniejących i zweryfikowanych plików.
+- [x] Weryfikacja `receipt` źródła, identyfikatora obu obrazów, wszystkich plików, nowych metod odblokowania i ponownego odczytu wyniku.
+- [x] Bez nadpisywania starego obrazu i bez usuwania go nawet przy nieudanej migracji.
+- [ ] Sprzętowo potwierdzany, aktualny `receipt`, testy zaników prądu, atomowa organizacja wielu plików na host FS, bezpieczne wycofywanie starych kluczy/obrazów według modelu zagrożeń.
+
+[Architektura i ograniczenia](PFS2_DATA_KEY_ROTATION.md).
+
 ## PVKEY/1 — hasło i niezależny klucz odzyskiwania
 
 - [x] Oddzielenie losowego klucza woluminu od hasła i zapis dwóch uwierzytelnionych opakowań AES-256-GCM: Argon2id/HKDF oraz niezależny 256-bitowy sekret odzyskiwania.

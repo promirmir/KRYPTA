@@ -19,6 +19,7 @@ from .paged_keys import (
 )
 from .paged_volume import PagedResearchVolume, PagedVolumeError
 from .paged_fs2 import PagedFS2
+from .paged_rekey import rotate_pfs2_data_key
 
 
 def read_password_fd(fd: int) -> str:
@@ -119,6 +120,29 @@ def _recover(args) -> None:
     print("WARNING: The old envelope/password remain valid until data key rotation.")
 
 
+def _rotate(args) -> None:
+    new_password = _password(args)
+    if args.old_password_fd is not None:
+        if args.password_fd is not None and args.old_password_fd == args.password_fd:
+            raise PagedKeyError("Old/new password pipes must be different")
+        old_password = read_password_fd(args.old_password_fd)
+        old_recovery = None
+    else:
+        old_password = None
+        old_recovery = args.old_recovery
+    result = rotate_pfs2_data_key(
+        args.image, args.envelope, args.expected_receipt,
+        args.new_image, args.new_envelope, args.new_recovery, new_password,
+        old_password=old_password, old_recovery=old_recovery,
+    )
+    print("CREATED: independent re-encrypted PVIMG/PFS2 image and NEW credentials")
+    print("NEW IMAGE ID:", result["destination_image_id"])
+    print("NEW EXTERNAL RECEIPT:", result["destination_receipt"])
+    print("VERIFIED FILES:", result["files_verified"])
+    print("WARNING: old image snapshots with old credentials REMAIN decryptable.")
+    print("Store new receipt externally and back up the NEW recovery key separately.")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="KRYPTA independent encrypted development image key management"
@@ -147,6 +171,24 @@ def main(argv: list[str] | None = None) -> int:
     recovery.add_argument("--password-fd", type=int)
     recovery.add_argument("--acknowledge-test-only", action="store_true")
 
+    rotation = sub.add_parser(
+        "rotate-volume-key", help="Create a NEW image with a truly independent data key"
+    )
+    rotation.add_argument("--image", required=True, help="EXISTING source .kpv")
+    rotation.add_argument("--envelope", required=True, help="Old .pvkey envelope")
+    rotation.add_argument("--expected-receipt", required=True,
+                          help="Independently trusted current SOURCE commit receipt")
+    rotation.add_argument("--new-image", required=True)
+    rotation.add_argument("--new-envelope", required=True)
+    rotation.add_argument("--new-recovery", required=True)
+    rotation.add_argument("--password-fd", type=int, help="NEW long password from pipe")
+    old_factor = rotation.add_mutually_exclusive_group(required=True)
+    old_factor.add_argument("--old-password-fd", type=int,
+                            help="Old passphrase via a different anonymous pipe")
+    old_factor.add_argument("--old-recovery",
+                            help="Independent OLD recovery file instead of old passphrase")
+    rotation.add_argument("--acknowledge-test-only", action="store_true")
+
     args = parser.parse_args(argv)
     if not args.acknowledge_test_only:
         parser.error("Explicit --acknowledge-test-only is required")
@@ -158,6 +200,8 @@ def main(argv: list[str] | None = None) -> int:
         _check(args)
     elif args.command == "recover-password":
         _recover(args)
+    elif args.command == "rotate-volume-key":
+        _rotate(args)
     return 0
 
 
