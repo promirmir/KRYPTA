@@ -10,6 +10,8 @@ import json
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+from pathlib import Path
+from research.paged_keys import _new_private_file
 
 from . import volume_lab as operations
 
@@ -66,6 +68,7 @@ class VolumeLabWindow(tk.Toplevel):
         self.geometry("920x770")
         self.minsize(770, 600)
         self.busy = False
+        self.latest_receipt: str | None = None
         self.forms: dict[str, dict[str, tk.StringVar]] = {}
         self.buttons: list[ttk.Button] = []
         self.protocol("WM_DELETE_WINDOW", self._close)
@@ -127,6 +130,10 @@ class VolumeLabWindow(tk.Toplevel):
             fg="#E0F0E1", insertbackground="#8CF5A7"
         )
         self.result.pack(fill="both", expand=False)
+        self.save_receipt_button = ttk.Button(
+            top, text="Zapisz receipt do NOWEGO pliku (poza zaszyfrowanym obrazem)",
+            command=self._save_receipt, state="disabled")
+        self.save_receipt_button.pack(anchor="w", pady=(6, 0))
         self.result.insert("1.0", "Brak operacji. Hasła nie są zapisywane do dziennika.\n")
         self.result.configure(state="disabled")
         self.status = tk.StringVar(value="Gotowe — brak aktywnej operacji")
@@ -221,6 +228,37 @@ class VolumeLabWindow(tk.Toplevel):
         finally:
             data.clear()  # Discard application references to secret strings.
 
+    def _save_receipt(self):
+        """Create a separate receipt file, never silently replace an old one."""
+        if self.busy or self.latest_receipt is None:
+            return
+        receipt = self.latest_receipt
+        if not messagebox.askyesno(
+            "KRYPTA / receipt poza obrazem",
+            "Czy zapiszesz nowy plik receipt na niezależnie chronionym nośniku? "
+            "Plik w tym samym katalogu co .kpv NIE chroni przed rollback. "
+            "Nie usuwaj starej zaufanej kopii przed sprawdzeniem nowej.",
+            parent=self,
+        ):
+            return
+        destination = filedialog.asksaveasfilename(
+            parent=self, title="NOWY niezależny plik receipt",
+            defaultextension=".receipt",
+            filetypes=[("Receipt KRYPTA", "*.receipt"), ("All files", "*.*")],
+        )
+        if not destination:
+            return
+        try:
+            if len(receipt) != 64 or any(ch not in "0123456789abcdef" for ch in receipt):
+                raise ValueError("Invalid authenticated receipt")
+            _new_private_file(Path(destination), (receipt + "\n").encode("ascii"))
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("KRYPTA", "Nie zapisano receipt. Sprawdź, czy plik "
+                                 "już istnieje i czy masz dostęp do folderu.", parent=self)
+            return
+        messagebox.showinfo("KRYPTA", "Zapisano NOWY plik receipt. "
+                            "Przechowuj go w niezależnie zaufanym miejscu.", parent=self)
+
     def _finish(self, success: bool, report: dict):
         self.busy = False
         for button in self.buttons:
@@ -229,6 +267,12 @@ class VolumeLabWindow(tk.Toplevel):
         self.result.delete("1.0", "end")
         self.result.insert("1.0", json.dumps(report, ensure_ascii=False, indent=2))
         self.result.configure(state="disabled")
+        self.latest_receipt = (
+            report.get("receipt") if success and
+            isinstance(report.get("receipt"), str) else None
+        )
+        self.save_receipt_button.configure(
+            state="normal" if self.latest_receipt else "disabled")
         self.status.set("Zakończono" if success else "Odmowa / błąd — brak potwierdzenia powodzenia")
         if success and "receipt" in report:
             messagebox.showwarning(
