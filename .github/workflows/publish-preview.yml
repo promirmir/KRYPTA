@@ -69,7 +69,7 @@ jobs:
           }
           Copy-Item dist/KRYPTA.exe dist/KRYPTA-Windows-x64.exe
           $sum = (Get-FileHash 'dist/KRYPTA-Windows-x64.exe' -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$sum  KRYPTA-Windows-x64.exe" | Set-Content -LiteralPath dist/KRYPTA-Windows-x64.exe.sha256 -Encoding ascii
+          [System.IO.File]::WriteAllText((Join-Path (Get-Location) 'dist/KRYPTA-Windows-x64.exe.sha256'), ("$sum  KRYPTA-Windows-x64.exe" + [char]10), [System.Text.Encoding]::ASCII)
       - name: Test and checksum Linux executable
         if: runner.os == 'Linux'
         shell: bash
