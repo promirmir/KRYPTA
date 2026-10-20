@@ -7,6 +7,7 @@ on:
     paths:
       - 'windows/Get-KryptaTpmReadiness.ps1'
       - 'windows/Test-KryptaTpmKey.ps1'
+      - 'windows/Test-KryptaTpmWrap.ps1'
       - 'krypta/hardware_readiness.py'
       - 'tests/test_hardware_readiness.py'
       - '.github/workflows/tpm-readiness.yml'
@@ -45,6 +46,24 @@ jobs:
           if ($probe.EnforcedPinRetryLimitVerified -ne $false) { throw 'Incorrect PIN protection status' }
           if ($probe.SignatureVerified -ne $false) { throw 'No signing operation may run by default' }
           Write-Host 'PowerShell parsed; opt-in default reported NOT_RUN; no key created'
+      - name: Verify wrapped-key POC parses and does NOTHING by default
+        shell: pwsh
+        run: |
+          $parseTokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path './windows/Test-KryptaTpmWrap.ps1').Path,
+            [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) { throw 'TPM wrap POC syntax errors' }
+          $probe = & ./windows/Test-KryptaTpmWrap.ps1 | ConvertFrom-Json
+          if ($probe.Schema -ne 'KRYPTA-TPM-WRAP-POC/1') { throw 'Wrong schema' }
+          if ($probe.Status -ne 'NOT_RUN') { throw 'Unexpected test key operation without consent' }
+          if ($probe.WrappedKeyRoundTripVerified -ne $false) { throw 'False key protection claim' }
+          if ($probe.HardwarePinAntiHammeringVerified -ne $false) { throw 'False PIN rate-limit claim' }
+          if ($probe.PcrBindingVerified -ne $false) { throw 'False measured boot claim' }
+          if ($probe.DiskEncryptionEnabled -ne $false) { throw 'Unexpected encryption claim' }
+          if ($null -ne $probe.CleanupSucceeded) { throw 'Cleanup attempted without a key' }
+          Write-Host 'Safe default verified. No key created or modified.'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
