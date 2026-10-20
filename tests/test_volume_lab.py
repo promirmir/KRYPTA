@@ -202,3 +202,32 @@ def test_gui_forms_have_separate_required_secret_fields():
     }
     for _, fields, _ in FORMS:
         assert len([key for key, *_ in fields]) == len(set(key for key, *_ in fields))
+
+
+
+def test_hardlink_alias_is_not_treated_as_separate_plaintext(lab):
+    alias = lab["tmp"] / "alias.kpv"
+    try:
+        os.link(lab["image"], alias)
+    except (OSError, NotImplementedError):
+        pytest.skip("Hardlinks unavailable on this filesystem")
+    with pytest.raises(ValueError, match="Hardlinked"):
+        import_file(
+            lab["image"], lab["envelope"], lab["receipt"],
+            alias, password=PASSWORD,
+        )
+    assert verify_image(lab["image"], lab["envelope"], lab["receipt"],
+                        password=PASSWORD)["files_verified"] == 0
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX FIFO support required")
+def test_never_open_fifo_instead_of_regular_plaintext(lab):
+    fifo = lab["tmp"] / "named-pipe"
+    os.mkfifo(fifo)
+    with pytest.raises(ValueError, match="regular files"):
+        import_file(
+            lab["image"], lab["envelope"], lab["receipt"],
+            fifo, password=PASSWORD,
+        )
+    assert verify_image(lab["image"], lab["envelope"], lab["receipt"],
+                        password=PASSWORD)["files_verified"] == 0
