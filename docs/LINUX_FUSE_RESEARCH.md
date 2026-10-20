@@ -81,6 +81,34 @@ an existing test image. \`FD\` must be an **anonymous pipe/socket** containing
 32 opaque bytes; interactive terminal, regular file and CLI hexadecimal keys
 are refused. No automatic image creation, auto-start or privileged mounting.
 
+## Automated disposable kernel-mount gate
+
+`.github/workflows/fuse-integration.yml` now runs a **separate** hosted-Linux
+FUSE integration experiment. `tools/test_kernel_fuse_integration.py` creates
+only a new `.kvi` test image, generates a RAM-only random key, attempts a
+foreground kernel mount via `/dev/fuse`, exercises ordinary file write/read,
+rename, overwrite, unlink, unmount and authentication on reopen. The original
+KRYPTA-HORIZON/VIMG/FS engine is the encryption backend.
+
+The test distinguishes outcomes:
+- **PASS** in the test output: actual Linux kernel FUSE mount/unmount exercised.
+- **SKIPPED (exit 77)**: runner lacks `/dev/fuse`, usable fusepy/libfuse or user
+  mount support; this is NOT evidence of an actual mount.
+- **FAIL**: integration failed and needs triage before claims of compatibility.
+
+The protected OS partition, local persistent drives, reboot configuration,
+BitLocker and LUKS are never used in this gate. Success would validate only
+the **research flat filesystem** on that runner, not production full-disk
+encryption, boot protection, long-duration resilience or Windows support.
+
+### FUSE adapter security regression checks
+
+`tests/test_fuse_boundary_security.py` requires file-descriptor identity
+to match the requested file path on all read/write/flush/release calls,
+rejects an exclusive-create on an existing file (`O_CREAT|O_EXCL`) and
+rejects unsupported special descriptor modes. These tests execute on
+Windows and Linux without a kernel mount.
+
 ## Threat model and next gates
 
 - FUSE does not hide plaintext from the **currently authenticated user
