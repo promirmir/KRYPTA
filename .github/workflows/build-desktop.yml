@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'krypta/**'
+      - 'research/**'
       - 'pyproject.toml'
       - 'tests/**'
       - '.github/workflows/build-desktop.yml'
@@ -50,6 +51,8 @@ jobs:
           if (!(Test-Path 'dist/KRYPTA.exe.sha256')) { throw 'Checksum manifest missing' }
           $probe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--self-test' -Wait -PassThru
           if ($probe.ExitCode -ne 0) { throw "Packaged Windows EXE self-test failed: $($probe.ExitCode)" }
+          $volumeProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--volume-self-test' -Wait -PassThru
+          if ($volumeProbe.ExitCode -ne 0) { throw "Packaged Windows independent volume smoke test failed: $($volumeProbe.ExitCode)" }
       - name: Verify Linux output
         if: runner.os == 'Linux'
         run: |
@@ -57,6 +60,7 @@ jobs:
           chmod +x dist/KRYPTA
           (cd dist && sha256sum KRYPTA > KRYPTA.sha256 && sha256sum -c KRYPTA.sha256)
           ./dist/KRYPTA --self-test
+          ./dist/KRYPTA --volume-self-test
       - name: Upload private research artifact
         uses: actions/upload-artifact@v4
         with:
