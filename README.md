@@ -1,131 +1,80 @@
 # KRYPTA
 
-**NADRZĘDNY CEL PROJEKTU:** niezależny, własny, transparentny system szyfrowania woluminów — **NIE nakładka na BitLocker/LUKS/VeraCrypt**. Diagnostyka szyfrowania innych produktów jest wyłącznie pomocnicza. Docelowo każdy nowy zapis na chronionym dysku zostaje zaszyfrowany bez udziału użytkownika. Osobne tryby: Windows (systemowy i zewnętrzne dyski), Linux, Android i sejf haseł. Krótki PIN jest dostępny, lecz sprzętowa odporność na odgadywanie jest osobnym, wymaganym mechanizmem.
+**Niezależny system szyfrowania danych i woluminów — rozwijany z myślą o kompletnym produkcie dla Windows, Linux i Android.**
 
-**Wymagania właściciela zapisane w:** [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md). **Docelowa gotowość do oceny dla zastosowań wojskowych i rządowych:** [docs/DEFENSE_ASSURANCE_TARGET.md](docs/DEFENSE_ASSURANCE_TARGET.md) — ambicja, nie obecny status ani certyfikacja. **Oryginalna konstrukcja kryptograficzna, odizolowana badawczo:** [docs/HORIZON_CRYPTO_RFC.md](docs/HORIZON_CRYPTO_RFC.md) i [research/horizon_lab.py](research/horizon_lab.py).
+KRYPTA jest osobnym projektem bezpieczeństwa, niezależnym od AuronQ. Jej zadaniem jest dostarczenie własnego silnika szyfrowania woluminów i zarządzania kluczami, **bez wykorzystywania BitLocker, LUKS ani VeraCrypt jako silnika szyfrującego**. Docelowo chroniony wolumin ma działać normalnie po odblokowaniu, a wszystkie zapisy mają być automatycznie szyfrowane. Produktem końcowym mają być aplikacje i odpowiednie komponenty systemowe dla Windows i Linux oraz aplikacja i możliwe do uzyskania mechanizmy ochrony dla Androida.
 
-**Ważne:** własny system i własna konstrukcja nie oznaczają w tym momencie udowodnionej przewagi nad istniejącymi produktami ani szyfrowania certyfikowanego, niełamliwego przez przyszłe AI lub komputery kwantowe. Produkcyjne FDE i niezależnie limitowane PIN-y nadal NIE istnieją.
+**Ambicja jakościowa:** osiągnięcie najlepszego poziomu bezpieczeństwa w mierzalnych zastosowaniach, w tym możliwość niezależnej oceny dla podmiotów o wysokich wymaganiach. To cel, nie obecnie wykazana przewaga ani certyfikacja.
 
+**Obecny stan (20 października 2026): rozwój przed wydaniem produkcyjnym.** Szyfrowanie wybranych plików na komputerze oraz Androidzie jest zaimplementowane. Szyfrowanie dysków systemowych, automatyczna ochrona wszystkich zapisów Windows i sprzętowe zabezpieczenie krótkiego PIN-u **nie są jeszcze gotowymi funkcjami**. Obecnych wersji nie należy używać jako jedynego zabezpieczenia ważnych danych. Nie przeprowadzono niezależnego audytu kryptograficznego.
 
-**SECURITY WORKSTATION · v0.4.0-alpha · PRIVATE DEVELOPMENT BUILD**
+![KRYPTA desktop interface](assets/matrix-ui.png)
 
-> **RESEARCH ONLY. NOT AUDITED. NOT APPROVED FOR PROTECTING IMPORTANT DATA.**
->
-> Functional prototypes: desktop File Vault for test files and the Android selected-file research vault. A separate KRYPTA-FS encrypted volume/image exists as a non-mountable research module.
-> No disk, boot or system volume is ever modified. The interface contains clearly marked planned modules.
+## Zakres produktu i bieżąca dostępność
 
-KRYPTA is a separate, independent security project. Its long-term goal is robust encryption for Windows system volumes, removable drives, a password vault, and Android integration. It uses public, established cryptographic primitives and aims to minimize attack surface. Project identity and an unmistakable readable security notice are part of the file format, but branding cannot replace cryptographic assurance.
+| Komponent | Faktycznie dostępne | Brakujące elementy do ukończenia |
+|---|---|---|
+| **File Vault — Windows/Linux** | Szyfrowanie i odszyfrowywanie wskazanych plików; CLI i GUI; AES-256-GCM, Argon2id, uwierzytelnienie i opcjonalny oddzielny plik klucza | Audyt, rozszerzone testy bezpieczeństwa, lepsza kontrola dostępu do pamięci i plików wyjściowych |
+| **Encrypted Volume Core** | Własny VIMG/0 z uwierzytelnionymi transakcjami i nowy PVIMG/1 z hierarchicznym indeksem oraz logiczną przestrzenią 1 GiB; oba działają na wydzielonych obrazach plikowych | Skalowalność produkcyjna, kompakcja, sprawdzone odzyskiwanie po awarii, sprzętowa ochrona kluczy |
+| **Linux volume** | Odczyt/zapis przez własny silnik KRYPTA i adapter FUSE w ograniczonym woluminie; potwierdzony montaż w jednej maszynie CI | Pełna semantyka systemu plików, wieloplatformowe testy montowania i awarii oraz wdrożenie produkcyjne |
+| **Windows Drive Shield** | Kod diagnostyczny i komponenty silnika plikowego | Rzeczywiste montowanie chronionych woluminów, obsługa USB/SSD/HDD, podpisane komponenty i testy odzyskiwania |
+| **Windows System Shield** | Dokumentacja architektury | Szyfrowanie dysku systemowego, ochrona rozruchu, sterownik, bezpieczna migracja i odtwarzanie |
+| **Android File Vault** | Szyfrowanie/odszyfrowywanie wybranych plików przez KRYPTA-MOBILE/1 i Android Keystore w APK 0.5.0 | Bezpieczny eksport/backup kluczy, testy na fizycznych urządzeniach, stabilna podpisana wersja |
+| **Android full-device integration** | Niezaimplementowana | Zwykły APK nie ma uprawnień do zastąpienia szyfrowania całego telefonu; wymaga odpowiedniego komponentu systemowego |
+| **Password Shield** | Niezaimplementowany | Sejf sekretów, ponowna autoryzacja, bezpieczne kopie i audyt |
+| **Short-PIN protection** | PIN można wprowadzić w File Vault | Brak niezależnej sprzętowej ochrony i ograniczania prób — krótki PIN sam w sobie pozwala na odgadywanie offline |
 
-![KRYPTA offline desktop application — Matrix-inspired security UI](assets/matrix-ui.png)
+Szczegółowe dowody i ograniczenia: [Stan bezpieczeństwa](docs/SECURITY_STATUS.md). Wymagania pełnego produktu: [Kryteria ukończenia](docs/PRODUCT_ACCEPTANCE.md) i [karta projektu](docs/PROJECT_CHARTER.md).
 
+## Własna architektura szyfrowania
 
-## Distribution formats (alpha; private CI)
+KRYPTA rozdziela warstwy: format woluminu i jego transakcje, ochronę kluczy, szyfrowanie rekordów, system plików, adapter systemowy i interfejs. Własny projekt formatu, indeksu i zarządzania dostępem nie wymaga wymyślania od podstaw niezweryfikowanego matematycznie szyfru. Sprawdzone prymitywy można wykorzystać w niezależnym silniku KRYPTA.
 
-KRYPTA is developed for **Windows x64 (`.exe`)**, **Linux x64 (ELF)** and **Android (`.apk`)**. GitHub Actions definitions under `.github/workflows/` build these artifacts for private internal testing. **Android 0.5.0 research now encrypts/decrypts explicitly selected test files** using its own KRYPTA-MOBILE/1 AES-256-GCM format and an Android Keystore-bound wrapping key. It does **not** encrypt the entire phone; no portable key recovery exists. Desktop builds expose the research file vault for disposable files, not full-disk encryption. See [`docs/BUILD_AND_RELEASE.md`](docs/BUILD_AND_RELEASE.md) and [`android/README.md`](android/README.md). No installer or executable has been independently audited. Do not use these builds as your only protection for important data.
+- **File Vault v2:** losowy klucz danych 256 bitów, AES-256-GCM, Argon2id + HKDF-SHA-256, kontrola integralności każdego fragmentu i końca pliku.
+- **KRYPTA-VIMG/0:** transakcyjne zapisy sektorów w małym zaszyfrowanym obrazie i uwierzytelnione metadane.
+- **KRYPTA-PVIMG/1:** oddzielny format z hierarchicznym indeksem COW, uwierzytelnionym korzeniem i rzadką logiczną przestrzenią adresową. **Nie zastępuje automatycznie VIMG/0.**
+- **HORIZON/0:** konstrukcja szyfrowania rekordów wykorzystująca AES-256-GCM i ChaCha20-Poly1305; nie ma niezależnego dowodu, że taka kompozycja przewyższa sam sprawdzony AEAD.
 
-## Available now
+Samo uwierzytelnianie bloków nie wykryje przywrócenia całego starego, poprawnego obrazu. Tę gwarancję zapewni dopiero niezależnie chroniony i aktualizowany stan kontrolny. Nie jest jeszcze wdrożony. Nie ma też obecnie sprzętowo wymuszanego limitu prób przy krótkim PIN-ie.
 
-- **Desktop GUI (Tkinter; local/offline):** low-distraction black/phosphor-green visual design, module navigation, file encryption, decryption, public-header inspection, and generation of optional random keyfiles.
-- **File Vault v2:** AES-256-GCM per chunk with independently unique nonces and authenticated final marker. Random 256-bit data-encryption key; Argon2id-based password derivation (64 MiB / 3 passes / p=4); HKDF-SHA-256; wrapped DEK; authenticated metadata and public notice.
-- **Human-readable KRYPTA notice** at the beginning of encrypted files (`.kry`), visible in Notepad or any hex editor. Notice describes the actually active cryptographic suite and research status. Header **is not independently authenticated before unlock**.
-- **PIN compatibility:** arbitrary nonempty password, including `1` or four-digit PIN. The UI warns plainly that a short PIN alone is vulnerable to unlimited offline guessing.
-- **Optional random keyfile:** second independent secret. The keyfile is not a non-exportable TPM key and can be copied. Do **not** put it on the encrypted device.
-- **Non-destructive tests:** no overwriting outputs, original file remains unchanged, integrity checks, negative tests (wrong PIN, bit flip, truncation, missing/wrong keyfile).
+## Pobieranie i uruchamianie obecnego kodu
 
-## Not implemented
+Repozytorium jest **PRIVATE**. Workflow GitHub Actions przygotowuje wewnętrzne pliki Windows \`.exe\`, Linux ELF i Android \`.apk\`. Są to kompilacje rozwojowe, nie opublikowane i audytowane wydania. Nie należy udostępniać ich jako gotowego szyfrowania całych urządzeń.
 
-| Module | Status | Minimum architecture requirement |
-|:--|:--|:--|
-| File Vault | **Research prototype** | Independent crypto/security audit and fuzz testing required before production |
-| Drive Shield — external disks / USB | **Not implemented** | Original KRYPTA virtual volume backend, key protection and tested recovery (not BitLocker/LUKS integration) |
-| System Shield — Windows boot | **Not implemented** | Original KRYPTA system-volume engine, secure boot chain, TPM 2.0, measured boot and recovery tests |
-| Password Shield | **Not implemented** | Proper OS-level secret handling and per-use authentication integrations |
-| Android Shield | **Not implemented** | Original vault for app-controlled data; privileged custom Android OS integration for actual full-device encryption |
-| Hardware-backed anti-brute-force | **Not implemented** | TPM/secure element enforcement, rollback protection and recovery model |
-| Security audit / certification | **Not completed** | Third-party review, tests and reproducible releases |
+Windows: Python 3.10+ z Tkinterem:
 
-## Install and launch
-
-Python 3.10+ on Windows; Tkinter is part of many default CPython distributions.
-
-```powershell
+\`\`\`powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[test]"
 python -m krypta gui
-```
+\`\`\`
 
-CLI also remains available:
+CLI, przykładowe operacje na **danych testowych**:
 
-```powershell
+\`\`\`powershell
 python -m krypta --help
 python -m krypta gen-keyfile example.key
-python -m krypta encrypt source-test.txt source-test.kry --keyfile example.key
-python -m krypta info source-test.kry
-python -m krypta decrypt source-test.kry restored-test.txt --keyfile example.key
+python -m krypta encrypt example.txt example.kry --keyfile example.key
+python -m krypta info example.kry
+python -m krypta decrypt example.kry recovered.txt --keyfile example.key
 python -m pytest -q
-```
+\`\`\`
 
-Use disposable test data, **not** the only copy of important files. The program does not remove original files. Passwords are requested interactively in the CLI, never as command-line arguments.
+Hasło jest pobierane interaktywnie, nie z argumentów wiersza poleceń. Operacje nie powinny nadpisywać istniejącego pliku wyjściowego; oryginalny plik pozostaje bez zmian. Używaj jedynie kopii danych, które możesz utracić. Instrukcje kompilacji: [Build and release](docs/BUILD_AND_RELEASE.md); ograniczenia Androida: [Android README](android/README.md).
 
-## Readable file notice
+## Jawny nagłówek szyfrowanych plików
 
-Every newly encrypted file starts with plain ASCII notice similar to:
+Format \`.kry\` zawiera czytelny, niezaszyfrowany identyfikator KRYPTA i informacje o zastosowanym mechanizmie ochrony. Komunikat **nie stanowi atestu, podpisu producenta ani dowodu certyfikacji**. Jego uwierzytelnienie następuje w toku poprawnego odszyfrowania. Krótki PIN bez niezależnego silnego sekretu nadal podlega atakom słownikowym na kopię szyfrogramu. Istniejących nagłówków i komunikatów bezpieczeństwa nie wolno zmieniać w sposób, który fałszywie podnosi poziom gwarancji lub łamie kompatybilność plików.
 
-```text
-KRYPTA / AUTHENTICATED ENCRYPTED FILE
-Format: KRYPTA-FILE/2
-Cipher: AES-256-GCM authenticated encryption
-Key material: random 256-bit data encryption key
-Key derivation: Argon2id / HKDF-SHA-256
-Unlock factors: PIN/password AND external keyfile
-Security status: RESEARCH ALPHA / NOT INDEPENDENTLY AUDITED
-Security claim: strong encryption does NOT protect short PINs from offline guesses
-Public header: UNVERIFIED until successful decryption
-END KRYPTA NOTICE
-```
+## Bezpieczeństwo i prywatność
 
-`Unlock factors` accurately changes to **PIN/password only (offline guessing possible)** if no keyfile is supplied. The header is an *identification and technical transparency feature*, **not** proof against offline attacks or evidence of independent certification. See [`docs/FORMAT.md`](docs/FORMAT.md).
+KRYPTA jest projektowana jako system offline-first, bez wymaganego konta i telemetrii. Żadne szyfrowanie dysku nie zabezpieczy samo w sobie danych przed złośliwym kodem, który ma uprawnienia do ich odczytania **po odblokowaniu** urządzenia. Przed wydaniem końcowym wymagane są: testy utraty zasilania, odzyskiwania kluczy i danych, odporności na odgadywanie PIN-u, izolacji procesu, parserów, zgodności z systemami i niezależny audyt. Na dziś nie ma podstaw do określania KRYPTA jako certyfikowanej, wojskowo zatwierdzonej, „niełamliwej” ani odpornej na wszystkie przyszłe komputery kwantowe.
 
-## Critical security distinction: encryption vs. PIN
+## Lokalizacje i rozwój
 
-A 4-digit PIN has at most 10,000 combinations. No AES mode, visible security notice or software timer can make the PIN high entropy. A short PIN can be secure as an *authentication gesture* when an independently strong secret is held in TPM/TEE/secure element **and the hardware enforces non-replayable attempt restrictions**. Such binding is not implemented in this prototype. A keyfile helps only if unavailable to an attacker with the ciphertext.
+Interfejsy mają katalog 11 języków: polski, angielski, rosyjski, uproszczony chiński, hiszpański, arabski, hindi, portugalski, francuski, niemiecki i indonezyjski. Tłumaczenia komunikatów bezpieczeństwa wymagają przeglądu przed wydaniem.
 
-## Threat model and transparency
+Priorytet prac: **ukończenie i weryfikacja silnika woluminów → bezpieczne klucze i odzyskiwanie → realne montowanie Windows/Linux → systemowe szyfrowanie/boot → Android i sejf → testy końcowe i niezależna ocena**. Rozbudowa wyglądu nie może wyprzedzać bezpieczeństwa i podstawowej funkcjonalności.
 
-- Encrypted files reveal that KRYPTA was used, and the original file size can be approximated from ciphertext size. There is no plausible deniability guarantee.
-- This research implementation does not lock secrets into protected memory or provide protection against malware running on an unlocked machine, keyloggers, RAM extraction, firmware compromise, or side channels.
-- Decryption uses a temporary plaintext file on the destination volume before publishing it; deleting it does not guarantee secure erasure. Choose a pre-encrypted destination if data is sensitive.
-- The current format and software have no independent cryptographic audit or FIPS validation. Do not describe them as military-certified or quantum-proof.
-- AES-256 is a widely trusted symmetric cipher. Adding exotic ciphers without evidence may reduce security instead of improving it.
-
-Further reading: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
-
-## GitHub: private until reviewed
-
-The authoritative private development repository is **`promirmir/KRYPTA`**. Repository visibility must remain **PRIVATE** unless the owner explicitly authorizes publication. This source tree is experimental and **not an audited security product**.
-
-Clone into a development environment using an authenticated GitHub account with access to the private repository. Never check in keys, actual passwords, recovery codes, user data, or private credentials. `.gitignore` reduces accidental staging but does not guarantee that secrets are excluded — inspect every commit.
-
-**Do not enable public visibility or publish binaries until independently validated.** See `SECURITY.md` and `docs/RELEASE_CHECKLIST.md`.
-
-## Languages / języki (Windows, Linux, Android)
-
-The current Matrix-inspired UI supports **11 languages**: Polish, English, Russian,
-Simplified Chinese, Spanish, Arabic, Hindi, Portuguese, French, German and Indonesian.
-Desktop users can switch language within the application. The APK follows the device
-language or a selection saved locally inside the app. All three platforms use the
-same semantic catalogue; Android resources are generated and validated before APK builds.
-The plaintext `.kry` security notice and encrypted file format remain language-independent.
-**All security warnings remain mandatory in every locale.** Translations require
-human language/UX review before any public release. See [docs/LANGUAGES.md](docs/LANGUAGES.md).
-
-## TPM 2.0 readiness investigation (read-only)
-
-The Windows PowerShell diagnostic `windows/Get-KryptaTpmReadiness.ps1` reads TPM,
-Secure Boot and Microsoft Platform Crypto Provider readiness without changing device
-configuration, creating keys or testing passwords. See
-[docs/TPM_SECURITY_GATE.md](docs/TPM_SECURITY_GATE.md). A positive capability report
-**does not prove** brute-force-resistant PIN authorization or production-ready full-disk
-encryption. Hardware-backed unlock, disk encryption and Android key management remain
-unimplemented.
+Wydanie produkcyjne można ogłosić dopiero po spełnieniu [kryteriów ukończenia](docs/PRODUCT_ACCEPTANCE.md). Repozytorium ma pozostać **PRIVATE** aż do wyraźnej decyzji właściciela.
