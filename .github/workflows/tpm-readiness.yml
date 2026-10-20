@@ -1,0 +1,39 @@
+name: KRYPTA / Windows TPM read-only checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/Get-KryptaTpmReadiness.ps1'
+      - 'krypta/hardware_readiness.py'
+      - 'tests/test_hardware_readiness.py'
+      - '.github/workflows/tpm-readiness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-readiness:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read-only Windows TPM capability probe
+        shell: pwsh
+        run: |
+          $result = & ./windows/Get-KryptaTpmReadiness.ps1 | ConvertFrom-Json
+          if ($result.schema -ne 'KRYPTA-TPM-READINESS/1') { throw 'Wrong schema' }
+          if ($result.read_only -ne $true) { throw 'Unsafe report state' }
+          if ($result.security_assurance.pin_anti_hammering_verified -ne $false) { throw 'False security claim' }
+          if ($result.security_assurance.tpm_key_operations_tested -ne $false) { throw 'No key test was performed' }
+          Write-Host "TPM present: $($result.tpm.present); KSP opened: $($result.platform_crypto_provider.can_open)"
+          Write-Host 'This GitHub runner is NOT a valid hardware-PIN anti-hammering test.'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate fail-closed advisory reporting
+        shell: pwsh
+        run: |
+          python -m pip install -e '.[test]'
+          python -m pytest -q tests/test_hardware_readiness.py

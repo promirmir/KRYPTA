@@ -101,3 +101,24 @@ The authoritative private development repository is **`promirmir/KRYPTA`**. Repo
 Clone into a development environment using an authenticated GitHub account with access to the private repository. Never check in keys, actual passwords, recovery codes, user data, or private credentials. `.gitignore` reduces accidental staging but does not guarantee that secrets are excluded — inspect every commit.
 
 **Do not enable public visibility or publish binaries until independently validated.** See `SECURITY.md` and `docs/RELEASE_CHECKLIST.md`.
+
+## Languages / języki (Windows, Linux, Android)
+
+The current Matrix-inspired UI supports **11 languages**: Polish, English, Russian,
+Simplified Chinese, Spanish, Arabic, Hindi, Portuguese, French, German and Indonesian.
+Desktop users can switch language within the application. The APK follows the device
+language or a selection saved locally inside the app. All three platforms use the
+same semantic catalogue; Android resources are generated and validated before APK builds.
+The plaintext `.kry` security notice and encrypted file format remain language-independent.
+**All security warnings remain mandatory in every locale.** Translations require
+human language/UX review before any public release. See [docs/LANGUAGES.md](docs/LANGUAGES.md).
+
+## TPM 2.0 readiness investigation (read-only)
+
+The Windows PowerShell diagnostic `windows/Get-KryptaTpmReadiness.ps1` reads TPM,
+Secure Boot and Microsoft Platform Crypto Provider readiness without changing device
+configuration, creating keys or testing passwords. See
+[docs/TPM_SECURITY_GATE.md](docs/TPM_SECURITY_GATE.md). A positive capability report
+**does not prove** brute-force-resistant PIN authorization or production-ready full-disk
+encryption. Hardware-backed unlock, disk encryption and Android key management remain
+unimplemented.

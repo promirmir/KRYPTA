@@ -7,13 +7,14 @@ from __future__ import annotations
 
 import json
 import os
+import locale
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 
 from .core import CryptoError, decrypt_file, encrypt_file, file_info, generate_keyfile
-from .ui_model import password_warning
+from .i18n import LANGUAGES, normalize_language, translate
 
 INK = '#080F0C'
 PANEL = '#0D1812'
@@ -31,10 +32,12 @@ FONT = 'Consolas' if os.name == 'nt' else 'DejaVu Sans Mono'
 class KryptaApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('KRYPTA / SECURITY WORKSTATION  ·  ALPHA')
+        self.title('KRYPTA / SECURITY WORKSTATION · ALPHA')
         self.geometry('1180x895')
         self.minsize(930, 820)
         self.configure(bg=INK)
+        self.language_code = normalize_language(locale.getlocale()[0] or 'en')
+        self.language_name = tk.StringVar(value=LANGUAGES[self.language_code])
         self.busy = False
         self.active_module = 0
         self.mode = tk.StringVar(value='encrypt')
@@ -44,7 +47,7 @@ class KryptaApp(tk.Tk):
         self.password = tk.StringVar()
         self.confirm = tk.StringVar()
         self.reveal = tk.BooleanVar(value=False)
-        self.state_msg = tk.StringVar(value='GOTOWY  /  Operacje wyłącznie na zwykłych plikach testowych')
+        self.state_msg = tk.StringVar(value='')
         self._setup_style()
         self._layout()
         self.password.trace_add('write', lambda *_: self._update_advisory())
@@ -52,8 +55,39 @@ class KryptaApp(tk.Tk):
         self.mode.trace_add('write', lambda *_: self._set_mode())
         self._update_advisory()
 
+    def _t(self, key):
+        return translate(self.language_code, key)
+
+    def _language_changed(self, _event=None):
+        if self.busy:
+            return
+        chosen = self.language_name.get()
+        match = next((code for code, name in LANGUAGES.items() if name == chosen), None)
+        if not match or match == self.language_code:
+            return
+        selected = self.active_module
+        self.language_code = match
+        for child in self.winfo_children():
+            child.destroy()
+        self._setup_style()
+        self._layout()
+        self.active_module = 0
+        if selected:
+            self._show_module(selected)
+        self._set_mode()
+        self._update_advisory()
+
+    def _font_family(self):
+        # Use fonts with coverage for scripts not present in typical monospace fonts.
+        if os.name == 'nt':
+            return {'zh': 'Microsoft YaHei UI', 'hi': 'Nirmala UI',
+                    'ar': 'Segoe UI'}.get(self.language_code, FONT)
+        return {'zh': 'Noto Sans CJK SC', 'hi': 'Noto Sans Devanagari',
+                'ar': 'Noto Sans Arabic'}.get(self.language_code, FONT)
+
     def _setup_style(self):
-        self.option_add('*Font', f'{{{FONT}}} 10')
+        ui_font = self._font_family()
+        self.option_add('*Font', f'{{{ui_font}}} 10')
         self.option_add('*Entry.background', PANEL_ALT)
         self.option_add('*Entry.foreground', TEXT)
         self.option_add('*Entry.insertBackground', GREEN)
@@ -67,24 +101,24 @@ class KryptaApp(tk.Tk):
         st.map('KV.TEntry', bordercolor=[('focus', GREEN_DIM)],
                fieldbackground=[('readonly', PANEL_ALT)])
         st.configure('KV.TButton', background=PANEL_ALT, foreground=GREEN,
-                     bordercolor=BORDER, padding=(12, 9), font=(FONT, 10, 'bold'))
+                     bordercolor=BORDER, padding=(12, 9), font=(ui_font, 10, 'bold'))
         st.map('KV.TButton', background=[('active', '#1A3222'), ('disabled', PANEL)],
                foreground=[('disabled', MUTED)])
         st.configure('KPrimary.TButton', background=GREEN, foreground=INK,
-                     padding=(18, 12), bordercolor=GREEN, font=(FONT, 10, 'bold'))
+                     padding=(18, 12), bordercolor=GREEN, font=(ui_font, 10, 'bold'))
         st.map('KPrimary.TButton', background=[('active', '#C5FFD1'), ('disabled', PANEL_ALT)],
                foreground=[('disabled', MUTED)])
         st.configure('KRadio.TRadiobutton', background=PANEL, foreground=TEXT,
-                     font=(FONT, 10), padding=(10, 10))
+                     font=(ui_font, 10), padding=(10, 10))
         st.map('KRadio.TRadiobutton', background=[('active', PANEL)],
                foreground=[('active', GREEN)])
         st.configure('KCheck.TCheckbutton', background=PANEL, foreground=MUTED,
-                     font=(FONT, 9))
+                     font=(ui_font, 9))
         st.map('KCheck.TCheckbutton', background=[('active', PANEL)])
 
     def _label(self, parent, text, fg=MUTED, size=10, bold=False, **kw):
         return tk.Label(parent, text=text, bg=parent.cget('bg'), fg=fg,
-                        font=(FONT, size, 'bold' if bold else 'normal'), **kw)
+                        font=(self._font_family(), size, 'bold' if bold else 'normal'), **kw)
 
     def _layout(self):
         root = tk.Frame(self, bg=INK)
@@ -98,8 +132,12 @@ class KryptaApp(tk.Tk):
         self._label(brand, '  /  SECURITY WORKSTATION', MUTED, 10).pack(side='left', pady=(9, 0))
         right = tk.Frame(mast, bg=INK)
         right.pack(side='right')
-        self._label(right, 'RESEARCH BUILD   0.4.0-ALPHA', AMBER, 9, True).pack(anchor='e')
-        self._label(right, 'LOCAL MODE  ●  NO CLOUD CONNECTION', GREEN_DIM, 9).pack(anchor='e', pady=(4, 0))
+        self._label(right, self._t('research_build') + '   0.4.0-ALPHA', AMBER, 9, True).pack(anchor='e')
+        self._label(right, self._t('offline'), GREEN_DIM, 9).pack(anchor='e', pady=(4, 0))
+        self.lang_picker = ttk.Combobox(right, values=list(LANGUAGES.values()),
+                                       textvariable=self.language_name, state='readonly', width=20)
+        self.lang_picker.pack(anchor='e', pady=(6, 0))
+        self.lang_picker.bind('<<ComboboxSelected>>', self._language_changed)
         strip = tk.Frame(root, height=1, bg=GREEN_DIM)
         strip.pack(fill='x', pady=(0, 16))
         strip.pack_propagate(False)
@@ -108,13 +146,13 @@ class KryptaApp(tk.Tk):
         sidebar = tk.Frame(main, bg=INK, width=225)
         sidebar.pack(side='left', fill='y', padx=(0, 17))
         sidebar.pack_propagate(False)
-        self._label(sidebar, 'MODULES  /  01—05', GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 14))
+        self._label(sidebar, self._t('modules') + ' / 01—05', GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 14))
         specs = [
-            ('01', 'FILE VAULT', 'ACTIVE', True),
-            ('02', 'DRIVE SHIELD', 'PLANNED', False),
-            ('03', 'SYSTEM SHIELD', 'PLANNED', False),
-            ('04', 'PASSWORD SHIELD', 'PLANNED', False),
-            ('05', 'ANDROID SHIELD', 'PLANNED', False),
+            ('01', self._t('file_vault'), self._t('available'), True),
+            ('02', self._t('drive_shield'), self._t('planned'), False),
+            ('03', self._t('system_shield'), self._t('planned'), False),
+            ('04', self._t('password_shield'), self._t('planned'), False),
+            ('05', self._t('android_shield'), self._t('planned'), False),
         ]
         self.module_buttons = []
         for index, (i, name, status, active) in enumerate(specs):
@@ -124,35 +162,35 @@ class KryptaApp(tk.Tk):
                 fg=GREEN if active else MUTED, activebackground='#162B1E',
                 activeforeground=GREEN, highlightthickness=0, bd=1,
                 relief='solid' if active else 'flat',
-                font=(FONT, 10), padx=12, pady=11, cursor='hand2',
+                font=(self._font_family(), 10), padx=12, pady=11, cursor='hand2',
             )
             btn.pack(fill='x', pady=(0, 5))
             self.module_buttons.append(btn)
         tk.Frame(sidebar, bg=INK, height=22).pack()
-        self._label(sidebar, 'SECURITY PRINCIPLE', GREEN_DIM, 9, True).pack(anchor='w')
+        self._label(sidebar, self._t('principle'), GREEN_DIM, 9, True).pack(anchor='w')
         self._label(sidebar,
-                    'Public design. Private keys.\nNo false claims.\nIndependent verification.',
+                    self._t('principle_body'),
                     MUTED, 9, justify='left', anchor='nw').pack(fill='x', pady=(9, 0))
         body = tk.Frame(main, bg=INK)
         body.pack(side='left', fill='both', expand=True)
         heading = tk.Frame(body, bg=INK)
         heading.pack(fill='x', pady=(0, 13))
-        self.module_title = self._label(heading, '01 / FILE VAULT', TEXT, 18, True)
+        self.module_title = self._label(heading, '01 / ' + self._t('file_vault'), TEXT, 18, True)
         self.module_title.pack(side='left')
-        self.module_status = self._label(heading, '● AVAILABLE IN RESEARCH BUILD', GREEN_DIM, 9, True)
+        self.module_status = self._label(heading, '● ' + self._t('available'), GREEN_DIM, 9, True)
         self.module_status.pack(side='right', pady=(8, 0))
         self.module_subtitle = self._label(body,
-            'Szyfrowanie plików testowych  ·  AES-256-GCM  ·  Argon2id  ·  brak sieci', MUTED, 10)
+            self._t('vault_subtitle'), MUTED, 10)
         self.module_subtitle.pack(anchor='w', pady=(0, 14))
         self.vault_panel = tk.Frame(body, bg=INK)
         self.vault_panel.pack(fill='both', expand=True)
         self.future_panel = tk.Frame(body, bg=PANEL, highlightthickness=1, highlightbackground=BORDER)
-        self.future_heading = self._label(self.future_panel, 'MODULE IN DEVELOPMENT', AMBER, 16, True)
+        self.future_heading = self._label(self.future_panel, self._t('future_heading'), AMBER, 16, True)
         self.future_heading.pack(anchor='w', padx=25, pady=(30, 15))
         self.future_copy = self._label(self.future_panel, '', TEXT, 11, justify='left',
                                        anchor='w', wraplength=670)
         self.future_copy.pack(anchor='w', padx=25)
-        self._label(self.future_panel, '\nNO SECURITY CLAIM WITHOUT IMPLEMENTATION AND AUDIT',
+        self._label(self.future_panel, '\n' + self._t('future_warning'),
                     GREEN_DIM, 9, True).pack(anchor='w', padx=25, pady=(25, 20))
         card = tk.Frame(self.vault_panel, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
         card.pack(fill='x')
@@ -160,78 +198,64 @@ class KryptaApp(tk.Tk):
         pad.pack(fill='x', padx=23, pady=19)
         modebar = tk.Frame(pad, bg=PANEL)
         modebar.pack(fill='x', pady=(0, 14))
-        self._label(modebar, 'OPERATION', GREEN_DIM, 9, True).pack(side='left', padx=(0, 15))
-        for value, label in [('encrypt', 'ENCRYPT'), ('decrypt', 'DECRYPT'), ('info', 'INSPECT HEADER')]:
+        self._label(modebar, self._t('operation'), GREEN_DIM, 9, True).pack(side='left', padx=(0, 15))
+        for value, label in [('encrypt', self._t('encrypt')), ('decrypt', self._t('decrypt')), ('info', self._t('inspect'))]:
             ttk.Radiobutton(modebar, text=label, variable=self.mode, value=value,
                             style='KRadio.TRadiobutton').pack(side='left', padx=2)
-        self._field(pad, 'SOURCE FILE', self.source, 'source')
-        self.dest_row = self._field(pad, 'DESTINATION  /  NEW FILE', self.destination, 'destination')
-        self.key_row = self._field(pad, 'OPTIONAL SECOND FACTOR  /  EXTERNAL KEYFILE', self.keyfile, 'keyfile')
+        self._field(pad, self._t('source'), self.source, 'source')
+        self.dest_row = self._field(pad, self._t('destination'), self.destination, 'destination')
+        self.key_row = self._field(pad, self._t('keyfile'), self.keyfile, 'keyfile')
         row = tk.Frame(pad, bg=PANEL)
         row.pack(fill='x', pady=(2, 4))
-        self._label(row, 'PIN / PASSPHRASE', GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 6))
+        self._label(row, self._t('pin'), GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 6))
         password_line = tk.Frame(row, bg=PANEL)
         password_line.pack(fill='x')
         self.pwd_entry = ttk.Entry(password_line, textvariable=self.password, show='•', style='KV.TEntry')
         self.pwd_entry.pack(side='left', fill='x', expand=True, padx=(0, 8))
-        ttk.Checkbutton(password_line, text='REVEAL', variable=self.reveal,
+        ttk.Checkbutton(password_line, text=self._t('reveal'), variable=self.reveal,
                         command=self._toggle_reveal, style='KCheck.TCheckbutton').pack(side='left')
         self.confirm_row = tk.Frame(pad, bg=PANEL)
         self.confirm_row.pack(fill='x', pady=(8, 0))
-        self._label(self.confirm_row, 'CONFIRM PIN / PASSPHRASE', GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 6))
+        self._label(self.confirm_row, self._t('confirm'), GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 6))
         self.confirm_entry = ttk.Entry(self.confirm_row, textvariable=self.confirm, show='•', style='KV.TEntry')
         self.confirm_entry.pack(fill='x')
         bottom = tk.Frame(pad, bg=PANEL)
         bottom.pack(fill='x', pady=(17, 0))
-        self.action = ttk.Button(bottom, text='ENCRYPT TEST FILE  →', command=self._run,
+        self.action = ttk.Button(bottom, text=self._t('encrypt_action'), command=self._run,
                                  style='KPrimary.TButton')
         self.action.pack(side='left')
-        ttk.Button(bottom, text='GENERATE KEYFILE', command=self._new_keyfile,
+        ttk.Button(bottom, text=self._t('generate_keyfile'), command=self._new_keyfile,
                    style='KV.TButton').pack(side='right')
         risk_frame = tk.Frame(self.vault_panel, bg=PANEL_ALT, highlightthickness=1, highlightbackground=BORDER)
         risk_frame.pack(fill='x', pady=(14, 0))
         self.risk = tk.Label(risk_frame, text='', bg=PANEL_ALT, fg=AMBER,
-                             font=(FONT, 10), justify='left', anchor='w', wraplength=700)
+                             font=(self._font_family(), 10), justify='left', anchor='w', wraplength=700)
         self.risk.pack(fill='x', padx=16, pady=14)
         info = tk.Frame(self.vault_panel, bg=INK)
         info.pack(fill='both', expand=True, pady=(15, 0))
-        self._label(info, 'CONSOLE  /  SECURITY EVENTS', GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 7))
+        self._label(info, self._t('events'), GREEN_DIM, 9, True).pack(anchor='w', pady=(0, 7))
         self.console = tk.Text(info, height=6, bg='#09120D', fg=GREEN_DIM,
-                               font=(FONT, 9), wrap='word', relief='flat', state='disabled',
+                               font=(self._font_family(), 9), wrap='word', relief='flat', state='disabled',
                                padx=14, pady=12, highlightbackground=BORDER, highlightthickness=1)
         self.console.pack(fill='both', expand=True)
-        self._log('SECURITY NOTICE: ALPHA PROTOTYPE — NO INDEPENDENT AUDIT')
-        self._log('Do not use for irreplaceable data or live system partitions.')
-        self._log('Raw disk encryption and TPM-enforced brute-force limits: NOT IMPLEMENTED.')
+        self._log(self._t('research_notice'))
+        self._log(self._t('no_irreplaceable'))
+        self._log(self._t('not_disk'))
         foot = tk.Frame(root, bg=INK)
         foot.pack(fill='x', pady=(14, 0))
         tk.Frame(root, bg=BORDER, height=1).pack(side='bottom', fill='x')
-        self.status = self._label(foot, '●  READY', GREEN, 9, True)
+        self.status = self._label(foot, '●  ' + self._t('ready'), GREEN, 9, True)
         self.status.pack(side='left')
-        self._label(foot, 'KRYPTA  ·  OFFLINE  ·  FILE VAULT ONLY  ·  DEVELOPMENT / NOT CERTIFIED',
+        self._label(foot, 'KRYPTA  ·  ' + self._t('experimental_footer'),
                     MUTED, 8).pack(side='right')
 
     def _show_module(self, index):
         if self.busy or index == self.active_module:
             return
-        names = ('FILE VAULT', 'DRIVE SHIELD', 'SYSTEM SHIELD', 'PASSWORD SHIELD', 'ANDROID SHIELD')
-        summaries = (
-            '',
-            'Docelowo: niezależne szyfrowanie woluminów USB, SSD i HDD.\n'
-            'Klucze nie będą ujawniane w nagłówkach. PIN sprzętowy wymaga\n'
-            'odpowiednio zaprojektowanego nieeksportowalnego sekretu.\n\n'
-            'STATUS: BRAK SILNIKA SZYFROWANIA WOLUMINÓW. NIC NIE JEST MODYFIKOWANE.',
-            'Docelowo: ochrona dysku rozruchowego przed startem systemu,\n'
-            'TPM 2.0, Secure Boot, bezpieczna procedura odzyskiwania.\n\n'
-            'STATUS: BRAK STEROWNIKA, INSTALATORA I MECHANIZMU PRE-BOOT.\n'
-            'NIE WOLNO TESTOWAĆ TEGO MODUŁU NA SYSTEMOWYM DYSKU.',
-            'Docelowo: odrębny sejf haseł, autoryzacja użycia sekretów,\n'
-            'integracje z uprawnionymi aplikacjami.\n\n'
-            'STATUS: FUNKCJA NIEZAIMPLEMENTOWANA. ISTNIEJĄCE HASŁA NIE SĄ PRZEJMOWANE.',
-            'Docelowo: zarządzanie ochroną Android FBE oraz Android Keystore.\n'
-            'Zwykła aplikacja APK nie zastąpi szyfrowania systemowego.\n\n'
-            'STATUS: FUNKCJA NIEZAIMPLEMENTOWANA.',
-        )
+        names = tuple(self._t(key) for key in
+                      ('file_vault', 'drive_shield', 'system_shield', 'password_shield', 'android_shield'))
+        summaries = ('', self._t('future_drive'), self._t('future_system'),
+                     self._t('future_password'), self._t('future_android'))
         self.active_module = index
         for i, btn in enumerate(self.module_buttons):
             selected = i == index
@@ -239,12 +263,12 @@ class KryptaApp(tk.Tk):
                           fg=GREEN if selected else MUTED,
                           relief='solid' if selected else 'flat')
         self.module_title.configure(text=f'{index+1:02d} / {names[index]}')
-        self.module_status.configure(text='● AVAILABLE IN RESEARCH BUILD' if index == 0
-                                     else '◌ PLANNED / NOT IMPLEMENTED',
+        self.module_status.configure(text=('● ' + self._t('available')) if index == 0
+                                     else ('◌ ' + self._t('planned')),
                                      fg=GREEN_DIM if index == 0 else AMBER)
         self.module_subtitle.configure(text=(
-            'Szyfrowanie plików testowych  ·  AES-256-GCM  ·  Argon2id  ·  brak sieci'
-            if index == 0 else 'PROTECTED ARCHITECTURE  /  DEVELOPMENT STAGE'))
+            self._t('vault_subtitle')
+            if index == 0 else self._t('future_subtitle')))
         if index == 0:
             self.future_panel.pack_forget()
             self.vault_panel.pack(fill='both', expand=True)
@@ -262,7 +286,7 @@ class KryptaApp(tk.Tk):
         line.pack(fill='x')
         entry = ttk.Entry(line, textvariable=var, style='KV.TEntry')
         entry.pack(side='left', fill='x', expand=True, padx=(0, 10))
-        button = ttk.Button(line, text='BROWSE', style='KV.TButton',
+        button = ttk.Button(line, text=self._t('browse'), style='KV.TButton',
                             command=lambda: self._choose(role))
         button.pack(side='left')
         return frame
@@ -271,12 +295,12 @@ class KryptaApp(tk.Tk):
         if self.busy:
             return
         if role == 'destination':
-            path = filedialog.asksaveasfilename(title='Nowy plik wynikowy (bez nadpisywania)')
+            path = filedialog.asksaveasfilename(title=self._t('output_title'))
             if path:
                 self.destination.set(path)
         else:
-            path = filedialog.askopenfilename(title='Wybierz plik źródłowy' if role == 'source'
-                                               else 'Wybierz dodatkowy plik klucza')
+            path = filedialog.askopenfilename(title=self._t('input_title') if role == 'source'
+                                               else self._t('key_title'))
             if path:
                 getattr(self, role).set(path)
 
@@ -292,7 +316,7 @@ class KryptaApp(tk.Tk):
             self.key_row.pack_forget()
             self.confirm_row.pack_forget()
             self.pwd_entry.configure(state='disabled')
-            self.action.configure(text='INSPECT PUBLIC HEADER  →')
+            self.action.configure(text=self._t('inspect_action'))
         else:
             # Avoid reordering by explicitly packing each row ahead of the PIN section.
             self.dest_row.pack(fill='x', pady=(0, 12), before=self.pwd_entry.master.master)
@@ -302,17 +326,25 @@ class KryptaApp(tk.Tk):
             else:
                 self.confirm_row.pack_forget()
             self.pwd_entry.configure(state='normal')
-            self.action.configure(text='ENCRYPT TEST FILE  →' if mode == 'encrypt'
+            self.action.configure(text=self._t('encrypt_action') if mode == 'encrypt'
                                   else 'DECRYPT TEST FILE  →')
         self._update_advisory()
 
     def _update_advisory(self):
         if self.mode.get() == 'info':
-            msg = 'HEADER IS PUBLIC / UNVERIFIED — it becomes authenticated only after successful decryption.'
+            key = 'advice_header'
+        elif not self.password.get():
+            key = 'advice_empty'
+        elif bool(self.keyfile.get().strip()):
+            key = 'advice_key'
+        elif len(self.password.get()) <= 4:
+            key = 'advice_short'
+        elif len(self.password.get()) < 12:
+            key = 'advice_medium'
         else:
-            msg = password_warning(self.password.get(), bool(self.keyfile.get().strip()))
-        self.risk.configure(text='▸  ' + msg,
-                            fg=RED if 'OFFLINE' in msg or 'NIE' in msg else AMBER)
+            key = 'advice_strong'
+        self.risk.configure(text='▸  ' + self._t(key),
+                            fg=RED if key == 'advice_short' else AMBER)
 
     def _log(self, line):
         self.console.configure(state='normal')
@@ -323,6 +355,7 @@ class KryptaApp(tk.Tk):
     def _set_busy(self, busy, status):
         self.busy = busy
         self.action.configure(state='disabled' if busy else 'normal')
+        self.lang_picker.configure(state='disabled' if busy else 'readonly')
         self.status.configure(text=('◌  ' if busy else '●  ') + status,
                               fg=AMBER if busy else GREEN)
 
@@ -335,40 +368,42 @@ class KryptaApp(tk.Tk):
         key = self.keyfile.get().strip() or None
         pw = self.password.get()
         if not src or (mode != 'info' and not dst):
-            messagebox.showwarning('KRYPTA / Missing path', 'Wybierz plik wejściowy i plik wyjściowy.')
+            messagebox.showwarning('KRYPTA', self._t('missing_path'))
             return
         if mode != 'info' and not pw:
-            messagebox.showwarning('KRYPTA / Empty secret', 'Hasło nie może być puste.')
+            messagebox.showwarning('KRYPTA', self._t('empty_password'))
             return
         if mode == 'encrypt' and pw != self.confirm.get():
-            messagebox.showwarning('KRYPTA / Confirmation', 'Wpisane hasła różnią się.')
+            messagebox.showwarning('KRYPTA', self._t('mismatch'))
             return
         if mode == 'encrypt' and len(pw) <= 4 and not key:
-            if not messagebox.askyesno('KRYPTA / OFFLINE ATTACK RISK',
-                    'Krótki PIN bez drugiego sekretu NIE chroni przed nieograniczonym odgadywaniem '
-                    'na skopiowanym pliku.\n\nTo jest wyłącznie wersja badawcza. Kontynuować test?'):
+            if not messagebox.askyesno('KRYPTA / ' + self._t('risk_title'),
+                    self._t('risk_confirm')):
                 return
         if mode != 'info' and Path(dst).exists():
-            messagebox.showerror('KRYPTA / File exists', 'Nie nadpisujemy istniejących plików.')
+            messagebox.showerror('KRYPTA', self._t('exists'))
             return
-        self._set_busy(True, 'PROCESSING / DO NOT CLOSE')
-        self._log(f'{mode.upper()} — operation requested (no plaintext / keys in logs).')
+        self._set_busy(True, self._t('processing'))
+        self._log(f'{mode.upper()} — ' + self._t('operation_log'))
         # Keep Tk on main thread; cryptographic work runs on worker thread.
         def job():
             try:
                 if mode == 'info':
                     result = file_info(src)
+                    if self.language_code != 'pl':
+                        result['verification'] = self._t('advice_header')
                     msg = json.dumps(result, ensure_ascii=False, indent=2)
                 elif mode == 'encrypt':
                     encrypt_file(src, dst, pw, key)
-                    msg = 'Zaszyfrowano plik. Oryginał nie został usunięty.'
+                    msg = self._t('encrypt_ok')
                 else:
                     decrypt_file(src, dst, pw, key)
-                    msg = 'Odszyfrowano plik. Integralność została sprawdzona.'
+                    msg = self._t('decrypt_ok')
             except (CryptoError, OSError, ValueError) as exc:
-                self.after(0, lambda m=str(exc): self._complete(False, m))
+                detail = str(exc) if self.language_code == 'pl' else self._t('failure')
+                self.after(0, lambda m=detail: self._complete(False, m))
             except Exception:
-                self.after(0, lambda: self._complete(False, 'Nieoczekiwany błąd.'))
+                self.after(0, lambda: self._complete(False, self._t('unexpected')))
             else:
                 self.after(0, lambda m=msg: self._complete(True, m))
         threading.Thread(target=job, daemon=True).start()
@@ -377,35 +412,34 @@ class KryptaApp(tk.Tk):
         self.confirm.set('')
 
     def _complete(self, ok, message):
-        self._set_busy(False, 'READY' if ok else 'OPERATION FAILED')
+        self._set_busy(False, self._t('ready') if ok else self._t('failed'))
         if ok:
             self._log('SUCCESS  /  ' + message)
             if '\n' in message:
                 self._log(message)
-            messagebox.showinfo('KRYPTA / Completed', message)
+            messagebox.showinfo('KRYPTA / ' + self._t('success'), message)
         else:
             self._log('ERROR  /  ' + message)
-            messagebox.showerror('KRYPTA / Failure', message)
+            messagebox.showerror('KRYPTA / ' + self._t('failure'), message)
 
     def _new_keyfile(self):
         if self.busy:
             return
-        path = filedialog.asksaveasfilename(title='Utwórz nowy losowy plik klucza (backup wymagany)',
+        path = filedialog.asksaveasfilename(title=self._t('choose_key'),
                                              defaultextension='.key')
         if not path:
             return
-        if not messagebox.askyesno('KRYPTA / Key material',
-                'Klucz musi być przechowywany poza zaszyfrowanym plikiem i mieć kopię zapasową. '
-                'Utrata klucza oznacza utratę dostępu. Utworzyć?'):
+        if not messagebox.askyesno('KRYPTA',
+                self._t('key_backup_question')):
             return
         try:
             generate_keyfile(path)
         except (OSError, ValueError, CryptoError) as exc:
-            messagebox.showerror('KRYPTA / Cannot create', str(exc))
+            messagebox.showerror('KRYPTA / ' + self._t('failure'), str(exc) if self.language_code == 'pl' else self._t('failure'))
             return
         self.keyfile.set(path)
-        self._log('32-byte random keyfile generated (secret not logged).')
-        messagebox.showinfo('KRYPTA / Keyfile', 'Utworzono klucz. Zrób bezpieczną kopię.')
+        self._log(self._t('key_log'))
+        messagebox.showinfo('KRYPTA / Keyfile', self._t('key_created'))
 
 
 def main():
