@@ -44,7 +44,9 @@ Status on 2026-10-20: v0.4.0-alpha. **Only the File Vault research prototype is 
 ## Stage D: password and mobile
 
 - [ ] Password Shield with per-use authentication, secure storage, and explicit authorized integrations.
-- [ ] Android application-controlled encrypted vault and Keystore-backed keys, independent code path; whole-device custom encryption only through appropriately privileged/custom-OS integration, not a regular APK.
+- [x] Android **research selected-file vault**: local native KRYPTA-MOBILE/1 format with authenticated 64-KiB AES-GCM records, Keystore-wrapped per-file key, system credential confirmation and 11 localized action/warning strings. [Android instructions](../android/README.md). Built and JUnit-tested in private CI.
+- [ ] Android **production-grade recoverable encrypted vault**: recovery/backup, real-device hardware-bound tests, safer output/temporary-file handling, signed APK, compatibility and performance.
+- [ ] Transparent whole-device custom Android encryption requires appropriately privileged/custom-OS integration — NOT possible through a normal APK.
 
 ## Stage E: independent validation and public release
 
@@ -60,7 +62,8 @@ No absolute “unbreakable” promise. Every release must describe the real thre
 - [x] Add private CI recipe for Windows `.exe` desktop alpha.
 - [x] Add private CI recipe for Linux ELF desktop alpha.
 - [x] Add Android-native Matrix-styled UI skeleton and debug-APK CI recipe.
-- [ ] Confirm successful GitHub Actions builds for all three platforms.
+- [x] Confirm successful GitHub Actions research builds for all three platforms.
 - [ ] Independently verify binaries on Windows hardware, at least two Linux distributions and the supported Android devices.
-- [ ] Implement actual Android file protection, OS-backed protection and recovery after security architecture review.
+- [x] Implement Android selected-file authenticated encryption and OS Keystore wrapping (research only).
+- [ ] Secure Android key recovery/portability and whole-device encryption architecture after validation.
 - [ ] Sign release artifacts with protected release keys (debug APK and unsigned EXE are not releases).

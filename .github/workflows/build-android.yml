@@ -43,6 +43,8 @@ jobs:
           gradle-version: '8.9'
       - name: Check shared localization resources
         run: python tools/sync_android_strings.py --check
+      - name: Check all 11 mobile vault security/warning locales
+        run: python tools/check_vault_locale_strings.py
       - name: Run JVM vault tampering and roundtrip unit tests
         working-directory: android
         run: gradle --no-daemon :app:testDebugUnitTest

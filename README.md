@@ -11,7 +11,7 @@
 
 > **RESEARCH ONLY. NOT AUDITED. NOT APPROVED FOR PROTECTING IMPORTANT DATA.**
 >
-> The only implemented cryptographic operation is authenticated encryption of **individual ordinary test files**.
+> Functional prototypes: desktop File Vault for test files and the Android selected-file research vault. A separate KRYPTA-FS encrypted volume/image exists as a non-mountable research module.
 > No disk, boot or system volume is ever modified. The interface contains clearly marked planned modules.
 
 KRYPTA is a separate, independent security project. Its long-term goal is robust encryption for Windows system volumes, removable drives, a password vault, and Android integration. It uses public, established cryptographic primitives and aims to minimize attack surface. Project identity and an unmistakable readable security notice are part of the file format, but branding cannot replace cryptographic assurance.
@@ -21,7 +21,7 @@ KRYPTA is a separate, independent security project. Its long-term goal is robust
 
 ## Distribution formats (alpha; private CI)
 
-KRYPTA is developed for **Windows x64 (`.exe`)**, **Linux x64 (ELF)** and **Android (`.apk`)**. GitHub Actions definitions under `.github/workflows/` build these artifacts for private internal testing. **Android is currently a UI-only APK — it does not encrypt anything.** Desktop builds expose the research file vault for disposable files, not full-disk encryption. See [`docs/BUILD_AND_RELEASE.md`](docs/BUILD_AND_RELEASE.md) and [`android/README.md`](android/README.md). No installer or executable has been independently audited. Do not use these builds as your only protection for important data.
+KRYPTA is developed for **Windows x64 (`.exe`)**, **Linux x64 (ELF)** and **Android (`.apk`)**. GitHub Actions definitions under `.github/workflows/` build these artifacts for private internal testing. **Android 0.5.0 research now encrypts/decrypts explicitly selected test files** using its own KRYPTA-MOBILE/1 AES-256-GCM format and an Android Keystore-bound wrapping key. It does **not** encrypt the entire phone; no portable key recovery exists. Desktop builds expose the research file vault for disposable files, not full-disk encryption. See [`docs/BUILD_AND_RELEASE.md`](docs/BUILD_AND_RELEASE.md) and [`android/README.md`](android/README.md). No installer or executable has been independently audited. Do not use these builds as your only protection for important data.
 
 ## Available now
 

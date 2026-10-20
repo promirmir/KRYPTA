@@ -4,13 +4,21 @@
 
 This page is evidence-based; a passing test is not a proof of confidentiality under every threat model.
 
+## Android selected-file research vault (2026-10-20)
+
+The Android **0.5.0 research APK** now implements actual selected-file encryption/decryption through `android/app/src/main/java/io/krypta/research/VaultFormat.java` and an Android Keystore wrapping key (`AndroidVaultKey.java`). Each file uses a random 256-bit DEK; encrypted 64-KiB chunks and an authenticated terminal record use AES-256-GCM. The code is separate from both desktop `.kry` and experimental HORIZON `.kvi` formats.
+
+**Evidence:** `android/app/src/test/java/io/krypta/research/VaultFormatTest.java` passes pure-JVM tests; the Android 35 debug APK builds and passes lint and permission checks in [CI](https://github.com/promirmir/KRYPTA/actions/runs/39436106810). No INTERNET/broad-storage permission was added. The new warning/action labels are localized for 11 languages.
+
+**Limitations:** No Android physical-device Keystore test, no secure/portable recovery key, no proof of hardware-enforced guess throttling, no complete file-write atomicity, no tested OEM compatibility, no actual Android whole-device encryption. Decrypts to an app-private disposable cache file before exporting verified plaintext; deleting an app cache file does not guarantee flash secure erasure. Data may become permanently inaccessible after device loss/Keystore reset. Do not use the debug APK for irreplaceable files.
+
 ## Experimental encrypted volume image — KRYPTA-VIMG/0
 
 Source: `research/volume_image.py`; [design, limitations and safety](VOLUME_IMAGE_V0.md); `research/volume_demo.py`; tests in `tests/test_volume_image.py`.
 
 Research-only regular `.kvi` image, 128 test sectors at 4096 bytes each. The `write()` API automatically encrypts every full sector through HORIZON/0 and updates a HMAC-authenticated append-only metadata map, separated by durable flush attempts. Synthetic crash tests exercise truncation and recovery of the last complete commit; tampering with an authenticated record is rejected. No system disk, mountable virtual block device, Android storage or physical TPM is changed.
 
-**Not achieved:** true transparent filesystem writes, robust multi-sector atomicity, independent anti-rollback anchor, proven OS-level crash durability, key persistence/recovery, hardware PIN attempt limit, complete threat-model hardening or independent evaluation. Serial process ownership on Windows also remains incomplete.
+**Not achieved:** OS-level transparent filesystem writes, durable production-grade multi-sector crash atomicity, independent anti-rollback anchor, physical drive recovery validation, secure key persistence/recovery, hardware PIN attempt limit, or independent evaluation. The research image implements logical multi-sector commits and process-level single-writer exclusion for Windows/POSIX; these do not guarantee safety on real disks.
 
 ## Original engine research — HORIZON/0 (2026-10-20)
 
