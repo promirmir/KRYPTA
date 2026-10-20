@@ -21,22 +21,47 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Install Android SDK platform
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      # GitHub's Ubuntu hosted runner already includes Android SDK command-line tools.
+      # setup-android@v3 attempted to install the retired SDK package "tools".
+      - name: Verify SDK and install Android 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f -print -quit)"
+          fi
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" --version
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
       - name: Build debug APK (UI prototype only)
         working-directory: android
         run: gradle --no-daemon :app:assembleDebug
-      - name: Verify artifact
+      - name: Verify artifact and absence of network permission
+        shell: bash
         run: |
-          test -s android/app/build/outputs/apk/debug/app-debug.apk
-          sha256sum android/app/build/outputs/apk/debug/app-debug.apk
+          set -euo pipefail
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          aapt="${ANDROID_HOME}/build-tools/35.0.0/aapt"
+          "$aapt" dump badging "$APK" | grep "package: name='io.krypta.research'"
+          "$aapt" dump permissions "$APK" | tee android/apk-permissions.txt
+          if grep -Eq 'android.permission.(INTERNET|READ_SMS|READ_CONTACTS|QUERY_ALL_PACKAGES)' android/apk-permissions.txt; then
+            echo "Unexpected permission requested in research-only APK"
+            exit 1
+          fi
+          sha256sum "$APK" | tee android/KRYPTA-Android-debug.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: KRYPTA-Android-debug-UI-ONLY
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/KRYPTA-Android-debug.sha256
+            android/apk-permissions.txt
           if-no-files-found: error
           retention-days: 14
