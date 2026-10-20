@@ -14,6 +14,12 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
+## PFS/2 actual volume-key rotation and live-file re-encryption (2026-10-20)
+
+`research/paged_rekey.py` now creates an independently keyed NEW PVIMG/PFS2 encrypted image after verifying all currently live files of a source image against the latest externally trusted receipt. Fresh random 256-bit DEK, new image ID and independent password/recovery slots are created, with source unchanged. Source corruption, wrong old credentials/receipt and partial destination failures cause refusal without overwriting any source. New target is reopened for authenticated final verification. The `research/paged_key_cli.py rotate-volume-key` subcommand keeps passwords out of argv/env.
+
+**Not revocation of copied old snapshots:** any party already possessing the original image and original key may still read the historical data. New credentials alone do not retroactively erase stolen copies. No secure erasure, TPM-backed PIN, guaranteed host-filesystem multi-file atomicity or independently audited physical crash protection is implemented. [Technical details](PFS2_DATA_KEY_ROTATION.md).
+
 ## PVKEY/1 — Argon2id-protected volume keys and independent recovery (2026-10-20)
 
 The new `research/paged_keys.py` versioned envelope protects a randomly generated PVIMG volume key with an Argon2id-derived AES-256-GCM wrapping key (64 MiB, 3 iterations) and independently encrypts the same key for a randomly generated 256-bit recovery secret. It binds both authenticated slots to the volume image ID. `research/paged_key_cli.py` supports safe exclusive-creation setup, integrity verification with an external receipt, and non-overwrite password recovery. The optional Linux FUSE mount path now supports password or recovery envelope unlock without raw key bytes on argv.
