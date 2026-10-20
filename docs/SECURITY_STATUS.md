@@ -16,6 +16,14 @@ The Android **0.5.0 research APK** now implements actual selected-file encryptio
 
 The original KRYPTA-FS/VIMG/HORIZON stack has an **opt-in Linux FUSE I/O adapter** (`research/linux_fuse.py`) and a Linux-only explicit-risk CLI (`research/linux_mount.py`). Simulated Linux FUSE callbacks are exercised on synthetic `.kvi` images across Windows/Linux CI. Actual Linux FUSE kernel mounting/unmounting, filesystem recovery after VM crash, driver integration and production OS transparent disk encryption remain **UNTESTED/NOT IMPLEMENTED**. Source is independent of BitLocker/LUKS. [Scope and limitations](LINUX_FUSE_RESEARCH.md).
 
+## Independent KRYPTA-FS real Linux FUSE mount — one disposable VM result
+
+The experimental `research/linux_fuse.py` uses **KRYPTA's own** HORIZON/VIMG/FS authentication/encryption and Linux FUSE only as a system I/O interface. It does not delegate any encryption to BitLocker, LUKS or VeraCrypt.
+
+**Evidence:** [GitHub Actions run 39460873238](https://github.com/promirmir/KRYPTA/actions/runs/39460873238) explicitly passed a **genuine kernel FUSE** mount of an ephemeral test `.kvi` image under Ubuntu 22.04, ordinary file write/read, rename, overwriting, unlink, unmount and authenticated reopen. Cross-platform synthetic regression testing verifies path-to-file-handle identity and fail-closed errors.
+
+**Limitations:** at most 512 KiB logical image and a flat catalogue; no directories/ACL/POSIX permissions persistence, device-bound recovery, trusted anti-rollback store, crash test with real power interruption, Windows filesystem mount, whole system disk protection or comparable military assurance. Successful kernel FUSE operation in one CI VM is NOT evidence of these properties. [Linux scope and reproduction notes](LINUX_FUSE_RESEARCH.md).
+
 ## Research live-sector migration and file integrity sweep
 
 `ResearchVolume.export_compacted_copy()` creates a NEW no-overwrite authenticated image from currently live sectors, retaining the original and reporting a different image ID/receipt. `ResearchFileSystem.verify_all()` reads/verifies all currently listed files. Negative tests check corrupted source, existing destination, failures during migration and incomplete genesis cleanup. **This is not in-place compaction, secure deletion or anti-rollback migration.** [Limits and test instructions](VIMG_LIVE_MIGRATION.md).
