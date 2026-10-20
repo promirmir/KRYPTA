@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_status">ИССЛЕДОВАТЕЛЬСКАЯ АЛЬФА / ФАЙЛЫ</string>
+    <string name="vault_warning">KRYPTA не шифрует весь телефон. Только тестовые файлы; потерянный ключ Android Keystore не восстановить.</string>
+    <string name="vault_body">AES-256-GCM и Android Keystore. Формат KRYPTA-MOBILE/1 несовместим с настольным .kry.</string>
+    <string name="vault_encrypt">ЗАШИФРОВАТЬ ТЕСТОВЫЙ ФАЙЛ</string>
+    <string name="vault_decrypt">РАСШИФРОВАТЬ ТЕСТОВЫЙ ФАЙЛ</string>
+    <string name="vault_idle">Выберите исходный файл.</string>
+    <string name="vault_success">Операция завершена. Сохраните оригинал и копию.</string>
+    <string name="vault_failed">Ошибка. Результат может быть неполным: удалите его. Оригинал не изменён.</string>
+    <string name="vault_cancelled">Операция отменена.</string>
+    <string name="vault_need_lock">Сначала включите защиту экрана.</string>
+    <string name="vault_auth_title">Авторизация KRYPTA</string>
+    <string name="vault_auth_body">Подтвердите блокировку устройства для доступа к ключу. Это не шифрование всего телефона.</string>
+    <string name="vault_same_file">Источник и результат должны различаться.</string>
+</resources>
