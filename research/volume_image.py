@@ -12,6 +12,7 @@ import hmac
 import json
 import os
 from pathlib import Path
+from collections.abc import Mapping
 import secrets
 import stat
 import struct
@@ -79,15 +80,22 @@ class ResearchVolume:
     """Small append-only encrypted image with copy-on-write metadata commits."""
 
     def __init__(self, path: str | Path, key: bytes, *, create: bool = False,
-                 expected_sequence: int | None = None):
+                 expected_sequence: int | None = None,
+                 expected_receipt: str | None = None):
         self.key = _valid_key(key)
         if expected_sequence is not None and (type(expected_sequence) is not int or expected_sequence < 0):
             raise VolumeImageError("Invalid external sequence")
+        if expected_receipt is not None and (
+                not isinstance(expected_receipt, str) or len(expected_receipt) != 64 or
+                any(c not in "0123456789abcdef" for c in expected_receipt)):
+            raise VolumeImageError("Invalid external receipt; expected lowercase SHA-256 hex")
         self.path = Path(path)
         self._f = _open_regular(self.path, create)
         self._closed = False
         self.entries: dict[str, list] = {}
         self.sequence = -1
+        self.commit_receipt = None  # needs storage outside the attacker-controlled image
+        self._poisoned = False
         try:
             if create:
                 self.id = secrets.token_bytes(16)
@@ -105,6 +113,9 @@ class ResearchVolume:
                 self._recover()
             if expected_sequence is not None and self.sequence != expected_sequence:
                 raise VolumeImageError("External commit sequence mismatch; possible rollback")
+            if expected_receipt is not None and not hmac.compare_digest(
+                    self.commit_receipt, expected_receipt):
+                raise VolumeImageError("External commit receipt mismatch; possible rollback")
         except BaseException:
             self._f.close()
             self._closed = True
@@ -127,12 +138,18 @@ class ResearchVolume:
         os.fsync(self._f.fileno())
         return offset
 
+    def _receipt(self, signed: bytes) -> str:
+        return hmac.digest(
+            self._mac_key, b"KRYPTA-VIMG/0/EXTERNAL-RECEIPT/" + signed, "sha256"
+        ).hex()
+
     def _commit(self, seq: int, entries: dict) -> None:
         serialized = _manifest_bytes(seq, self.id, entries)
         signed = serialized + hmac.digest(self._mac_key, MAGIC + self.id + serialized, "sha256")
         self._frame(b"C", signed)
         self.entries = entries
         self.sequence = seq
+        self.commit_receipt = self._receipt(signed)
 
     def _recover(self) -> None:
         self._f.seek(0, os.SEEK_END)
@@ -144,6 +161,7 @@ class ResearchVolume:
         raw_records: dict[int, bytes] = {}
         good_entries: dict[str, list] = {}
         seq = -1
+        receipt = None
         while cursor < total:
             self._f.seek(cursor)
             head = self._f.read(FRAME.size)
@@ -201,12 +219,14 @@ class ResearchVolume:
                         raise VolumeImageError("Incorrect sector size")
                 seq = manifest["seq"]
                 good_entries = current
+                receipt = self._receipt(payload)
                 last_end = cursor + FRAME.size + length
             cursor += FRAME.size + length
         if seq < 0:
             raise VolumeImageError("No authenticated genesis commit")
         self.sequence = seq
         self.entries = good_entries
+        self.commit_receipt = receipt
         if last_end < total:
             # Only append records after the most recent completed valid commit
             # are discarded. A prior complete commit failing MAC never falls back.
@@ -217,6 +237,8 @@ class ResearchVolume:
     def _check_open(self):
         if self._closed:
             raise VolumeImageError("Image is closed")
+        if self._poisoned:
+            raise VolumeImageError("Uncertain write outcome: close and recover/reopen image")
 
     def read(self, index: int) -> bytes:
         self._check_open()
@@ -247,25 +269,78 @@ class ResearchVolume:
         except HorizonError as exc:
             raise VolumeImageError("Sector authentication failed") from exc
 
-    def write(self, index: int, plaintext: bytes) -> int:
+    def write_many(self, updates: Mapping[int, bytes]) -> int:
+        """Atomically commit multiple sectors at the research image API level.
+
+        Appends all encrypted data frames, then ONE authenticated manifest.
+        Any write/fsync failure poisons this handle; caller must close and reopen
+        to determine whether the commit completed. No physical-disk guarantees.
+        """
         self._check_open()
-        if type(index) is not int or not 0 <= index < MAX_BLOCKS:
-            raise VolumeImageError("Invalid block address")
-        if not isinstance(plaintext, bytes) or len(plaintext) != BLOCK_BYTES:
-            raise VolumeImageError("Only full 4096-byte research sectors are accepted")
+        if not isinstance(updates, Mapping) or not 1 <= len(updates) <= MAX_BLOCKS:
+            raise VolumeImageError("Provide 1..MAX_BLOCKS sectors in one transaction")
         if self.sequence >= 2**64 - 1:
-            raise VolumeImageError("Sequence exhausted")
-        key = str(index)
-        generation = self.entries[key][0] + 1 if key in self.entries else 1
-        if generation >= 2**64:
-            raise VolumeImageError("Sector generation exhausted")
-        encrypted = seal_block(self.key, index, generation, plaintext, aad=self.id)
-        payload = DATA_ADDRESS.pack(index, generation) + encrypted
-        offset = self._frame(b"D", payload)
+            raise VolumeImageError("Commit sequence exhausted")
+        prepared = []
+        for index, plaintext in updates.items():
+            if type(index) is not int or not 0 <= index < MAX_BLOCKS:
+                raise VolumeImageError("Invalid block address")
+            if not isinstance(plaintext, bytes) or len(plaintext) != BLOCK_BYTES:
+                raise VolumeImageError("Only full 4096-byte research sectors are accepted")
+            name = str(index)
+            generation = self.entries[name][0] + 1 if name in self.entries else 1
+            if generation >= 2**64:
+                raise VolumeImageError("Sector generation exhausted")
+            encrypted = seal_block(self.key, index, generation, plaintext, aad=self.id)
+            prepared.append((name, index, generation, encrypted))
+        # All input validation and encryption are complete before first disk write.
         next_entries = dict(self.entries)
-        next_entries[key] = [generation, offset, hashlib.sha256(encrypted).hexdigest()]
-        self._commit(self.sequence + 1, next_entries)
+        try:
+            for name, index, generation, encrypted in prepared:
+                offset = self._frame(b"D", DATA_ADDRESS.pack(index, generation) + encrypted)
+                next_entries[name] = [
+                    generation, offset, hashlib.sha256(encrypted).hexdigest()
+                ]
+            self._commit(self.sequence + 1, next_entries)
+        except BaseException:
+            # Do NOT continue using state with uncertain durable commit outcome.
+            self._poisoned = True
+            raise
         return self.sequence
+
+    def write(self, index: int, plaintext: bytes) -> int:
+        return self.write_many({index: plaintext})
+
+    def read_at(self, offset: int, length: int) -> bytes:
+        """Read logical byte ranges using 4096-byte encrypted sectors."""
+        self._check_open()
+        if (type(offset) is not int or type(length) is not int or offset < 0 or
+                length < 0 or offset + length > MAX_BLOCKS * BLOCK_BYTES):
+            raise VolumeImageError("Invalid logical byte range")
+        if length == 0:
+            return b""
+        first = offset // BLOCK_BYTES
+        end = (offset + length - 1) // BLOCK_BYTES
+        combined = b"".join(self.read(i) for i in range(first, end + 1))
+        return combined[offset % BLOCK_BYTES:offset % BLOCK_BYTES + length]
+
+    def write_at(self, offset: int, data: bytes) -> int:
+        """Research-only transparent logical write; one multi-sector commit."""
+        self._check_open()
+        if (type(offset) is not int or offset < 0 or not isinstance(data, bytes)
+                or not data or offset + len(data) > MAX_BLOCKS * BLOCK_BYTES):
+            raise VolumeImageError("Invalid logical byte write")
+        first = offset // BLOCK_BYTES
+        last = (offset + len(data) - 1) // BLOCK_BYTES
+        changes = {}
+        for index in range(first, last + 1):
+            sector_start = index * BLOCK_BYTES
+            left = max(offset, sector_start)
+            right = min(offset + len(data), sector_start + BLOCK_BYTES)
+            sector = bytearray(self.read(index))
+            sector[left - sector_start:right - sector_start] = data[left - offset:right - offset]
+            changes[index] = bytes(sector)
+        return self.write_many(changes)
 
     def close(self) -> None:
         if not self._closed:
