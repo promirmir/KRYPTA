@@ -232,14 +232,23 @@ def _new_private_file(path: str | Path, data: bytes) -> tuple[int, int]:
         fd = os.open(p, flags, 0o600)
     except OSError as exc:
         raise PagedKeyError("Refusing to overwrite existing credential path") from exc
-    info = os.fstat(fd)
+    identity = None
     try:
+        info = os.fstat(fd)
+        identity = (info.st_dev, info.st_ino)
         with os.fdopen(fd, "wb") as f:
             fd = -1
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        return info.st_dev, info.st_ino
+        return identity
+    except BaseException:
+        # Atomic-looking exclusive create is not atomic with fd writes/fsync.
+        # A write or sync failure must not leave a partial credential bundle.
+        # Never delete a destination replaced by an unrelated inode.
+        if identity is not None:
+            _remove_only_own(p, identity)
+        raise
     finally:
         if fd >= 0:
             os.close(fd)
