@@ -82,14 +82,29 @@ def test_create_does_not_overwrite_preexisting_data(tmp_path):
 
 
 def test_invalid_password_pipe_and_overlong_input():
+    # Windows anonymous pipes may be smaller than 4097 bytes. Feeding the
+    # whole oversized payload BEFORE reading causes a cross-platform deadlock.
+    import threading
     r, w = os.pipe()
-    os.write(w, b"x" * 4097)
-    os.close(w)
+    writer_done = []
+
+    def produce():
+        try:
+            os.write(w, b"x" * 4097)
+            writer_done.append(True)
+        finally:
+            os.close(w)
+
+    thread = threading.Thread(target=produce, daemon=True)
+    thread.start()
     try:
         with pytest.raises(PagedKeyError, match="maximum"):
             read_password_fd(r)
     finally:
         os.close(r)
+        thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert writer_done == [True]
 
 
 def test_setup_failure_cleans_only_own_test_image(tmp_path):
