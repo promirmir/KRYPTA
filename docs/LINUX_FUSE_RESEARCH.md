@@ -40,6 +40,8 @@ encrypted history has a 64-MiB physical image limit.
 
 ## How to evaluate ONLY in a disposable Linux VM
 
+**Do not run as root. The mountpoint must be owned by the caller and private (mode 0700).**
+
 Before using FUSE you need Linux with \`/dev/fuse\`, \`fusermount3\` (or
 \`fusermount\`), the optional \`fusepy\` Python binding and matching libfuse.
 Actual mount startup, unmount recovery, kernel error propagation and host
@@ -65,7 +67,7 @@ with tempfile.TemporaryDirectory(prefix="krypta-only-test-") as directory:
     root = Path(directory)
     image = root / "disposable.kvi"
     mountpoint = root / "empty-mount"
-    mountpoint.mkdir()
+    mountpoint.mkdir(mode=0o700)
     key = os.urandom(32)  # DEMONSTRATION ONLY — no recovery copy
     with ResearchVolume(image, key, create=True) as volume:
         ResearchFileSystem.format(volume)
