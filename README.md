@@ -72,6 +72,12 @@ Własny silnik woluminów otrzymał osobny format `KRYPTA-PVKEY/1`: długie has�
 
 Rozwijany silnik może utworzyć **nowy obraz PVIMG/PFS2 z innym losowym kluczem danych**, po zweryfikowaniu i ponownym zaszyfrowaniu aktualnych plików. Nowy obraz otrzymuje również nowy klucz odzyskiwania i hasło. Operacja nie nadpisuje źródła. **Stare kopie obrazu posiadane przez inne osoby pozostają odczytywalne za pomocą starego klucza** — zmiana klucza nie cofa wcześniejszego ujawnienia danych. Jest to nadal funkcja narzędzi programistycznych, nie gotowej aplikacji EXE/APK. [Zasady rotacji i ograniczenia](docs/PFS2_DATA_KEY_ROTATION.md).
 
+## Volume Lab — interfejs testowych zaszyfrowanych obrazów
+
+Powstał osobny moduł desktopowy **Volume Lab (PFS/2)** do tworzenia zaszyfrowanych zwykłych plików `.kpv`, weryfikacji autentyczności i integralności, importu/eksportu plików, odzyskiwania hasła oraz rotacji losowego klucza szyfrowania. Jest to moduł **rozwojowy**, nie szyfruje partycji ani dysków systemowych. Wymaga zewnętrznego zaufanego `receipt`, nie nadpisuje istniejących plików i nie usuwa jawnych oryginałów. [Pełna instrukcja i ograniczenia](docs/VOLUME_LAB_GUI.md).
+
+**Uwaga dotycząca pobierania:** istniejące wydanie `krypta-dev-4-1` jest starsze od Volume Lab. Nowa funkcja pojawi się w EXE/ELF dopiero po pomyślnych testach i zbudowaniu nowego pliku wykonywalnego. Wydanie Android nadal korzysta z oddzielnej implementacji File Vault.
+
 ## Docelowe funkcje produktu
 
 1. Pełne, automatyczne szyfrowanie woluminów Windows i Linux.
