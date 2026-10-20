@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_status">研究版 / 仅选定文件</string>
+    <string name="vault_warning">KRYPTA 不加密整个手机。仅用于测试文件；丢失 Android Keystore 密钥后无法恢复。</string>
+    <string name="vault_body">AES-256-GCM 与 Android Keystore。KRYPTA-MOBILE/1 与桌面 .kry 不兼容。</string>
+    <string name="vault_encrypt">加密测试文件</string>
+    <string name="vault_decrypt">解密测试文件</string>
+    <string name="vault_idle">选择源文件。</string>
+    <string name="vault_success">测试完成，请保留原件和备份。</string>
+    <string name="vault_failed">操作失败。结果可能不完整，请删除。原件未更改。</string>
+    <string name="vault_cancelled">操作已取消。</string>
+    <string name="vault_need_lock">请先启用安全锁屏。</string>
+    <string name="vault_auth_title">授权 KRYPTA</string>
+    <string name="vault_auth_body">确认设备锁屏以使用本机密钥。本功能不加密整个手机。</string>
+    <string name="vault_same_file">源文件和目标文件必须不同。</string>
+</resources>
