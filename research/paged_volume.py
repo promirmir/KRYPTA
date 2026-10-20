@@ -39,6 +39,7 @@ FANOUT = 64
 ROOT_LEVEL = 2
 MAX_BLOCKS = FANOUT ** (ROOT_LEVEL + 1)  # 1 GiB logical, sparse
 MAX_TX_BLOCKS = 256
+MAX_ATOMIC_FILE_BLOCKS = 8192 + 16  # 32-MiB file plus 16 metadata sectors
 MAX_IMAGE_BYTES = 512 * 1024 * 1024  # physical log, research quota
 MAX_RECORD_BYTES = 65536
 MAX_NODE_BYTES = 32 * 1024
@@ -360,9 +361,24 @@ class PagedResearchVolume:
         return [self._append(b"N", raw), _digest(raw)]
 
     def write_many(self, updates: Mapping[int, bytes]) -> int:
+        """Traditional bounded 256-sector atomic PVIMG transaction."""
+        return self._write_many_atomic(updates, MAX_TX_BLOCKS)
+
+    def write_many_atomic_large(self, updates: Mapping[int, bytes]) -> int:
+        """Commit up to 32 MiB data plus PFS/2 catalogue with ONE root commit.
+
+        Frames and modified authenticated radix nodes remain unreachable until
+        the final MAC-verified commit record is flushed. If interrupted,
+        recovery restores the previous trusted receipt and the original root.
+        A 512-MiB physical quota still applies to the append-only image.
+        """
+        return self._write_many_atomic(updates, MAX_ATOMIC_FILE_BLOCKS)
+
+    def _write_many_atomic(self, updates: Mapping[int, bytes], limit: int) -> int:
         self._check()
-        if not isinstance(updates, Mapping) or not 1 <= len(updates) <= MAX_TX_BLOCKS:
-            raise PagedVolumeError("Expected 1..256 changed full sectors")
+        if (not isinstance(updates, Mapping)
+                or not 1 <= len(updates) <= limit):
+            raise PagedVolumeError("Invalid atomic encrypted sector count")
         if self.sequence >= 2**64 - 1:
             raise PagedVolumeError("Commit counter exhausted")
         # Reject mixed-type keys and malformed content before sorting/encrypting.
