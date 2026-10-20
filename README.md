@@ -2,7 +2,7 @@
 
 **NADRZĘDNY CEL PROJEKTU:** niezależny, własny, transparentny system szyfrowania woluminów — **NIE nakładka na BitLocker/LUKS/VeraCrypt**. Diagnostyka szyfrowania innych produktów jest wyłącznie pomocnicza. Docelowo każdy nowy zapis na chronionym dysku zostaje zaszyfrowany bez udziału użytkownika. Osobne tryby: Windows (systemowy i zewnętrzne dyski), Linux, Android i sejf haseł. Krótki PIN jest dostępny, lecz sprzętowa odporność na odgadywanie jest osobnym, wymaganym mechanizmem.
 
-**Wymagania właściciela zapisane w:** [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md). **Oryginalna konstrukcja kryptograficzna, odizolowana badawczo:** [docs/HORIZON_CRYPTO_RFC.md](docs/HORIZON_CRYPTO_RFC.md) i [research/horizon_lab.py](research/horizon_lab.py).
+**Wymagania właściciela zapisane w:** [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md). **Docelowa gotowość do oceny dla zastosowań wojskowych i rządowych:** [docs/DEFENSE_ASSURANCE_TARGET.md](docs/DEFENSE_ASSURANCE_TARGET.md) — ambicja, nie obecny status ani certyfikacja. **Oryginalna konstrukcja kryptograficzna, odizolowana badawczo:** [docs/HORIZON_CRYPTO_RFC.md](docs/HORIZON_CRYPTO_RFC.md) i [research/horizon_lab.py](research/horizon_lab.py).
 
 **Ważne:** własny system i własna konstrukcja nie oznaczają w tym momencie udowodnionej przewagi nad istniejącymi produktami ani szyfrowania certyfikowanego, niełamliwego przez przyszłe AI lub komputery kwantowe. Produkcyjne FDE i niezależnie limitowane PIN-y nadal NIE istnieją.
 
