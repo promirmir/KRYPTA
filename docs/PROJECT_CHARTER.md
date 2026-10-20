@@ -4,6 +4,12 @@
 **Repozytorium:** `promirmir/KRYPTA` · **PRIVATE do osobnej decyzji właściciela**  
 **Zasada:** to dokument nadrzędny wobec planów i opisów. Zmiana celów wymaga wyraźnej decyzji właściciela; każdą propozycję odstępstwa należy oznaczyć jako *odstępstwo*, a nie po cichu przedefiniować projekt.
 
+## Wymóg ukończenia i zasada nazewnictwa produktu
+
+**Produkt końcowy ma rzeczywiście działać w całym deklarowanym zakresie.** Wymagany jest niezależny silnik szyfrowania, poprawne montowanie, odzyskiwanie po awarii, bezpieczna obsługa kluczy i platform, a nie sama symulacja interfejsu. Zmiana sposobu opisu projektu nie jest substytutem wdrożenia. Każda funkcja otrzymuje potwierdzony stan wykonania i odtwarzalne dowody zgodnie z [PRODUCT_ACCEPTANCE.md](PRODUCT_ACCEPTANCE.md).
+
+W komunikacji głównej akcentujemy **produkt i jego wymagania**, a nie etykietowanie całego przedsięwzięcia jako eksperymentu. W dokumentacji technicznej i interfejsie zachowujemy uczciwe wskazanie ryzyka funkcji nieukończonych, nieaudytowanych lub wymagających dodatkowych uprawnień. Nie wolno sugerować gotowości do zabezpieczania dysku systemowego, jeśli takiej funkcji jeszcze nie ma.
+
 ## Priorytet absolutny (decyzja właściciela)
 
 **P1 — własny, autorski, niezależny system szyfrowania KRYPTA o ambicji przewyższenia każdego istniejącego rozwiązania w istotnych, porównywalnych kryteriach bezpieczeństwa.** Jest to cel rozwoju od początku do zakończenia projektu, a nie opcja ani propozycja zmiany kierunku.
