@@ -1,4 +1,4 @@
-name: KRYPTA / Android file vault research APK
+name: KRYPTA / Android selected-file vault development build
 
 on:
   workflow_dispatch:
@@ -48,7 +48,7 @@ jobs:
       - name: Run JVM vault tampering and roundtrip unit tests
         working-directory: android
         run: gradle --no-daemon :app:testDebugUnitTest
-      - name: Build debug APK (research File Vault only)
+      - name: Build debug APK (selected-file File Vault)
         working-directory: android
         run: gradle --no-daemon :app:assembleDebug
       - name: Android lint (security, compatibility and localized resources)
@@ -64,13 +64,13 @@ jobs:
           "$aapt" dump badging "$APK" | grep "package: name='io.krypta.research'"
           "$aapt" dump permissions "$APK" | tee android/apk-permissions.txt
           if grep -Eq 'android.permission.(INTERNET|READ_SMS|READ_CONTACTS|QUERY_ALL_PACKAGES)' android/apk-permissions.txt; then
-            echo "Unexpected permission requested in research-only APK"
+            echo "Unexpected permission requested in development APK"
             exit 1
           fi
           sha256sum "$APK" | tee android/KRYPTA-Android-debug.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: KRYPTA-Android-debug-FileVault-Research
+          name: KRYPTA-Android-debug-FileVault-Development
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
             android/KRYPTA-Android-debug.sha256
