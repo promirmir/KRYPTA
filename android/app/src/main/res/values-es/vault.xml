@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_status">ALFA DE INVESTIGACIÓN / ARCHIVOS</string>
+    <string name="vault_warning">KRYPTA no cifra todo el teléfono. Solo pruebas; sin recuperación si se pierde Android Keystore.</string>
+    <string name="vault_body">AES-256-GCM y Android Keystore. KRYPTA-MOBILE/1 no es compatible con .kry de escritorio.</string>
+    <string name="vault_encrypt">CIFRAR ARCHIVO DE PRUEBA</string>
+    <string name="vault_decrypt">DESCIFRAR ARCHIVO DE PRUEBA</string>
+    <string name="vault_idle">Seleccione el archivo de origen.</string>
+    <string name="vault_success">Operación completada. Conserve original y copia.</string>
+    <string name="vault_failed">Error. El resultado puede estar incompleto: elimínelo. Original intacto.</string>
+    <string name="vault_cancelled">Operación cancelada.</string>
+    <string name="vault_need_lock">Active el bloqueo seguro de pantalla.</string>
+    <string name="vault_auth_title">Autorizar KRYPTA</string>
+    <string name="vault_auth_body">Confirme el bloqueo para utilizar la clave local. No cifra todo el teléfono.</string>
+    <string name="vault_same_file">Origen y destino deben ser diferentes.</string>
+</resources>
