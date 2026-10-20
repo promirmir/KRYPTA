@@ -75,3 +75,22 @@ def test_file_format_still_compatible(tmp_path):
     recovered = tmp_path / 'recovered'
     core.decrypt_file(ciphertext, recovered, '1', k)
     assert recovered.read_bytes() == src.read_bytes()
+
+
+def test_failed_key_generation_does_not_leave_empty_keyfile(tmp_path, monkeypatch):
+    target = tmp_path / 'broken.key'
+    def injected_failure(n):
+        raise OSError('synthetic randomness provider failure')
+    monkeypatch.setattr(core.secrets, 'token_bytes', injected_failure)
+    with pytest.raises(OSError):
+        core.generate_keyfile(target)
+    assert not target.exists()
+
+
+def test_keyfile_failure_does_not_remove_an_existing_file(tmp_path, monkeypatch):
+    target = tmp_path / 'my-existing.key'
+    target.write_bytes(b'existing-value')
+    monkeypatch.setattr(core.secrets, 'token_bytes', lambda n: (_ for _ in ()).throw(OSError('fail')))
+    with pytest.raises(FileExistsError):
+        core.generate_keyfile(target)
+    assert target.read_bytes() == b'existing-value'

@@ -147,12 +147,24 @@ def generate_keyfile(path: str | Path) -> None:
     flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL |
              getattr(os, 'O_CLOEXEC', 0) | getattr(os, 'O_BINARY', 0))
     fd = os.open(p, flags, 0o600)
+    created = os.fstat(fd)
     try:
         with os.fdopen(fd, 'wb') as output:
             fd = -1
             output.write(secrets.token_bytes(32))
             output.flush()
             os.fsync(output.fileno())
+    except BaseException:
+        # A failed write or fsync must not leave a partial keyfile that might
+        # subsequently be mistaken for working recovery material. Only remove
+        # the exact file created by this operation, never a replaced path.
+        try:
+            current = os.stat(p, follow_symlinks=False)
+            if (current.st_dev, current.st_ino) == (created.st_dev, created.st_ino):
+                os.unlink(p)
+        except OSError:
+            pass
+        raise
     finally:
         if fd >= 0:
             os.close(fd)
