@@ -179,3 +179,94 @@ def test_posix_single_writer_file_lock(tmp_path):
     with PagedResearchVolume(path,key,create=True):
         with pytest.raises((OSError,PagedVolumeError)):
             PagedResearchVolume(path,key)
+
+
+@pytest.mark.parametrize("position,payload", [
+    (0, b"first"), (BLOCK_BYTES - 2, b"crosses-sector"),
+    (64 * BLOCK_BYTES - 1, b"radix-boundary"),
+    (4096 * BLOCK_BYTES - 1, b"new-tree-page"),
+    (MAX_BLOCKS * BLOCK_BYTES - 3, b"end"),
+])
+def test_atomic_byte_write_and_reopen(tmp_path, position, payload):
+    path = tmp_path / "bytes.kpv"
+    key = os.urandom(32)
+    with PagedResearchVolume(path, key, create=True) as vol:
+        assert vol.write_at(position, payload) == 1
+        assert vol.read_at(position, len(payload)) == payload
+        assert vol.read_at(position, 0) == b""
+        receipt = vol.receipt
+    with PagedResearchVolume(path, key, expected_receipt=receipt) as vol:
+        assert vol.read_at(position, len(payload)) == payload
+
+
+def test_byte_range_modification_preserves_untouched_bytes(tmp_path):
+    path = tmp_path / "partial.kpv"
+    key = os.urandom(32)
+    with PagedResearchVolume(path, key, create=True) as vol:
+        vol.write(5, b"A" * BLOCK_BYTES)
+        assert vol.write_at(5 * BLOCK_BYTES + BLOCK_BYTES - 3, b"12345678") == 2
+        assert vol.read_at(5 * BLOCK_BYTES + BLOCK_BYTES - 7, 15) == b"AAAA12345678" + bytes(3)
+        assert vol.read(5).endswith(b"123")
+        assert vol.read(6).startswith(b"45678")
+
+
+@pytest.mark.parametrize("position,payload", [
+    (-1, b"X"),
+    (MAX_BLOCKS * BLOCK_BYTES, b"X"),
+    (MAX_BLOCKS * BLOCK_BYTES - 1, b"XY"),
+    (0, b""),
+    (True, b"X"),
+    (0, "text"),
+])
+def test_invalid_byte_write_never_mutates_image(tmp_path, position, payload):
+    path = tmp_path / "invalid-write.kpv"
+    key = os.urandom(32)
+    with PagedResearchVolume(path, key, create=True) as vol:
+        before = path.read_bytes()
+        with pytest.raises(PagedVolumeError):
+            vol.write_at(position, payload)
+        assert path.read_bytes() == before
+
+
+def test_byte_write_transaction_cap_is_prevalidated(tmp_path):
+    path = tmp_path / "too-wide.kpv"
+    key = os.urandom(32)
+    with PagedResearchVolume(path, key, create=True) as vol:
+        before = path.read_bytes()
+        # A 256-sector plus one-byte span starts from the last byte in a sector.
+        with pytest.raises(PagedVolumeError, match="Too many sectors"):
+            vol.write_at(BLOCK_BYTES - 1, b"X" * (256 * BLOCK_BYTES))
+        assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("position,length", [
+    (-1, 1), (0, -1),
+    (MAX_BLOCKS * BLOCK_BYTES + 1, 0),
+    (MAX_BLOCKS * BLOCK_BYTES, 1),
+    (0, 256 * BLOCK_BYTES + 1),
+    (True, 1), (0, False),
+])
+def test_invalid_byte_read_is_rejected(tmp_path, position, length):
+    path = tmp_path / "invalid-read.kpv"
+    with PagedResearchVolume(path, os.urandom(32), create=True) as vol:
+        with pytest.raises(PagedVolumeError):
+            vol.read_at(position, length)
+
+
+def test_randomized_byte_range_reference_model(tmp_path):
+    rng = random.Random(19441)
+    path = tmp_path / "oracle.kpv"
+    key = os.urandom(32)
+    start = 4094 * BLOCK_BYTES
+    logical = bytearray(7 * BLOCK_BYTES)
+    with PagedResearchVolume(path, key, create=True) as vol:
+        for _ in range(35):
+            offset = rng.randrange(len(logical))
+            count = rng.randrange(1, min(4500, len(logical) - offset) + 1)
+            data = rng.randbytes(count)
+            vol.write_at(start + offset, data)
+            logical[offset:offset + count] = data
+            assert vol.read_at(start, len(logical)) == logical
+        receipt = vol.receipt
+    with PagedResearchVolume(path, key, expected_receipt=receipt) as vol:
+        assert vol.read_at(start, len(logical)) == logical
