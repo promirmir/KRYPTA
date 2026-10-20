@@ -39,6 +39,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Check shared localization resources
+        run: python tools/sync_android_strings.py --check
       - name: Build debug APK (UI prototype only)
         working-directory: android
         run: gradle --no-daemon :app:assembleDebug
