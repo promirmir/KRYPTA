@@ -211,3 +211,12 @@ def test_reopened_image_is_locked_on_posix(tmp_path):
             ResearchVolume(p,key)
     with ResearchVolume(p,key) as a:
         assert a.sequence == 0
+
+
+def test_temporary_volume_demo_does_not_leave_keys_or_images():
+    from research.volume_demo import run_demo
+    result = run_demo()
+    assert result['result'] == 'PASS'
+    assert result['commit_sequence'] == 2
+    assert not result['persistent_key_or_test_data']
+    assert not result['physical_disk_modified']
