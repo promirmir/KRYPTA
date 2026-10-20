@@ -276,6 +276,44 @@ def encrypt_file(source: str | Path, output: str | Path, password: str,
     _atomic_write(output, write)
 
 
+def _decrypt_stream(inp: BinaryIO, data_aead: AESGCM, nonce_prefix: bytes,
+                    header_hash: bytes, output: BinaryIO | None = None) -> None:
+    """Authenticate the full payload, optionally writing verified chunks.
+
+    With ``output=None``, no decrypted bytes are written to disk. A first
+    verification pass avoids creating temporary plaintext for ordinary
+    corrupted, truncated or appended files. A second authenticated pass
+    is still required because the input may change between passes.
+    """
+    index = 0
+    while True:
+        if index >= 2**64 - 1:
+            raise CryptoError('Zbyt wiele segmentów')
+        size = struct.unpack('>I', _read_exact(inp, 4))[0]
+        nonce = nonce_prefix + index.to_bytes(8, 'big')
+        if size == 0:
+            tag = _read_exact(inp, 16)
+            try:
+                final = data_aead.decrypt(nonce, tag, header_hash + b'FINAL' + index.to_bytes(8, 'big'))
+                if final != b'':
+                    raise CryptoError('Nieprawidłowe zakończenie')
+            except InvalidTag as exc:
+                raise CryptoError('Ucięcie lub zmiana szyfrogramu') from exc
+            if inp.read(1):
+                raise CryptoError('Niedozwolone dane na końcu pliku')
+            return
+        if not 17 <= size <= CHUNK_SIZE + 16:
+            raise CryptoError('Nieprawidłowa długość segmentu')
+        segment = _read_exact(inp, size)
+        try:
+            chunk = data_aead.decrypt(nonce, segment, header_hash + b'CHUNK' + index.to_bytes(8, 'big'))
+        except InvalidTag as exc:
+            raise CryptoError('Zmienione lub uszkodzone dane') from exc
+        if output is not None:
+            output.write(chunk)
+        index += 1
+
+
 def decrypt_file(source: str | Path, output: str | Path, password: str,
                  keyfile: str | Path | None = None) -> None:
     source, output = _prepare_paths(source, output)
@@ -293,33 +331,15 @@ def decrypt_file(source: str | Path, output: str | Path, password: str,
             raise CryptoError('Błędny PIN/hasło, plik klucza albo uszkodzone dane') from exc
         data_aead = AESGCM(dek)
         nonce_prefix = _unb64(meta['stream_nonce_prefix'], 4)
+        payload_offset = inp.tell()
 
-        def write(out: BinaryIO) -> None:
-            index = 0
-            while True:
-                if index >= 2**64 - 1:
-                    raise CryptoError('Zbyt wiele segmentów')
-                raw_len = _read_exact(inp, 4)
-                size = struct.unpack('>I', raw_len)[0]
-                nonce = nonce_prefix + index.to_bytes(8, 'big')
-                if size == 0:
-                    tag = _read_exact(inp, 16)
-                    try:
-                        final = data_aead.decrypt(nonce, tag, header_hash + b'FINAL' + index.to_bytes(8, 'big'))
-                        if final != b'':
-                            raise CryptoError('Nieprawidłowe zakończenie')
-                    except InvalidTag as exc:
-                        raise CryptoError('Ucięcie lub zmiana szyfrogramu') from exc
-                    if inp.read(1):
-                        raise CryptoError('Niedozwolone dane na końcu pliku')
-                    return
-                if not 17 <= size <= CHUNK_SIZE + 16:
-                    raise CryptoError('Nieprawidłowa długość segmentu')
-                segment = _read_exact(inp, size)
-                try:
-                    chunk = data_aead.decrypt(nonce, segment, header_hash + b'CHUNK' + index.to_bytes(8, 'big'))
-                except InvalidTag as exc:
-                    raise CryptoError('Zmienione lub uszkodzone dane') from exc
-                out.write(chunk)
-                index += 1
-        _atomic_write(output, write)
+        # Pass 1: no plaintext file is opened or created if stored ciphertext
+        # is already invalid. This also checks the authenticated final marker.
+        _decrypt_stream(inp, data_aead, nonce_prefix, header_hash)
+
+        # Pass 2: authentication is repeated in case the source changed.
+        # The successful result still creates temporary plaintext on the
+        # destination filesystem; use a separately encrypted destination.
+        inp.seek(payload_offset)
+        _atomic_write(output, lambda out: _decrypt_stream(inp, data_aead,
+                                                           nonce_prefix, header_hash, out))
