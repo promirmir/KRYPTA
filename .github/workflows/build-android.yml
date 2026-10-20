@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - 'android/**'
+      - 'krypta/i18n.py'
+      - 'tools/sync_android_strings.py'
       - '.github/workflows/build-android.yml'
 
 permissions:
