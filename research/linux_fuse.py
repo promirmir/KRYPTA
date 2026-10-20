@@ -18,6 +18,8 @@ from .fs_image import (
     ResearchFSError, ResearchFileSystem,
 )
 from .volume_image import BLOCK_BYTES, MAX_BLOCKS, ResearchVolume, VolumeImageError
+from .paged_fs import PagedFileSystem
+from .paged_volume import PagedResearchVolume, PagedVolumeError, MAX_IMAGE_BYTES
 
 # Optional package: pytest can exercise the adapter on Windows/Linux even if
 # the machine does not have libfuse or the 'fusepy' Python distribution.
@@ -55,7 +57,7 @@ def _api(func):
                         else errno.EFBIG if "fit" in desc or "size" in desc
                         else errno.EINVAL)
                 raise FuseOSError(code) from exc
-            except (VolumeImageError, OSError) as exc:
+            except (VolumeImageError, PagedVolumeError, OSError) as exc:
                 raise FuseOSError(errno.EIO) from exc
             except (TypeError, ValueError) as exc:
                 raise FuseOSError(errno.EINVAL) from exc
@@ -69,15 +71,31 @@ class KryptaFuseOps(Operations):
     malware with root privileges, untrusted FUSE peers or a compromised host.
     """
 
-    def __init__(self, fs: ResearchFileSystem):
-        if not isinstance(fs, ResearchFileSystem):
-            raise TypeError("Expected KRYPTA ResearchFileSystem")
+    def __init__(self, fs: ResearchFileSystem | PagedFileSystem):
+        if not isinstance(fs, (ResearchFileSystem, PagedFileSystem)):
+            raise TypeError("Expected KRYPTA authenticated filesystem")
         fs._check()
         self._fs = fs
         self._lock = threading.RLock()
         self._handles = {}  # fh: (filename, access mode, append flag)
         self._next_handle = 1
         self._mounted_at = time.time()
+
+    @property
+    def _max_file_bytes(self) -> int:
+        return getattr(self._fs, "max_file_bytes", MAX_FILE_BYTES)
+
+    @property
+    def _catalogue_sectors(self) -> int:
+        return getattr(self._fs, "catalogue_sectors", CATALOGUE_SECTORS)
+
+    @property
+    def _max_blocks(self) -> int:
+        return getattr(self._fs, "max_blocks", MAX_BLOCKS)
+
+    @property
+    def _max_files(self) -> int:
+        return getattr(self._fs, "max_files", MAX_FILES)
 
     @staticmethod
     def _filename(path: str) -> str:
@@ -169,7 +187,7 @@ class KryptaFuseOps(Operations):
             raise FuseOSError(errno.EBADF)
         if type(size) is not int or type(offset) is not int or offset < 0 or size < 0:
             raise FuseOSError(errno.EINVAL)
-        if size > MAX_FILE_BYTES:
+        if size > self._max_file_bytes:
             raise FuseOSError(errno.EFBIG)
         return self._fs.read_file(name)[offset:offset + size]
 
@@ -183,7 +201,7 @@ class KryptaFuseOps(Operations):
         previous = self._fs.read_file(name)
         if append:
             offset = len(previous)
-        if offset + len(data) > MAX_FILE_BYTES:
+        if offset + len(data) > self._max_file_bytes:
             raise FuseOSError(errno.EFBIG)
         # A single filesystem transaction is committed for each FUSE write.
         new_value = (previous[:offset] + bytes(max(0, offset - len(previous)))
@@ -199,7 +217,7 @@ class KryptaFuseOps(Operations):
             handle_name, mode, _ = self._fh(fh, path)
             if handle_name != name or mode == os.O_RDONLY:
                 raise FuseOSError(errno.EACCES)
-        if type(length) is not int or length < 0 or length > MAX_FILE_BYTES:
+        if type(length) is not int or length < 0 or length > self._max_file_bytes:
             raise FuseOSError(errno.EFBIG)
         old = self._fs.read_file(name)
         new = old[:length].ljust(length, b"\0")
@@ -248,11 +266,19 @@ class KryptaFuseOps(Operations):
             raise FuseOSError(errno.ENOENT)
         used = sum((self._fs.stat(n)["size"] + BLOCK_BYTES - 1) // BLOCK_BYTES
                    for n in self._fs.list_files())
-        total = MAX_BLOCKS - CATALOGUE_SECTORS
+        logical_total = self._max_blocks - self._catalogue_sectors
+        total = min(logical_total, getattr(self._fs, "physical_quota_blocks", logical_total))
         available = max(0, total - used)
+        if isinstance(self._fs, PagedFileSystem):
+            # The physical append-only journal fills after repeated overwrites.
+            # This is a conservative estimate, not an allocated-space promise.
+            physical_used = os.fstat(self._fs._volume._f.fileno()).st_size
+            physical_left = max(0, (MAX_IMAGE_BYTES - physical_used) // (BLOCK_BYTES + 256))
+            available = min(available, physical_left)
         return {"f_bsize": BLOCK_BYTES, "f_frsize": BLOCK_BYTES,
                 "f_blocks": total, "f_bfree": available, "f_bavail": available,
-                "f_files": MAX_FILES, "f_ffree": MAX_FILES - len(self._fs.list_files()),
+                "f_files": self._max_files,
+                "f_ffree": self._max_files - len(self._fs.list_files()),
                 "f_namemax": 96}
 
     # The flat test FS cannot persist POSIX permissions, directories, xattrs,
@@ -317,3 +343,31 @@ def mount_research_image(volume: ResearchVolume, mountpoint: str):
     return FUSE(KryptaFuseOps(fs), folder,
                 foreground=True, nothreads=True, allow_other=False,
                 default_permissions=True, fsname="KRYPTA-RESEARCH")
+
+def mount_paged_image(volume: PagedResearchVolume, mountpoint: str):
+    """Mount an existing formatted PVIMG-PFS/1 *file* on disposable Linux.
+
+    Uses the same private non-root no-follow mountpoint policy as VIMG-FS/0.
+    Requires the caller to separately authenticate the expected volume receipt.
+    """
+    if os.name != "posix" or not hasattr(os, "getuid"):
+        raise RuntimeError("Linux/POSIX FUSE only")
+    if FUSE is None:
+        raise RuntimeError("fusepy/libfuse dependency unavailable")
+    if not isinstance(volume, PagedResearchVolume):
+        raise TypeError("Expected existing KRYPTA PVIMG/1 image")
+    volume._check()
+    folder = os.fspath(mountpoint)
+    if os.getuid() == 0:
+        raise PermissionError("Never mount an unvalidated PVIMG development image as root")
+    if not os.path.isdir(folder) or os.path.islink(folder) or os.listdir(folder):
+        raise ValueError("Mountpoint must be an existing empty private directory")
+    mount_stat = os.stat(folder)
+    if mount_stat.st_uid != os.getuid() or stat.S_IMODE(mount_stat.st_mode) & 0o077:
+        raise PermissionError("Mountpoint must be user-owned and mode 0700")
+    if os.path.realpath(volume.path).startswith(os.path.realpath(folder) + os.sep):
+        raise ValueError("Encrypted image cannot reside within its own mountpoint")
+    fs = PagedFileSystem(volume)
+    return FUSE(KryptaFuseOps(fs), folder, foreground=True, nothreads=True,
+                allow_other=False, default_permissions=True,
+                fsname="KRYPTA-PVIMG-DEVELOPMENT")

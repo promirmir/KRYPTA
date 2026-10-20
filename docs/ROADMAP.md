@@ -17,6 +17,16 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 
 **Other UI features, badges and secondary integrations must not take priority over this independent volume engine.**
 
+## Działający adapter systemu plików PVIMG-PFS/1 — etap integracji Linux
+
+- [x] Własny, wersjonowany zaszyfrowany katalog PFS/1 na PVIMG/1; atomowy zapis pliku i katalogu w jednej transakcji.
+- [x] Adapter FUSE i oddzielne, jawnie autoryzowane montowanie istniejących obrazów .kpv bez uprawnień root i bez dostępu do fizycznych dysków.
+- [x] Rozszerzona obsługa plików: maksimum 960 KiB na plik, do 128 plików, nazwy Unicode, zapis/odczyt/rename/delete.
+- [ ] Ukończenie zgodności POSIX, wielomegabajtowe pliki, hierarchia katalogów, trwalsze odzyskiwanie po awarii i audyt bezpieczeństwa.
+- [ ] Stabilna implementacja Windows na zaszyfrowanym woluminie oraz produkcyjna ochrona systemowa.
+
+[Architektura, wymagania i dowody](PVIMG_LINUX_FUSE.md). Nie przedstawiać logicznego adresowania 1 GiB jako gwarantowanej pojemności zapisu.
+
 ## Stage A: file-format research — in progress
 
 - [x] Authenticated encrypted file format v2 with honest, human-readable KRYPTA notice.

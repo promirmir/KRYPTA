@@ -14,6 +14,12 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
+## Linux PVIMG-PFS/1 filesystem integration (2026-10-20)
+
+The implementation adds `research/paged_fs.py` (authenticated flat file catalogue) and `research/linux_mount_paged.py` on top of existing PVIMG/1 and the Linux FUSE adapter. The transaction limit currently restricts **individual files to 960 KiB** with up to 128 flat entries. A separate CI workflow distinguishes genuine Linux kernel FUSE mount PASS from infrastructure SKIP, while cross-platform unit tests verify byte writes, integrity, no-overwrite and failure recovery.
+
+The system remains in development, and its 1-GiB virtual address range is NOT assured usable storage. No Windows system-volume encryption, secure deletion, trusted rollback anchor, independent audit or physical power-cut durability is claimed. [Architecture and limits](PVIMG_LINUX_FUSE.md).
+
 ## Sparse PVIMG/1 verified compact-copy (2026-10-20)
 
 The `PagedResearchVolume.export_compacted_copy()` API authenticates the live source state, streams allocated sectors to a separate exclusive-create image with a new image ID, and verifies the complete destination against the source. Failure injection covers corrupt source data, interrupted destination writes, existing destination files, output-path replacement and preservation of source bytes. `read_at()` now rejects unaligned ranges that touch more than the allowed number of sectors. See [PVIMG design and limits](PAGED_VOLUME_RESEARCH.md) and `tests/test_paged_compaction.py`.
