@@ -1,0 +1,216 @@
+name: KRYPTA / Three-platform downloadable builds
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'krypta/**'
+      - 'research/**'
+      - 'android/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/publish-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: krypta-distribution-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[test]'
+      - run: python -m pytest -q
+
+  desktop:
+    name: Build ${{ matrix.platform }}
+    needs: tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: windows
+            artifact: krypta-download-windows
+          - os: ubuntu-22.04
+            platform: linux
+            artifact: krypta-download-linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Linux GUI dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y python3-tk libtk8.6 libtcl8.6
+      - name: Install build dependencies
+        run: python -m pip install -e '.[test]' pyinstaller==6.16.0
+      - name: Build standalone desktop executable
+        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name KRYPTA krypta/desktop_entry.py
+      - name: Test and checksum Windows executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'dist/KRYPTA.exe').Path
+          foreach ($arg in @('--self-test', '--volume-self-test', '--filesystem-self-test', '--fuse-self-test')) {
+            $proc = Start-Process -FilePath $exe -ArgumentList $arg -Wait -PassThru
+            if ($proc.ExitCode -ne 0) { throw "Windows packaged test failed: $arg" }
+          }
+          Copy-Item dist/KRYPTA.exe dist/KRYPTA-Windows-x64.exe
+          $sum = (Get-FileHash 'dist/KRYPTA-Windows-x64.exe' -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$sum  KRYPTA-Windows-x64.exe" | Set-Content -LiteralPath dist/KRYPTA-Windows-x64.exe.sha256 -Encoding ascii
+      - name: Test and checksum Linux executable
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/KRYPTA
+          chmod +x dist/KRYPTA
+          ./dist/KRYPTA --self-test
+          ./dist/KRYPTA --volume-self-test
+          ./dist/KRYPTA --filesystem-self-test
+          ./dist/KRYPTA --fuse-self-test
+          cp dist/KRYPTA dist/KRYPTA-Linux-x64
+          (cd dist && sha256sum KRYPTA-Linux-x64 > KRYPTA-Linux-x64.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ runner.os == 'Windows' && 'dist/KRYPTA-Windows-x64*' || 'dist/KRYPTA-Linux-x64*' }}
+          if-no-files-found: error
+          retention-days: 30
+
+  android:
+    needs: tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android 35 platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f -print -quit)"
+          fi
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Validate multilingual security notices
+        run: |
+          python tools/sync_android_strings.py --check
+          python tools/check_vault_locale_strings.py
+      - name: Unit-test, compile and lint the APK
+        working-directory: android
+        run: |
+          gradle --no-daemon :app:testDebugUnitTest
+          gradle --no-daemon :app:assembleDebug
+          gradle --no-daemon :app:lintDebug
+      - name: Inspect APK permissions and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/KRYPTA-Android-debug.apk
+          test -s dist/KRYPTA-Android-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions dist/KRYPTA-Android-debug.apk > dist/Android-permissions.txt
+          if grep -Eq 'android.permission.(INTERNET|READ_SMS|READ_CONTACTS|QUERY_ALL_PACKAGES)' dist/Android-permissions.txt; then exit 1; fi
+          (cd dist && sha256sum KRYPTA-Android-debug.apk > KRYPTA-Android-debug.apk.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: krypta-download-android
+          path: |
+            dist/KRYPTA-Android-debug.apk
+            dist/KRYPTA-Android-debug.apk.sha256
+            dist/Android-permissions.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish GitHub prerelease with APK, EXE and Linux binary
+    needs: [tests, desktop, android]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: krypta-download-*
+          path: release
+      - name: Verify all three deliverables by SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          for platform in windows linux android; do
+            test -d "release/krypta-download-$platform"
+          done
+          (cd release/krypta-download-windows && sha256sum --check KRYPTA-Windows-x64.exe.sha256)
+          (cd release/krypta-download-linux && sha256sum --check KRYPTA-Linux-x64.sha256)
+          (cd release/krypta-download-android && sha256sum --check KRYPTA-Android-debug.apk.sha256)
+          test -s release/krypta-download-android/Android-permissions.txt
+      - name: Prepare precise development release notes
+        shell: bash
+        run: |
+          cat > notes.md <<'NOTES'
+          # KRYPTA — three platform development downloads
+
+          Windows x64 EXE and Linux x64 ELF: interactive GUI with selected-file
+          encryption/decryption. Linux FUSE filesystem is separate development
+          source code, not automatic full-disk protection from the GUI.
+
+          Android debug APK: encrypts/decrypts selected local documents using
+          AES-256-GCM and the device's Android Keystore.
+
+          SECURITY LIMITS: no full-disk/full-phone encryption, no audited
+          system security, no TPM-backed secure short PIN, no production recovery.
+          These downloads are for disposable test data, not unique secrets.
+          Windows EXE is unsigned; Linux requires compatible desktop libraries.
+          The Android APK is debug-signed, with device-tied keys and no cross-
+          device recovery. Uninstallation/reinstallation may permanently
+          prevent decryption; future debug signing keys may differ.
+          Android and desktop vault formats are not interchangeable.
+
+          All three binaries were built in one workflow from the same commit.
+          Companion SHA-256 files permit download integrity verification.
+          Private repository / private prerelease; no public release.
+          NOTES
+      - name: Publish immutable, private development prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="krypta-dev-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          gh release create "$TAG" \
+            release/krypta-download-windows/KRYPTA-Windows-x64.exe \
+            release/krypta-download-windows/KRYPTA-Windows-x64.exe.sha256 \
+            release/krypta-download-linux/KRYPTA-Linux-x64 \
+            release/krypta-download-linux/KRYPTA-Linux-x64.sha256 \
+            release/krypta-download-android/KRYPTA-Android-debug.apk \
+            release/krypta-download-android/KRYPTA-Android-debug.apk.sha256 \
+            release/krypta-download-android/Android-permissions.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "KRYPTA development builds #$GITHUB_RUN_NUMBER (${GITHUB_SHA:0:7})" \
+            --notes-file notes.md --prerelease
+          echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
