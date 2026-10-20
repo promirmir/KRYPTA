@@ -1,0 +1,47 @@
+name: KRYPTA / Disposable Linux FUSE kernel integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'research/linux_fuse.py'
+      - 'research/linux_mount.py'
+      - 'research/fs_image.py'
+      - 'research/volume_image.py'
+      - 'tools/test_kernel_fuse_integration.py'
+      - '.github/workflows/fuse-integration.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fuse-kernel:
+    name: Linux FUSE disposable VM research
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependencies (no system disks touched)
+        run: |
+          python -m pip install -e '.[test]' "fusepy>=3.0.1,<4"
+          sudo apt-get update
+          sudo apt-get install -y fuse3 libfuse2
+      - name: Run disposable Linux kernel mount if available
+        shell: bash
+        run: |
+          set +e
+          python -m tools.test_kernel_fuse_integration
+          result=$?
+          if [ "$result" -eq 77 ]; then
+            echo "::notice::SKIPPED genuine FUSE mount: runner lacks usable /dev/fuse; this is NOT kernel mount verification."
+            exit 0
+          fi
+          if [ "$result" -ne 0 ]; then
+            echo "::error::Genuine disposable FUSE integration failed; manual VM investigation required."
+            exit "$result"
+          fi
+          echo "::notice::PASS genuine disposable FUSE test image mount/unmount on GitHub Linux runner."
