@@ -1,6 +1,8 @@
 # KRYPTA / product engineering roadmap
 
-**Binding product goals:** [PROJECT_CHARTER](PROJECT_CHARTER.md). **Own cryptographic research:** [HORIZON_CRYPTO_RFC](HORIZON_CRYPTO_RFC.md). Existing OS encryption diagnostics are not a substitute for KRYPTA's own engine.\n\nStatus on 2026-10-20: v0.4.0-alpha. **Only the File Vault research prototype is functional.** Other modules appear in the Matrix-inspired desktop shell to make the architecture tangible without pretending to provide protection.
+**Binding product goals:** [PROJECT_CHARTER](PROJECT_CHARTER.md). **Own cryptographic research:** [HORIZON_CRYPTO_RFC](HORIZON_CRYPTO_RFC.md). Existing OS encryption diagnostics are not a substitute for KRYPTA's own engine.
+
+Status on 2026-10-20: v0.4.0-alpha. **Only the File Vault research prototype is functional.** Other modules appear in the Matrix-inspired desktop shell to make the architecture tangible without pretending to provide protection.
 
 ## Stage A: file-format research — in progress
 
@@ -23,7 +25,8 @@
 
 - [x] Define original experimental HORIZON/0 authenticated block format and independent data-key research path (not production).
 - [x] Begin standalone in-memory/file-free block test implementation under `research/` and adversarial regression tests.
-- [ ] Implement own transactional virtual **test-volume image** with authenticated sector map, write-generation management and crash recovery. No real disks in this stage.
+- [x] **KRYPTA-VIMG/0 initial research prototype:** standalone authenticated append-only `.kvi` test image, sector map, write generation and recovery of last complete commit. [Implementation](../research/volume_image.py) · [design / limitations](VOLUME_IMAGE_V0.md) · [fault-injection tests](../tests/test_volume_image.py).
+- [ ] Production-quality **transactional** virtual volume with multi-sector atomic commits, durable rollback anchor, compaction and validated crash recovery. Current prototype is not a mountable disk or production-grade COW filesystem.
 - [ ] Verify write-through transparent encryption with independent Windows/Linux virtual-volume interface prototypes. No BitLocker/LUKS backend as the main product.
 - [ ] Add robust metadata/root rollback protection and hardware-bound key release with independent secret for short PINs.
 - [ ] Add independent removable-drive support, portability and recovery without assuming a local software retry timer is secure.
