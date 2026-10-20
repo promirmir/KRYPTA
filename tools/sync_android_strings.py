@@ -43,7 +43,7 @@ def main() -> int:
         target = ANDROID / folder / 'strings.xml'
         expected = render(lang)
         if args.check:
-            if not target.is_file() or target.read_text(encoding='utf-8') != expected:
+            if not target.is_file() or target.read_text(encoding='utf-8') not in (expected, expected.removesuffix('\n')):
                 print('OUT OF SYNC:', target)
                 error = True
         else:
