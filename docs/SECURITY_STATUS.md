@@ -24,6 +24,12 @@ The experimental `research/linux_fuse.py` uses **KRYPTA's own** HORIZON/VIMG/FS 
 
 **Limitations:** at most 512 KiB logical image and a flat catalogue; no directories/ACL/POSIX permissions persistence, device-bound recovery, trusted anti-rollback store, crash test with real power interruption, Windows filesystem mount, whole system disk protection or comparable military assurance. Successful kernel FUSE operation in one CI VM is NOT evidence of these properties. [Linux scope and reproduction notes](LINUX_FUSE_RESEARCH.md).
 
+## VIMG authenticated-manifest canonicalization (2026-10-20)
+
+KRYPTA-VIMG/0 now compares each MAC-verified manifest's exact JSON bytes against its canonical serializer. Authenticated-but-noncanonical records (duplicate keys, reordered properties, noncanonical whitespace) are rejected without modifying the input image. These are **defense-in-depth parser and cross-implementation consistency checks**, not proof against key compromise, ciphertext rollback, unknown cryptographic vulnerabilities or physical power loss.
+
+**Evidence:** [private PR #8](https://github.com/promirmir/KRYPTA/pull/8), [Windows/Linux Python 3.11/3.13 CI success](https://github.com/promirmir/KRYPTA/actions/runs/39467698648); tests in `tests/test_vimg_manifest_canonical.py`. Current VIMG remains research-only.
+
 ## Research live-sector migration and file integrity sweep
 
 `ResearchVolume.export_compacted_copy()` creates a NEW no-overwrite authenticated image from currently live sectors, retaining the original and reporting a different image ID/receipt. `ResearchFileSystem.verify_all()` reads/verifies all currently listed files. Negative tests check corrupted source, existing destination, failures during migration and incomplete genesis cleanup. **This is not in-place compaction, secure deletion or anti-rollback migration.** [Limits and test instructions](VIMG_LIVE_MIGRATION.md).
@@ -68,7 +74,7 @@ An initial audit identified advisories affecting the previous declared range `cr
 1. **Four-digit PIN protection:** high-entropy, nonexportable key + enforceable authorization rate limit resistant to copying encrypted data and rollback. This is NOT implemented; a PIN alone remains vulnerable to offline guessing.
 2. **Physical TPM tests:** use a disposable hardware device, validate provider key behavior and clean failure/recovery on firmware updates and board loss.
 3. **Windows full disk and USB backend:** no kernel/boot changes without separate review, power-loss/resume and recovery exercises.
-4. **Android:** the APK currently shows a multilingual research interface; it does not encrypt files, phone storage or installed-app passwords.
+4. **Android:** the 0.5.0 APK encrypts/decrypts explicitly selected test files using KRYPTA-MOBILE/1; it does **not** provide phone-wide encryption, installed-app password protection, secure portable recovery, or independent hardware assurance.
 5. **Filesystem and memory:** Windows reparse points/ACLs, race between two-pass verification and plaintext output, encrypted destination handling, key erasure, crash consistency and memory forensics remain unresolved.
 6. **Formal testing:** independent crypto review, parser fuzzing on supported OSes, restoration test vectors and expert penetration testing.
 7. **Distribution:** signed packages and attestable provenance, independent reproduction, change policy and vulnerability-response procedures.
