@@ -8,7 +8,11 @@ no complete POSIX semantics, trusted anti-rollback anchor or secure deletion.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
+import os
+from pathlib import Path
+import stat
 import struct
 from typing import Any
 
@@ -285,6 +289,69 @@ class PagedFileSystem:
         files = dict(self._files)
         files[new] = files.pop(old)
         return self._commit(files)
+
+    def export_live_files(self, destination: str | Path) -> dict:
+        """Create a verified, separate PVIMG-PFS/1 image with ONLY live files.
+
+        Unlike raw sector compaction, this reconstructs the current logical
+        filesystem catalogue. Deleted files and freed logical sectors are not
+        copied into the NEW image. Old image/history remains untouched: this
+        is NOT secure erasure or trusted anti-rollback migration.
+
+        Existing destination paths are never overwritten. Failed copies are
+        removed only when their inode still matches the one just created.
+        """
+        self._check()
+        target = Path(destination)
+        if target.resolve(strict=False) == self._volume.path.resolve(strict=False):
+            raise PagedFSError("Source and target must be separate images")
+        if target.suffix.lower() != ".kpv":
+            raise PagedFSError("New filesystem image must have .kpv suffix")
+
+        # Full preflight before creating *anything* at the destination.
+        source = self.verify_all()
+        names = self.list_files()
+        identity = None
+        try:
+            with PagedResearchVolume(target, self._volume.key, create=True) as new_volume:
+                identity = os.fstat(new_volume._f.fileno())
+                new_fs = PagedFileSystem.format(new_volume)
+                for filename in names:
+                    # Authentication occurs before any plaintext is re-encrypted.
+                    new_fs.write_file(filename, self.read_file(filename))
+                copied = new_fs.verify_all()
+                if (copied["files_verified"] != source["files_verified"] or
+                        copied["bytes_verified"] != source["bytes_verified"] or
+                        new_volume.id == self._volume.id):
+                    raise PagedFSError("Verified logical migration mismatch")
+                # Independently compare all authenticated file plaintexts.
+                for filename in names:
+                    if not hmac.compare_digest(
+                        self.read_file(filename), new_fs.read_file(filename)
+                    ):
+                        raise PagedFSError("Copied encrypted file content mismatch")
+                self._check()
+                return {
+                    "source_image_id": self._volume.id.hex(),
+                    "source_sequence": self._sequence,
+                    "source_receipt": source["receipt"],
+                    "destination_image_id": new_volume.id.hex(),
+                    "destination_sequence": new_volume.sequence,
+                    "destination_receipt": copied["receipt"],
+                    "files_verified": copied["files_verified"],
+                    "bytes_verified": copied["bytes_verified"],
+                }
+        except BaseException:
+            if identity is not None:
+                try:
+                    current = os.stat(target, follow_symlinks=False)
+                    if (stat.S_ISREG(current.st_mode)
+                            and (current.st_dev, current.st_ino) ==
+                            (identity.st_dev, identity.st_ino)):
+                        target.unlink()
+                except OSError:
+                    pass  # Preserve original failure and unrelated paths.
+            raise
 
     def append_file(self, filename: str, data: bytes) -> int:
         if not isinstance(data, bytes):
