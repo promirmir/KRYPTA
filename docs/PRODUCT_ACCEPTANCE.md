@@ -64,7 +64,7 @@
 - [ ] Testy porównawcze z istniejącymi systemami na identycznym sprzęcie, scenariuszach i modelu zagrożeń.
 - [ ] Niezależny audyt kryptografii, parserów, kluczy, integracji z OS i procesu aktualizacji; usunięcie krytycznych usterek.
 - [ ] Testy penetracyjne, przejrzyste raporty i powtarzalna dokumentacja zachowania pod obciążeniem.
-- [ ] Brak obligatoryjnego konta, telemetryki, zewnętrznego serwera odblokowania lub ukrytej zależności od AuronQ.
+- [ ] Brak obligatoryjnego konta, telemetryki, zewnętrznego serwera odblokowania lub ukrytej zależności od innych projektów.
 - [ ] Podpisane, wersjonowane i możliwe do niezależnej weryfikacji wydania instalatorów i plików przywracania.
 - [ ] Kompletne 11 lokalizacji komunikatów i przegląd ich zgodności, szczególnie tekstów dot. bezpieczeństwa.
 - [ ] Polityka luk, reakcji na incydenty, rotacji podpisów i wycofywania błędnej aktualizacji.
