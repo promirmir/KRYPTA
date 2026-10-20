@@ -80,11 +80,22 @@ with tempfile.TemporaryDirectory(prefix="krypta-only-test-") as directory:
         # In a separate VM terminal, unmount using fusermount3 -u <mountpoint>
 \`\`\`
 
-Alternatively \`python -m research.linux_mount --image EXISTING.kvi
---mountpoint EMPTY_DIRECTORY --key-fd FD --accept-research-risk\` accepts only
-an existing test image. \`FD\` must be an **anonymous pipe/socket** containing
-32 opaque bytes; interactive terminal, regular file and CLI hexadecimal keys
-are refused. No automatic image creation, auto-start or privileged mounting.
+Alternatively `python -m research.linux_mount --image EXISTING.kvi
+--mountpoint EMPTY_DIRECTORY --key-fd FD --expected-receipt TRUSTED_64_HEX
+--accept-research-risk` accepts only an existing test image. The
+`--expected-receipt` is **mandatory** and must come from an **independently
+protected record** of the latest authenticated state, not blindly from the
+untrusted image. `FD` must be an **anonymous pipe/socket** containing 32 opaque
+key bytes; no key is accepted in arguments or environment variables.
+
+**Real FUSE kernel mount after enabling receipt checks:** [GitHub Actions
+39461498660](https://github.com/promirmir/KRYPTA/actions/runs/39461498660)
+explicitly logged PASS on the disposable Ubuntu 22.04 runner. Rollback unit
+tests reject an old valid snapshot with a newer expected receipt.
+
+**This does NOT create a hardware anti-rollback guarantee:** KRYPTA has
+not yet implemented a trusted monotonic receipt store and an attacker who
+can change both the image and the operator's receipt can bypass the check.
 
 ## Automated disposable kernel-mount gate
 
