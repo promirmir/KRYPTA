@@ -11,6 +11,11 @@ KRYPTA is a separate, independent security project. Its long-term goal is robust
 
 ![KRYPTA offline desktop application — Matrix-inspired security UI](assets/matrix-ui.png)
 
+
+## Distribution formats (alpha; private CI)
+
+KRYPTA is developed for **Windows x64 (`.exe`)**, **Linux x64 (ELF)** and **Android (`.apk`)**. GitHub Actions definitions under `.github/workflows/` build these artifacts for private internal testing. **Android is currently a UI-only APK — it does not encrypt anything.** Desktop builds expose the research file vault for disposable files, not full-disk encryption. See [`docs/BUILD_AND_RELEASE.md`](docs/BUILD_AND_RELEASE.md) and [`android/README.md`](android/README.md). No installer or executable has been independently audited. Do not use these builds as your only protection for important data.
+
 ## Available now
 
 - **Desktop GUI (Tkinter; local/offline):** low-distraction black/phosphor-green visual design, module navigation, file encryption, decryption, public-header inspection, and generation of optional random keyfiles.

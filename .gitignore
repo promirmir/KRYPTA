@@ -22,3 +22,13 @@ dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Android local build outputs and machine state
+.gradle/
+**/.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks

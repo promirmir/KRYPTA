@@ -38,3 +38,13 @@ Status on 2026-10-20: v0.4.0-alpha. **Only the File Vault research prototype is 
 - [ ] Public GitHub visibility **only following explicit owner decision**.
 
 No absolute “unbreakable” promise. Every release must describe the real threat model and verified guarantees.
+
+## Platform packaging (2026-10-20)
+
+- [x] Add private CI recipe for Windows `.exe` desktop alpha.
+- [x] Add private CI recipe for Linux ELF desktop alpha.
+- [x] Add Android-native Matrix-styled UI skeleton and debug-APK CI recipe.
+- [ ] Confirm successful GitHub Actions builds for all three platforms.
+- [ ] Independently verify binaries on Windows hardware, at least two Linux distributions and the supported Android devices.
+- [ ] Implement actual Android file protection, OS-backed protection and recovery after security architecture review.
+- [ ] Sign release artifacts with protected release keys (debug APK and unsigned EXE are not releases).
