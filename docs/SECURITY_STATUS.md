@@ -4,6 +4,16 @@
 
 This page is evidence-based; a passing test is not a proof of confidentiality under every threat model.
 
+## Product completion and verified capability reporting (2026-10-20)
+
+KRYPTA is being developed as a **fully working independent encryption product**, not a permanent technology demonstration. Completion requirements are now explicitly defined in [PRODUCT_ACCEPTANCE.md](PRODUCT_ACCEPTANCE.md). A successful unit test is evidence for a specific component, not proof of production security; unreleased or nonfunctional modules must remain clearly identified.
+
+The Android selected-file implementation exists. Older locale strings misleadingly stated that the APK never encrypted any files. The source translations and 11 generated Android resource sets were corrected to accurately describe **actual selected-file AES-256-GCM encryption** and to explicitly state that whole-phone encryption and portable Keystore recovery are not provided. New regression checks guard this distinction.
+
+### Paged-volume progress
+
+[PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
+
 ## Android selected-file research vault (2026-10-20)
 
 The Android **0.5.0 research APK** now implements actual selected-file encryption/decryption through `android/app/src/main/java/io/krypta/research/VaultFormat.java` and an Android Keystore wrapping key (`AndroidVaultKey.java`). Each file uses a random 256-bit DEK; encrypted 64-KiB chunks and an authenticated terminal record use AES-256-GCM. The code is separate from both desktop `.kry` and experimental HORIZON `.kvi` formats.
