@@ -16,7 +16,7 @@ $badCipher = $null
 $result = [ordered]@{
     Schema = 'KRYPTA-SOFTWARE-CNG-SMOKE/1'
     Provider = $providerName
-    KeyType = 'ephemeral'
+    KeyType = 'unnamed_memory_scope'
     RsaOaep256RoundTrip = $false
     TamperRejected = $false
     WrongKeyRejected = $false
@@ -31,8 +31,8 @@ try {
     # null is an ephemeral, unnamed key: it is not installed persistently.
     $key = [System.Security.Cryptography.CngKey]::Create(
         [System.Security.Cryptography.CngAlgorithm]::Rsa, $null, $params)
-    if ($key.Provider.Provider -ne $providerName -or (-not $key.IsEphemeral)) {
-        throw ('Unexpected CNG attributes: provider=' + $key.Provider.Provider + '; ephemeral=' + $key.IsEphemeral + '; name-present=' + [bool]$key.KeyName)
+    if ($key.Provider.Provider -ne $providerName -or $null -ne $key.KeyName) {
+        throw ('Unexpected CNG attributes: provider=' + $key.Provider.Provider + '; name-present=' + [bool]$key.KeyName)
     }
     $rsa = [System.Security.Cryptography.RSACng]::new($key)
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
