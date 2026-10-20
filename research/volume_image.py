@@ -100,6 +100,7 @@ class ResearchVolume:
             raise VolumeImageError("Invalid external receipt; expected lowercase SHA-256 hex")
         self.path = Path(path)
         self._f = _open_regular(self.path, create)
+        created_identity = os.fstat(self._f.fileno()) if create else None
         self._closed = False
         self.entries: dict[str, list] = {}
         self.sequence = -1
@@ -131,8 +132,22 @@ class ResearchVolume:
             if not create:
                 self._trim_uncommitted_tail()
         except BaseException:
-            self._f.close()
-            self._closed = True
+            # If creating a NEW test image failed before a valid genesis
+            # commit, discard only the inode opened by this constructor.
+            # Never unlink an existing file or a newly swapped-in path.
+            try:
+                self._f.close()
+            finally:
+                self._closed = True
+                if created_identity is not None:
+                    try:
+                        actual = os.stat(self.path, follow_symlinks=False)
+                        if (stat.S_ISREG(actual.st_mode)
+                                and actual.st_dev == created_identity.st_dev
+                                and actual.st_ino == created_identity.st_ino):
+                            self.path.unlink()
+                    except OSError:
+                        pass
             raise
 
     def _derive_mac_key(self) -> bytes:
