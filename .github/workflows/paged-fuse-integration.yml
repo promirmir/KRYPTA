@@ -1,0 +1,55 @@
+name: KRYPTA / paged FUSE kernel integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/paged_fs.py'
+      - 'research/paged_volume.py'
+      - 'research/linux_fuse.py'
+      - 'research/linux_mount_paged.py'
+      - 'tools/test_kernel_paged_fuse.py'
+      - '.github/workflows/paged-fuse-integration.yml'
+  pull_request:
+    paths:
+      - 'research/paged_fs.py'
+      - 'research/paged_volume.py'
+      - 'research/linux_fuse.py'
+      - 'research/linux_mount_paged.py'
+      - 'tools/test_kernel_paged_fuse.py'
+      - '.github/workflows/paged-fuse-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paged-fuse-kernel:
+    name: Linux / disposable PVIMG-PFS kernel mount
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install optional Linux FUSE test stack
+        run: |
+          python -m pip install -e '.[test]' "fusepy>=3.0.1,<4"
+          sudo apt-get update
+          sudo apt-get install -y fuse3 libfuse2
+      - name: Execute actual mount with synthetic 610-KiB file
+        shell: bash
+        run: |
+          set +e
+          python -m tools.test_kernel_paged_fuse
+          rc=$?
+          if [ "$rc" -eq 77 ]; then
+            echo "::notice::SKIPPED actual kernel mount: runner lacks usable FUSE; no kernel-level success claim."
+            exit 0
+          fi
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::PVIMG-PFS kernel mount integration failed."
+            exit "$rc"
+          fi
+          echo "::notice::PASS real disposable PVIMG-PFS kernel FUSE mount/read/write/reopen."
