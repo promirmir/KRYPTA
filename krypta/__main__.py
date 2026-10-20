@@ -20,6 +20,7 @@ def main(argv=None):
     p = sub.add_parser('info')
     p.add_argument('source', type=Path)
     sub.add_parser('gui', help='Offline desktop UI (Tkinter)')
+    sub.add_parser('volume-status', help='Read-only OS transparent encryption inventory; no disk changes')
     args = parser.parse_args(argv)
     try:
         if args.cmd == 'gui':
@@ -28,6 +29,9 @@ def main(argv=None):
         elif args.cmd == 'gen-keyfile':
             generate_keyfile(args.destination)
             print('Utworzono klucz. Przechowuj go poza zaszyfrowanym nośnikiem i wykonaj kopię zapasową.')
+        elif args.cmd == 'volume-status':
+            from .volume_status import inspect_volumes
+            print(json.dumps(inspect_volumes(), indent=2, ensure_ascii=False))
         elif args.cmd == 'info':
             print(json.dumps(file_info(args.source), indent=2, ensure_ascii=False))
         else:
