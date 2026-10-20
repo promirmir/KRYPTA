@@ -17,6 +17,16 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 
 **Other UI features, badges and secondary integrations must not take priority over this independent volume engine.**
 
+## Desktop Volume Lab / PFS/2
+
+- [x] Osobny moduł GUI dla zwykłych zaszyfrowanych obrazów `.kpv`: tworzenie, weryfikacja, import/eksport, odzyskiwanie hasła i migracja danych do nowego klucza.
+- [x] Każde otwarcie istniejącego obrazu wymaga zewnętrznego `receipt` i uwierzytelnienia klucza; brak cichego nadpisywania wyników.
+- [x] Dodano testy usług GUI i nowy test spakowanego programu `--paged-volume-self-test` w workflow Windows/Linux.
+- [ ] Przejście testów na aktualnym commit i fizycznych komputerach; zbudowanie, publikacja oraz potwierdzenie nowego EXE/ELF.
+- [ ] Rozszerzenie na produkcyjne katalogi/ACL i prawdziwe woluminy dyskowe bezpieczne po zaniku zasilania.
+
+[Dokumentacja Volume Lab](VOLUME_LAB_GUI.md).
+
 ## PFS/2 — prawdziwa wymiana klucza danych DEK
 
 - [x] Nowy 256-bitowy klucz danych i nowe opakowania hasła/odzyskiwania dla **nowego** zaszyfrowanego obrazu, z pełnym kopiowaniem wyłącznie istniejących i zweryfikowanych plików.
