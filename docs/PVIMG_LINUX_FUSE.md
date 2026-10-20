@@ -13,6 +13,10 @@
 - Operacje niemożliwe do poprawnej realizacji (ACL, stałe atrybuty czasu, chmod/chown, katalogi, symlinki, hard linki) są jawnie odrzucane. Operacje na otwartych plikach nie implementują jeszcze wszystkich reguł POSIX.
 - Katalog i pliki są niewidoczne w postaci jawnej w obrazie hosta, ale nazwa KRYPTA, rozmiar obrazu i wzorzec przyrostu dziennika są jawne.
 
+## Nowszy, oddzielny format PFS/2
+
+Zaimplementowano osobny zaszyfrowany katalog `KRYPTA-PFS/2` obsługujący **pliki do 32 MiB** oraz jednorazowe uwierzytelnione zatwierdzanie danych i katalogu. Adapter Linux FUSE rozpoznaje wersję formatu po uwierzytelnionym nagłówku. Wszystkie limity PFS/1 opisane poniżej pozostają prawdziwe dla starych obrazów; nie dokonujemy ich automatycznego podnoszenia do nowego formatu. [Szczegóły PFS/2](PFS2_LARGE_ATOMIC_FILES.md).
+
 ## Usprawniony zapis i odzyskiwanie żywych plików
 
 - Przy zamianie zawartości pliku `PagedFileSystem.write_file(..., replace=True)` najpierw uwierzytelnia istniejące dane i SHA-256, zachowuje niezmienione odnośniki sektorów, a do jednej transakcji PVIMG zapisuje wyłącznie **zmienione sektory** wraz z katalogiem. Zapisy identycznych danych nie zwiększają licznika transakcji.

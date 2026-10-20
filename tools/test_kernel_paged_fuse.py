@@ -14,7 +14,7 @@ import sys
 import tempfile
 import time
 
-from research.paged_fs import PagedFileSystem, MAX_FILE_BYTES
+from research.paged_fs2 import PagedFS2, MAX_FILE_BYTES
 from research.paged_volume import PagedResearchVolume
 
 SKIP = 77
@@ -42,10 +42,10 @@ def main() -> int:
         image, folder = base / "only-test-image.kpv", base / "mount"
         folder.mkdir(mode=0o700)
         key = secrets.token_bytes(32)
-        marker = secrets.token_bytes(610 * 1024)  # larger than entire legacy VIMG capacity
+        marker = secrets.token_bytes(1_400_000)  # larger than the former 960-KiB PFS/1 file limit
         assert len(marker) < MAX_FILE_BYTES
         with PagedResearchVolume(image, key, create=True) as vol:
-            fs = PagedFileSystem.format(vol)
+            fs = PagedFS2.format(vol)
             receipt = fs.receipt
 
         read_fd, write_fd = os.pipe()
@@ -130,11 +130,11 @@ def main() -> int:
                         proc.wait(timeout=5)
 
         with PagedResearchVolume(image, key) as vol:
-            fs = PagedFileSystem(vol)
+            fs = PagedFS2(vol)
             assert fs.list_files() == []
             assert vol.sequence > 1
             assert fs.verify_all()["files_verified"] == 0
-    print("PASS: genuine PVIMG-PFS Linux kernel FUSE mount, 610-KiB write/read, rename, append, unlink, unmount and authenticated reopen")
+    print("PASS: genuine PVIMG-PFS/2 Linux kernel FUSE mount, 1.4-MB write/read, rename, append, unlink, unmount and authenticated reopen")
     return 0
 
 

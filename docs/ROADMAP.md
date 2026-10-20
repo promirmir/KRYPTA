@@ -17,6 +17,16 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 
 **Other UI features, badges and secondary integrations must not take priority over this independent volume engine.**
 
+## PFS/2 — atomowe pliki do 32 MiB na Linux
+
+- [x] Oddzielny format `KRYPTA-PFS/2` — obecny format PFS/1 pozostaje niezmieniony.
+- [x] Maksymalnie **32 MiB na plik**, katalog 128 wpisów / 64 KiB, uwierzytelniony zapis zakresowy i rzadkie sektory zerowe.
+- [x] Zapis do 32 MiB danych + 16 sektorów katalogu w **jednej transakcji** PVIMG bez wcześniejszego zatwierdzania niekompletnej wersji pliku.
+- [x] Testy symulowanego przerwania zapisu, poprzedniego `receipt`, integralności i starszej wersji katalogu.
+- [ ] Produkcyjna wydajność, drzewa katalogów, POSIX, zarządzanie przestrzenią, rzeczywiste awarie zasilania i audyt.
+
+[Architektura oraz dowody](PFS2_LARGE_ATOMIC_FILES.md). Nie oznacza to ukończenia szyfrowania całego dysku.
+
 ## Sprawność zapisu i odzyskiwanie logicznych plików
 
 - [x] Szyfrowanie tylko zmodyfikowanych sektorów przy nadpisaniu istniejącego pliku; pełna autentykacja starej zawartości przed ponownym wykorzystaniem odnośników; pojedynczy atomowy commit katalogu i zmian.
