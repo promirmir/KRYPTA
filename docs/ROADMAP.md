@@ -28,7 +28,8 @@ Status on 2026-10-20: v0.4.0-alpha. **Only the File Vault research prototype is 
 - [x] **KRYPTA-VIMG/0 initial research prototype:** standalone authenticated append-only `.kvi` test image, sector map, write generation and recovery of last complete commit. [Implementation](../research/volume_image.py) · [design / limitations](VOLUME_IMAGE_V0.md) · [fault-injection tests](../tests/test_volume_image.py).
 - [x] Research-only multi-sector write transactions with one authenticated commit, byte-range I/O, and an optional externally verified commit receipt. Verified with synthetic power-cut and randomized oracle tests ([notes](VIMG_TRANSACTION_RESEARCH.md)).
 - [ ] Production-quality transactional virtual volume with **hardware-independent recovery, trusted anti-rollback storage, compaction, and validated durable crash recovery**. Current prototype is not a mountable disk or production-grade COW filesystem.
-- [ ] Verify write-through transparent encryption with independent Windows/Linux virtual-volume interface prototypes. No BitLocker/LUKS backend as the main product.
+- [x] Research Python `io.RawIOBase` virtual block stream (`seek/read/write/readinto`) over original KRYPTA encrypted test images; native packaging includes a disposable `--volume-self-test` ([architecture](VIRTUAL_BLOCK_DEVICE.md)). **No OS interception or mountable virtual drive yet.**
+- [ ] Actual transparent Windows/Linux **OS-level** virtual-volume/block-device integration using an independently built KRYPTA backend (not BitLocker/LUKS); disposable VM and recovery testing required.
 - [ ] Add robust metadata/root rollback protection and hardware-bound key release with independent secret for short PINs.
 - [ ] Add independent removable-drive support, portability and recovery without assuming a local software retry timer is secure.
 - [ ] Develop Windows system-volume preboot component and Linux system-volume stack only after disk-image / VM recovery tests.
