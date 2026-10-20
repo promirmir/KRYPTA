@@ -289,10 +289,13 @@ def mount_research_image(volume: ResearchVolume, mountpoint: str):
     if not isinstance(volume, ResearchVolume):
         raise TypeError("Expected existing KRYPTA research volume")
     folder = os.fspath(mountpoint)
+    if os.getuid() == 0:
+        raise PermissionError("Never run the KRYPTA research FUSE mount as root")
     if not os.path.isdir(folder) or os.path.islink(folder) or os.listdir(folder):
         raise ValueError("Mountpoint must be an existing, empty, non-symlink directory")
-    if os.stat(folder).st_uid != os.getuid():
-        raise PermissionError("Only mount into a directory owned by this user")
+    mount_stat = os.stat(folder)
+    if mount_stat.st_uid != os.getuid() or stat.S_IMODE(mount_stat.st_mode) & 0o077:
+        raise PermissionError("Mountpoint must be user-owned and private (mode 0700)")
     if os.path.realpath(volume.path).startswith(os.path.realpath(folder) + os.sep):
         raise ValueError("Encrypted image must not reside beneath its mountpoint")
     fs = ResearchFileSystem(volume)
