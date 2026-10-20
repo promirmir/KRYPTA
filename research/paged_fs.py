@@ -205,37 +205,66 @@ class PagedFileSystem:
         return result
 
     def write_file(self, filename: str, data: bytes, *, replace: bool = False) -> int:
-        """Commit complete encrypted contents + directory in one transaction."""
+        """Update only modified encrypted data sectors and the catalogue.
+
+        An existing file's contents and digest are authenticated BEFORE its
+        sector references are reused. The new catalogue plus every changed
+        data sector is published in ONE PVIMG commit. Existing sector indices
+        remain stable when possible, avoiding whole-file re-encryption on
+        small changes. Old ciphertext versions remain in the append-only log.
+        """
         self._check()
         filename = _name(filename)
         if not isinstance(data, bytes) or len(data) > MAX_FILE_BYTES:
             raise PagedFSError("File size exceeds atomic 960 KiB limit")
-        if filename in self._files and not replace:
+        exists = filename in self._files
+        if exists and not replace:
             raise FileExistsError(filename)
-        if filename not in self._files and len(self._files) >= MAX_FILES:
+        if not exists and len(self._files) >= MAX_FILES:
             raise PagedFSError("Maximum encrypted file count reached")
+
+        old_entry = self._files.get(filename)
+        if exists:
+            # Verify the previous ciphertext and file-level hash before
+            # exposing/preserving any previous authenticated sector pointer.
+            old_plaintext = self.read_file(filename)
+            if old_plaintext == data:
+                return self._sequence
+            previous_blocks = old_entry["blocks"]
+        else:
+            previous_blocks = []
+
         needed = (len(data) + BLOCK_BYTES - 1) // BLOCK_BYTES
-        used = {index for name, desc in self._files.items() if name != filename
-                for index in desc["blocks"]}
-        allocation = []
-        if needed:
-            for index in range(CATALOGUE_SECTORS, MAX_BLOCKS):
-                if index not in used:
-                    allocation.append(index)
-                    if len(allocation) == needed:
+        existing = list(previous_blocks[:needed])
+        additional = needed - len(existing)
+        if additional:
+            # Never overlap a currently referenced file sector. Dropped
+            # sectors can be reused only by a LATER logical allocation.
+            used = {sector for desc in self._files.values()
+                    for sector in desc["blocks"]}
+            for sector in range(CATALOGUE_SECTORS, MAX_BLOCKS):
+                if sector not in used:
+                    existing.append(sector)
+                    if len(existing) == needed:
                         break
-        if len(allocation) < needed:
+        if len(existing) < needed:
             raise PagedFSError("Not enough encrypted logical sectors")
-        updates = {
-            sector: data[i * BLOCK_BYTES:(i + 1) * BLOCK_BYTES].ljust(BLOCK_BYTES, b"\x00")
-            for i, sector in enumerate(allocation)
-        }
-        new_files = dict(self._files)
-        new_files[filename] = {
-            "size": len(data), "blocks": allocation,
+
+        updates = {}
+        for i, sector in enumerate(existing):
+            current = data[i * BLOCK_BYTES:(i + 1) * BLOCK_BYTES].ljust(
+                BLOCK_BYTES, b"\x00")
+            # Compare authenticated full ciphertext-backed sectors, not just
+            # file bytes; shrinking a file must zero its final padded sector.
+            if i >= len(previous_blocks) or self._volume.read(sector) != current:
+                updates[sector] = current
+
+        files = dict(self._files)
+        files[filename] = {
+            "size": len(data), "blocks": existing,
             "sha256": hashlib.sha256(data).hexdigest(),
         }
-        return self._commit(new_files, updates)
+        return self._commit(files, updates)
 
     def delete_file(self, filename: str) -> int:
         self._check()
