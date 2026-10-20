@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_status">ALFA BADAWCZA / TYLKO WYBRANE PLIKI</string>
+    <string name="vault_warning">KRYPTA nie szyfruje całego telefonu. Tylko pliki testowe; brak odzyskiwania po utracie klucza Android Keystore.</string>
+    <string name="vault_body">AES-256-GCM i Android Keystore. Własny format KRYPTA-MOBILE/1, niezgodny z plikami .kry na komputerze.</string>
+    <string name="vault_encrypt">SZYFRUJ WYBRANY PLIK TESTOWY</string>
+    <string name="vault_decrypt">ODSZYFRUJ WYBRANY PLIK TESTOWY</string>
+    <string name="vault_idle">Wybierz plik źródłowy.</string>
+    <string name="vault_success">Operacja testowa zakończona. Zachowaj oryginał i kopię.</string>
+    <string name="vault_failed">Operacja nieudana. Wynik może być niekompletny: usuń go. Oryginał bez zmian.</string>
+    <string name="vault_cancelled">Anulowano operację.</string>
+    <string name="vault_need_lock">Najpierw ustaw bezpieczną blokadę ekranu.</string>
+    <string name="vault_auth_title">Autoryzuj sejf plików KRYPTA</string>
+    <string name="vault_auth_body">Potwierdź blokadę urządzenia, aby użyć powiązanego klucza. Telefon nie jest szyfrowany w całości.</string>
+    <string name="vault_same_file">Źródło i cel muszą być różne.</string>
+</resources>
