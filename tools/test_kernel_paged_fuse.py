@@ -52,6 +52,7 @@ def main() -> int:
             provision_keys(vol, password, envelope, recovery)
             receipt = fs.receipt
 
+        receipt_output = base / "final-external.receipt"
         read_fd, write_fd = os.pipe()
         proc = None
         mounted = False
@@ -62,6 +63,7 @@ def main() -> int:
                     "--image", str(image), "--mountpoint", str(folder),
                     "--envelope", str(envelope), "--password-fd", str(read_fd),
                     "--expected-receipt", receipt,
+                    "--final-receipt-out", str(receipt_output),
                     "--accept-development-risk",
                 ],
                 pass_fds=(read_fd,), stdin=subprocess.DEVNULL,
@@ -134,7 +136,12 @@ def main() -> int:
                         proc.kill()
                         proc.wait(timeout=5)
 
-        with PagedResearchVolume(image, key) as vol:
+        if not receipt_output.exists():
+            raise AssertionError("Unmount did not export the final authenticated receipt")
+        latest_receipt = receipt_output.read_text(encoding="ascii").strip()
+        if len(latest_receipt) != 64:
+            raise AssertionError("Invalid updated authenticated receipt")
+        with PagedResearchVolume(image, key, expected_receipt=latest_receipt) as vol:
             fs = PagedFS2(vol)
             assert fs.list_files() == []
             assert vol.sequence > 1
