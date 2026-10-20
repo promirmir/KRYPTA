@@ -19,10 +19,10 @@
 3. **Brak uwierzytelniania PIN/TPM/SE ani odzyskiwania kluczy.** Przechowywanie klucza w programie lub razem z plikiem niweczy cel bezpieczeństwa.
 4. **Brak weryfikacji sprzętowej** i ochrony dysku systemowego. Nie obsługuje Windows boot, Android FBE ani plików innych aplikacji.
 5. **Brak gwarancji atomowości na wszystkich dyskach/systemach plików:** fsync+append nie jest gwarancją niezawodności przeciw awarii firmware, niestabilnym kontrolerom, nieuprawnionemu zapisowi, uszkodzeniu sektora metadanych albo manipulacji aktywnego root/administratora.
-6. **Model single-writer:** POSIX advisory locking; na Windows blokada międzyprocesowa jeszcze niewdrożona. Nie wolno otwierać jednego obrazu równolegle w wielu procesach.
+6. **Model single-writer:** POSIX advisory locking oraz Windows byte-range lock na osobnym bajcie poza dozwoloną przestrzenią obrazu, sprawdzone testami międzyprocesowymi. Nie oznacza to ochrony przed procesem posiadającym uprawnienia administratora ani przed zapisem omijającym API.
 7. **Brak odzyskiwania po celowej modyfikacji ważnego commitu.** W razie naruszenia integralności proces przerywa odczyt zamiast cicho przejść na poprzedni commit. Utrata jedynej kopii może być trwała.
 8. **Bezpieczeństwo samej konstrukcji HORIZON/0 pozostaje eksperymentalne.** Dwie warstwy szyfrowania nie dowodzą przewagi nad dojrzałym AEAD.
-9. **Przewidywalny wzrost pliku obrazu:** append-only i ponawianie map, bez compaction, wear management, quota recovery i sprawdzonego garbage collection.
+9. **Przewidywalny wzrost pliku obrazu:** append-only i ponawianie map. Istnieje teraz [niedestrukcyjny eksport aktualnych sektorów do nowego obrazu](VIMG_LIVE_MIGRATION.md), ale **nadal brak właściwej automatycznej kompakcji działającego woluminu**, wear management, quota recovery i sprawdzonego garbage collection.
 10. Przed użyciem produkcyjnym: korekta architektury metadanych, fuzzing parsera, fault injection fsync/partial write, cross-process isolation i obsługa platform, świadomy model recovery, analiza wycieków w pamięci oraz testy kopii zapasowych.
 
 ## Co dalej
