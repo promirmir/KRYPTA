@@ -32,7 +32,7 @@ try {
     $key = [System.Security.Cryptography.CngKey]::Create(
         [System.Security.Cryptography.CngAlgorithm]::Rsa, $null, $params)
     if ($key.Provider.Provider -ne $providerName -or (-not $key.IsEphemeral)) {
-        throw 'Unexpected persistent key or provider'
+        throw ('Unexpected CNG attributes: provider=' + $key.Provider.Provider + '; ephemeral=' + $key.IsEphemeral + '; name-present=' + [bool]$key.KeyName)
     }
     $rsa = [System.Security.Cryptography.RSACng]::new($key)
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
