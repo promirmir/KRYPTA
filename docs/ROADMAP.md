@@ -26,7 +26,8 @@ Status on 2026-10-20: v0.4.0-alpha. **Only the File Vault research prototype is 
 - [x] Define original experimental HORIZON/0 authenticated block format and independent data-key research path (not production).
 - [x] Begin standalone in-memory/file-free block test implementation under `research/` and adversarial regression tests.
 - [x] **KRYPTA-VIMG/0 initial research prototype:** standalone authenticated append-only `.kvi` test image, sector map, write generation and recovery of last complete commit. [Implementation](../research/volume_image.py) · [design / limitations](VOLUME_IMAGE_V0.md) · [fault-injection tests](../tests/test_volume_image.py).
-- [ ] Production-quality **transactional** virtual volume with multi-sector atomic commits, durable rollback anchor, compaction and validated crash recovery. Current prototype is not a mountable disk or production-grade COW filesystem.
+- [x] Research-only multi-sector write transactions with one authenticated commit, byte-range I/O, and an optional externally verified commit receipt. Verified with synthetic power-cut and randomized oracle tests ([notes](VIMG_TRANSACTION_RESEARCH.md)).
+- [ ] Production-quality transactional virtual volume with **hardware-independent recovery, trusted anti-rollback storage, compaction, and validated durable crash recovery**. Current prototype is not a mountable disk or production-grade COW filesystem.
 - [ ] Verify write-through transparent encryption with independent Windows/Linux virtual-volume interface prototypes. No BitLocker/LUKS backend as the main product.
 - [ ] Add robust metadata/root rollback protection and hardware-bound key release with independent secret for short PINs.
 - [ ] Add independent removable-drive support, portability and recovery without assuming a local software retry timer is secure.
