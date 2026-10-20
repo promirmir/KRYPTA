@@ -71,7 +71,7 @@ jobs:
           $r = & ./windows/Test-KryptaSoftwareCngOaep.ps1 | ConvertFrom-Json
           if ($r.Schema -ne 'KRYPTA-SOFTWARE-CNG-SMOKE/1') { throw 'Wrong software test schema' }
           if ($r.Provider -ne 'Microsoft Software Key Storage Provider') { throw 'Unexpected CNG provider' }
-          if ($r.KeyType -ne 'ephemeral') { throw 'Persistent key is forbidden' }
+          if ($r.KeyType -ne 'unnamed_memory_scope') { throw 'Key must be unnamed in software CNG test' }
           if ($r.RsaOaep256RoundTrip -ne $true) { throw 'RSA OAEP round-trip failed' }
           if ($r.TamperRejected -ne $true) { throw 'OAEP tamper rejection failed' }
           if ($r.WrongKeyRejected -ne $true) { throw 'OAEP wrong-key rejection failed' }
