@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_status">RESEARCH ALPHA / SELECTED FILES ONLY</string>
+    <string name="vault_warning">KRYPTA does not encrypt this phone. Test files only; no key recovery if Android Keystore is lost.</string>
+    <string name="vault_body">AES-256-GCM and Android Keystore. Independent KRYPTA-MOBILE/1 format, incompatible with desktop .kry.</string>
+    <string name="vault_encrypt">ENCRYPT SELECTED TEST FILE</string>
+    <string name="vault_decrypt">DECRYPT SELECTED TEST FILE</string>
+    <string name="vault_idle">Choose a source file to begin.</string>
+    <string name="vault_success">Test operation completed. Keep the original and backup.</string>
+    <string name="vault_failed">Operation failed. Output may be incomplete: delete it. Original unchanged.</string>
+    <string name="vault_cancelled">Operation cancelled.</string>
+    <string name="vault_need_lock">Enable a secure device screen lock first.</string>
+    <string name="vault_auth_title">Authorize KRYPTA file vault</string>
+    <string name="vault_auth_body">Confirm device credential to access this device-bound key. No whole-phone encryption.</string>
+    <string name="vault_same_file">Source and destination must differ.</string>
+</resources>
