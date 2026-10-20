@@ -360,6 +360,57 @@ class ResearchVolume:
             changes[index] = bytes(sector)
         return self.write_many(changes)
 
+    def export_compacted_copy(self, destination: str | Path) -> dict:
+        """Migrate ONLY the current authenticated sectors to a NEW .kvi image.
+
+        This is a nondestructive research migration, NOT in-place compaction:
+        the original image remains byte-for-byte unchanged and still locked.
+        The destination has a different image ID, fresh encrypted records, a
+        new sequence and a new receipt. External rollback anchors and recovery
+        policy MUST be updated separately, outside this function.
+
+        Never use this function for precious data or an actual block device.
+        """
+        self._check_open()
+        target = Path(destination)
+        if target.resolve(strict=False) == self.path.resolve(strict=False):
+            raise VolumeImageError("Compacted copy must have a separate destination")
+        if target.suffix.lower() != ".kvi":
+            raise VolumeImageError("Compacted copy must use a new .kvi image path")
+        created_identity = None
+        try:
+            with ResearchVolume(target, self.key, create=True) as compact:
+                created_identity = os.fstat(compact._f.fileno())
+                # Verify/decrypt every live sector BEFORE emitting the new data
+                # records, so corruption never produces a successful copy.
+                live = {int(index): self.read(int(index)) for index in self.entries}
+                if live:
+                    compact.write_many(live)
+                for index, plaintext in live.items():
+                    if not hmac.compare_digest(compact.read(index), plaintext):
+                        raise VolumeImageError("Compacted image verification mismatch")
+                return {
+                    "source_sequence": self.sequence,
+                    "source_receipt": self.commit_receipt,
+                    "new_sequence": compact.sequence,
+                    "new_receipt": compact.commit_receipt,
+                    "new_image_id": compact.id.hex(),
+                    "live_sectors": len(live),
+                }
+        except BaseException:
+            # Remove ONLY the disposable destination inode created by us.
+            # Never remove a different file that replaced its name in a race.
+            if created_identity is not None:
+                try:
+                    actual = os.stat(target, follow_symlinks=False)
+                    if (stat.S_ISREG(actual.st_mode)
+                            and actual.st_dev == created_identity.st_dev
+                            and actual.st_ino == created_identity.st_ino):
+                        target.unlink()
+                except OSError:
+                    pass
+            raise
+
     def close(self) -> None:
         if not self._closed:
             self._f.close()
