@@ -55,6 +55,8 @@ jobs:
           if ($volumeProbe.ExitCode -ne 0) { throw "Packaged Windows independent volume smoke test failed: $($volumeProbe.ExitCode)" }
           $filesystemProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--filesystem-self-test' -Wait -PassThru
           if ($filesystemProbe.ExitCode -ne 0) { throw "Packaged Windows filesystem/migration test failed: $($filesystemProbe.ExitCode)" }
+          $fuseProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--fuse-self-test' -Wait -PassThru
+          if ($fuseProbe.ExitCode -ne 0) { throw "Packaged Windows simulated encrypted FUSE API check failed: $($fuseProbe.ExitCode)" }
       - name: Verify Linux output
         if: runner.os == 'Linux'
         run: |
@@ -64,6 +66,7 @@ jobs:
           ./dist/KRYPTA --self-test
           ./dist/KRYPTA --volume-self-test
           ./dist/KRYPTA --filesystem-self-test
+          ./dist/KRYPTA --fuse-self-test
       - name: Upload private research artifact
         uses: actions/upload-artifact@v4
         with:
