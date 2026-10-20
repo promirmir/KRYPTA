@@ -12,6 +12,10 @@ The Android **0.5.0 research APK** now implements actual selected-file encryptio
 
 **Limitations:** No Android physical-device Keystore test, no secure/portable recovery key, no proof of hardware-enforced guess throttling, no complete file-write atomicity, no tested OEM compatibility, no actual Android whole-device encryption. Decrypts to an app-private disposable cache file before exporting verified plaintext; deleting an app cache file does not guarantee flash secure erasure. Data may become permanently inaccessible after device loss/Keystore reset. Do not use the debug APK for irreplaceable files.
 
+## Linux FUSE adapter research (2026-10-20)
+
+The original KRYPTA-FS/VIMG/HORIZON stack has an **opt-in Linux FUSE I/O adapter** (`research/linux_fuse.py`) and a Linux-only explicit-risk CLI (`research/linux_mount.py`). Simulated Linux FUSE callbacks are exercised on synthetic `.kvi` images across Windows/Linux CI. Actual Linux FUSE kernel mounting/unmounting, filesystem recovery after VM crash, driver integration and production OS transparent disk encryption remain **UNTESTED/NOT IMPLEMENTED**. Source is independent of BitLocker/LUKS. [Scope and limitations](LINUX_FUSE_RESEARCH.md).
+
 ## Research live-sector migration and file integrity sweep
 
 `ResearchVolume.export_compacted_copy()` creates a NEW no-overwrite authenticated image from currently live sectors, retaining the original and reporting a different image ID/receipt. `ResearchFileSystem.verify_all()` reads/verifies all currently listed files. Negative tests check corrupted source, existing destination, failures during migration and incomplete genesis cleanup. **This is not in-place compaction, secure deletion or anti-rollback migration.** [Limits and test instructions](VIMG_LIVE_MIGRATION.md).
