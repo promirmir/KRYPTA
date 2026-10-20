@@ -1,11 +1,11 @@
 """KRYPTA-PFS/2: staged authenticated file updates over PVIMG/1 test images.
 
 A separate ON-DISK filesystem version. PFS/1 remains readable unchanged.
-Data for a large new/replaced file is staged at NEW logical sector addresses.
-Each staging batch has a durable PVIMG commit but is unreachable from the
-old encrypted directory. A final atomic 16-sector catalogue commit makes the
-new file version visible. A crash before that commit leaves the old directory
-and all its referenced sectors intact. Unreferenced ciphertext is not wiped.
+New data frames and the authenticated directory are written as ONE PVIMG
+copy-on-write transaction, which can cover 32 MiB plus 16 catalogue sectors.
+The new authenticated root becomes visible only after its final durable
+commit; a crash before publication retains the last trusted root/receipt.
+Unreferenced historical ciphertext remains in the append-only log.
 
 File format and all operations are development-stage, not a production mount.
 """
@@ -17,7 +17,7 @@ from typing import Any
 
 from .fs_image import ResearchFSError, _name as _portable_name
 from .paged_volume import (
-    BLOCK_BYTES, MAX_BLOCKS, MAX_TX_BLOCKS, MAX_IMAGE_BYTES,
+    BLOCK_BYTES, MAX_BLOCKS, MAX_IMAGE_BYTES,
     PagedResearchVolume,
 )
 
@@ -239,11 +239,11 @@ class PagedFS2:
 
     def _apply(self, filename: str, *, offset: int, data: bytes,
                size: int, replace_all: bool = False) -> int:
-        """Stage NEW sectors, then atomically publish the final directory.
+        """Prepare new data sector references and publish one atomic root.
 
-        At no point before final directory publication is a currently listed
-        data sector overwritten. Staging commits may become visible at the
-        PVIMG root, but old PFS/2 directory remains valid on recovery.
+        The old encrypted directory and its referenced sectors remain valid
+        throughout writing new uncommitted frames. Failure before the final
+        commit preserves the old receipt on recovery.
         """
         self._check()
         filename = _name(filename)
@@ -319,14 +319,32 @@ class PagedFS2:
         # PRECHECK all names, file sizes, sector aliases and directory
         # serialization limits before staging any encrypted block.
         _encode(updated)
-        for start in range(0, len(staged), MAX_TX_BLOCKS):
-            batch = dict(list(staged.items())[start:start + MAX_TX_BLOCKS])
-            self._volume.write_many(batch)
-            self._sequence = self._volume.sequence
-        # Hash every sector of the NEW authenticated ciphertext-backed file;
-        # unmodified data-sector references remain verified and unchanged.
-        updated[filename]["sha256"] = self._hash(updated[filename])
-        return self._commit_directory(updated)
+        # Compute the new file digest using authenticated old sectors and
+        # fresh prepared in-memory plaintext. No staged data is yet committed.
+        digest = hashlib.sha256()
+        for i, sector in enumerate(blocks):
+            full = ZERO if sector is None else staged.get(sector)
+            if full is None:
+                full = self._volume.read(sector)
+            remaining = size - i * BLOCK_BYTES
+            take = min(BLOCK_BYTES, remaining)
+            if any(full[take:]):
+                raise PagedFS2Error("Noncanonical staged file sector padding")
+            digest.update(full[:take])
+        updated[filename]["sha256"] = digest.hexdigest()
+        raw = _encode(updated)
+        changes = dict(staged)
+        changes.update({
+            i: raw[i * BLOCK_BYTES:(i + 1) * BLOCK_BYTES]
+            for i in range(DIRECTORY_BLOCKS)
+        })
+        # All new data frames, radix nodes and catalogue sectors are
+        # authenticated under one FINAL PVIMG commit; a failed commit leaves
+        # the previous on-disk directory and external receipt unchanged.
+        sequence = self._volume.write_many_atomic_large(changes)
+        self._files = updated
+        self._sequence = sequence
+        return sequence
 
     def write_file(self, filename: str, data: bytes, *, replace: bool = False) -> int:
         self._check()
