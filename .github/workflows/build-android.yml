@@ -2,6 +2,12 @@ name: KRYPTA / Android selected-file vault development build
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'krypta/i18n.py'
+      - 'tools/sync_android_strings.py'
+      - '.github/workflows/build-android.yml'
   push:
     branches: [main]
     paths:
