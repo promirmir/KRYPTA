@@ -47,7 +47,9 @@ python -m research.paged_key_cli recover-password \
   --acknowledge-test-only
 \`\`\`
 
-Wszystkie te polecenia **odmawiają** pracy bez wyraźnej flagi ryzyka. Montowanie Linux FUSE bez podawania surowego klucza można wykonać poleceniem \`python -m research.linux_mount_paged\` z parametrami \`--envelope\`, \`--password-fd\` i \`--expected-receipt\`, w prywatnym, pustym katalogu mountpoint 0700 jako użytkownik nie-root. Hasło musi trafić do anonimowego potoku. Jest to narzędzie programistyczne, nie gotowy kreator montowania dla konsumenta.
+Wszystkie te polecenia **odmawiają** pracy bez wyraźnej flagi ryzyka. Po zakończeniu montowania Linux FUSE wypisuje **FINAL RECEIPT**. Można również podać `--final-receipt-out /osobna/sciezka/nowy.receipt`, aby po odmontowaniu utworzyć osobny plik z najnowszym potwierdzeniem. Ścieżka musi być nowa, nie może nadpisywać istniejących plików ani wskazywać zawartości katalogu montowania. **Taki zwykły plik nie jest automatycznie zaufaną kotwicą anty-rollback**; najnowszy receipt trzeba umieścić w niezależnie chronionym miejscu. Zanik zasilania przed zapisaniem zewnętrznego receipt nadal pozostaje problemem projektowym.
+
+Montowanie Linux FUSE bez podawania surowego klucza można wykonać poleceniem \`python -m research.linux_mount_paged\` z parametrami \`--envelope\`, \`--password-fd\` i \`--expected-receipt\`, w prywatnym, pustym katalogu mountpoint 0700 jako użytkownik nie-root. Hasło musi trafić do anonimowego potoku. Jest to narzędzie programistyczne, nie gotowy kreator montowania dla konsumenta.
 
 ## Ważne braki — nie obiecujemy bezpieczeństwa sprzętowego
 
