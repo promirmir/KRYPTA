@@ -1,4 +1,4 @@
-# KRYPTA Android — experimental File Vault 0.5 (private debug APK)
+# KRYPTA Android — File Vault 0.5 (development build, private APK)
 
 **Actual local file encryption implemented for selected test documents.** This is not whole-phone encryption, transparent OS storage protection, a PIN password vault or certified secure storage. **Do not use unique or irreplaceable data.**
 
