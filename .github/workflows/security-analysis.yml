@@ -34,5 +34,13 @@ jobs:
         run: python -m compileall -q krypta tests
       - name: Static analysis for high and medium-severity findings
         run: python -m bandit -r krypta -q -ll
-      - name: Check installed package vulnerabilities (fail closed)
-        run: python -m pip_audit --strict --skip-editable --progress-spinner off
+      - name: Audit resolved runtime and test dependencies (fail closed)
+        shell: bash
+        run: |
+          python - <<'PYTHON'
+          import pathlib, tomllib
+          doc = tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))['project']
+          reqs = list(doc['dependencies']) + list(doc['optional-dependencies']['test'])
+          pathlib.Path('krypta-audit-requirements.txt').write_text('\n'.join(reqs) + '\n', encoding='utf-8')
+          PYTHON
+          python -m pip_audit --strict --progress-spinner off -r krypta-audit-requirements.txt
