@@ -47,7 +47,7 @@ def test_handle_cannot_read_or_write_another_existing_path(fs_fixture):
     expect_err(errno.EBADF, ops.flush, "/bob", first)
     expect_err(errno.EBADF, ops.fsync, "/bob", 0, first)
     expect_err(errno.EBADF, ops.release, "/bob", first)
-    expect_err(errno.EACCES, ops.truncate, "/bob", 0, first)
+    expect_err(errno.EBADF, ops.truncate, "/bob", 0, first)
 
     assert fs.receipt == old_receipt
     assert fs.read_file("alice") == b"AAA"
