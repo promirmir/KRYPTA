@@ -38,7 +38,7 @@ Zadaniem jest możliwie najwyższa **udowodniona** odporność na współczesne 
 10. **Czytelny publiczny nagłówek:** identyfikator `KRYPTA`, wersja formatu, rzeczywiście użyta kryptografia, tryb ochrony klucza i status weryfikacji. Nagłówek jest jawny, **nie zawiera hasła/klucza ani fałszywych twierdzeń, że decryption jest niemożliwe**. Chroniony przed manipulacją poprzez autentykację metadanych po odblokowaniu.
 11. **Wygląd:** stonowany, profesjonalny terminalowy Matrix (ciemne tło, zielone akcenty), bez przesadnych ozdobników AI. Wspólne zasady UI.
 12. **Języki:** PL, EN, RU, chiński uproszczony, ES, AR, HI, PT, FR, DE, ID na Windows, Linux i Android, z poprawnymi komunikatami bezpieczeństwa.
-13. **Prywatność:** projekt niezależny od AuronQ, bez wspólnego repo, kodu, wydawnictw ani infrastruktury; repozytorium **Private** aż do wyraźnego polecenia publicznej publikacji. Offline-first, brak obowiązkowego konta, usługi chmurowej lub telemetrii.
+13. **Prywatność:** KRYPTA stanowi samodzielny projekt, z własnym repozytorium, kodem, procesem wydawniczym i niezależnymi komponentami; repozytorium **Private** aż do wyraźnego polecenia publicznej publikacji. Offline-first, brak obowiązkowego konta, usługi chmurowej lub telemetrii.
 14. **Brak ryzyka dla danych:** rozwojowe buildy nie mogą samoczynnie szyfrować dysków/partycji ani zmieniać BIOS/TPM/rozruchu. Funkcje mogące uniemożliwić rozruch tylko po osobnych testach, kopiach, drodze odzyskania i jawnej zgodzie operatora.
 
 ## Cel strategiczny: możliwość zastosowań wojskowych i rządowych
