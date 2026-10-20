@@ -178,3 +178,27 @@ def test_compacted_copy_requires_same_key_not_old_receipt(tmp_path):
     with ResearchVolume(tmp_path / "new.kvi", key,
                         expected_receipt=report["new_receipt"]) as new_volume:
         assert ResearchFileSystem(new_volume).read_file("data") == b"abc"
+
+
+def test_failed_genesis_discards_only_new_test_image(tmp_path, monkeypatch):
+    dest = tmp_path / "bad-genesis.kvi"
+    original = ResearchVolume._commit
+    def fail_genesis(self, seq, entries):
+        if seq == 0:
+            raise OSError("simulated crash before authenticated genesis")
+        return original(self, seq, entries)
+    monkeypatch.setattr(ResearchVolume, "_commit", fail_genesis)
+    with pytest.raises(OSError, match="simulated crash"):
+        ResearchVolume(dest, os.urandom(32), create=True)
+    assert not dest.exists()
+
+
+def test_failed_creation_does_not_unlink_preexisting_file(tmp_path, monkeypatch):
+    dest = tmp_path / "preexisting.kvi"
+    dest.write_bytes(b"existing unique data")
+    original = dest.read_bytes()
+    monkeypatch.setattr(ResearchVolume, "_commit",
+                        lambda *args: (_ for _ in ()).throw(AssertionError("must not run")))
+    with pytest.raises(VolumeImageError):
+        ResearchVolume(dest, os.urandom(32), create=True)
+    assert dest.read_bytes() == original
