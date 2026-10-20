@@ -4,6 +4,15 @@
 
 This page is evidence-based; a passing test is not a proof of confidentiality under every threat model.
 
+## Original engine research — HORIZON/0 (2026-10-20)
+
+Product direction is defined by [PROJECT_CHARTER.md](PROJECT_CHARTER.md): KRYPTA's eventual transparent disk encryption **must be an independent system, not a BitLocker or LUKS wrapper**. Existing OS encryption inspection code is an optional read-only diagnostic only.
+
+Experimental research files: [HORIZON_CRYPTO_RFC.md](HORIZON_CRYPTO_RFC.md), `research/horizon_lab.py`, `tests/test_horizon_lab.py`. The research construction uses independently derived per-record keys, AES-256-GCM and ChaCha20-Poly1305, plus authenticated block identity and version. It **does not** implement transparent disk I/O, authenticated transaction roots, anti-rollback, secure key release, full-disk encryption, or anything protecting the user's actual computer/phone.
+
+Current tests validate selected correctness and tamper-rejection cases on research input only. The scheme is NOT independently cryptanalyzed; neither its superiority over AES-256/BitLocker nor resistance to unknown quantum/AI attacks has been established. There is no guarantee that layering primitives increases security.
+
+
 ## Implemented and tested
 
 | Area | Evidence | What it establishes |
