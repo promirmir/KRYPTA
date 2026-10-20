@@ -27,6 +27,17 @@ Zadaniem jest możliwie najwyższa **udowodniona** odporność na współczesne 
 13. **Prywatność:** projekt niezależny od AuronQ, bez wspólnego repo, kodu, wydawnictw ani infrastruktury; repozytorium **Private** aż do wyraźnego polecenia publicznej publikacji. Offline-first, brak obowiązkowego konta, usługi chmurowej lub telemetrii.
 14. **Brak ryzyka dla danych:** rozwojowe buildy nie mogą samoczynnie szyfrować dysków/partycji ani zmieniać BIOS/TPM/rozruchu. Funkcje mogące uniemożliwić rozruch tylko po osobnych testach, kopiach, drodze odzyskania i jawnej zgodzie operatora.
 
+## Cel strategiczny: możliwość zastosowań wojskowych i rządowych
+
+Właściciel wyznacza KRYPTA cel stworzenia **własnego systemu szyfrowania o najwyższym możliwym do wykazania poziomie ochrony**, tak aby w przyszłości mógł być rozpatrywany również przez wojsko, administrację państwową i operatorów infrastruktury krytycznej. Cel dotyczy **rzeczywistej jakości produktu**, a nie deklaracji marketingowych.
+
+- Wymagamy mierzalnych przewag w istotnych scenariuszach zagrożeń, nie zakładamy z góry, że każdy istniejący system ma niższą odporność.
+- Weryfikacja kryptografii, odzyskiwania, uruchamiania, aktualizacji, sprzętowej ochrony kluczy i odporności na aktywnego przeciwnika będzie częścią procesu inżynieryjnego.
+- Możliwość dopuszczenia do określonych zastosowań wojskowych lub informacji niejawnych zależy dodatkowo od osobnych wymogów właściwych organów, konfiguracji produktu i prawa; **nie wynika automatycznie ze stosowania silnych algorytmów**.
+- Przed uzyskaniem dowodów zabronione są twierdzenia o zatwierdzeniu wojskowym, niełamliwości, certyfikacji lub absolutnej przewadze.
+
+Mierzalne wymagania dotyczące tego celu: [DEFENSE_ASSURANCE_TARGET.md](DEFENSE_ASSURANCE_TARGET.md).
+
 ## Kryteria przewagi nad konkurencją
 
 Nie porównujemy się marketingowo samą nazwą algorytmu. Wymagane mierzalne testy: odporność na kopiowanie szyfrogramu i zgadywanie PIN-u, integralność/rollback, bezpieczeństwo rozruchu, odzyskiwanie po awarii, kompatybilność i wydajność, odporność na eskalację uprawnień oraz aktualizowalność algorytmów. Porównanie z niejawnie chronionymi systemami wojskowymi/F-16 **nie jest możliwe do potwierdzenia**.
