@@ -8,6 +8,7 @@ on:
       - 'windows/Get-KryptaTpmReadiness.ps1'
       - 'windows/Test-KryptaTpmKey.ps1'
       - 'windows/Test-KryptaTpmWrap.ps1'
+      - 'windows/Test-KryptaSoftwareCngOaep.ps1'
       - 'krypta/hardware_readiness.py'
       - 'tests/test_hardware_readiness.py'
       - '.github/workflows/tpm-readiness.yml'
@@ -64,6 +65,20 @@ jobs:
           if ($probe.DiskEncryptionEnabled -ne $false) { throw 'Unexpected encryption claim' }
           if ($null -ne $probe.CleanupSucceeded) { throw 'Cleanup attempted without a key' }
           Write-Host 'Safe default verified. No key created or modified.'
+      - name: Verify OAEP-256 using ephemeral SOFTWARE CNG only (not TPM)
+        shell: pwsh
+        run: |
+          $r = & ./windows/Test-KryptaSoftwareCngOaep.ps1 | ConvertFrom-Json
+          if ($r.Schema -ne 'KRYPTA-SOFTWARE-CNG-SMOKE/1') { throw 'Wrong software test schema' }
+          if ($r.Provider -ne 'Microsoft Software Key Storage Provider') { throw 'Unexpected CNG provider' }
+          if ($r.KeyType -ne 'ephemeral') { throw 'Persistent key is forbidden' }
+          if ($r.RsaOaep256RoundTrip -ne $true) { throw 'RSA OAEP round-trip failed' }
+          if ($r.TamperRejected -ne $true) { throw 'OAEP tamper rejection failed' }
+          if ($r.WrongKeyRejected -ne $true) { throw 'OAEP wrong-key rejection failed' }
+          if ($r.HardwareTpmVerified -ne $false -or $r.HardwarePinAntiHammeringVerified -ne $false) {
+            throw 'Software test must never claim TPM or PIN anti-hammering'
+          }
+          Write-Host 'Software CNG RSA-OAEP-SHA256 check passed. No hardware TPM was tested.'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
