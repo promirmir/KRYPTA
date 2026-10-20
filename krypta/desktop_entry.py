@@ -87,6 +87,51 @@ def run_filesystem_self_test() -> int:
                 raise RuntimeError("Packaged new image integrity sweep failed")
     return 0
 
+def run_fuse_adapter_self_test() -> int:
+    """Exercise *packaged* original KRYPTA-FS via FUSE-style callbacks.
+
+    No libfuse device and NO kernel mount are accessed. All files, keys and
+    images are synthetic and disappear with the private temporary directory.
+    """
+    import os
+    import errno
+    import secrets
+    from research.fs_image import ResearchFileSystem
+    from research.linux_fuse import FuseOSError, KryptaFuseOps
+    from research.volume_image import ResearchVolume
+
+    with tempfile.TemporaryDirectory(prefix="krypta-fuse-package-test-") as directory:
+        root = Path(directory)
+        path = root / "disposable.kvi"
+        key = secrets.token_bytes(32)
+        with ResearchVolume(path, key, create=True) as volume:
+            filesystem = ResearchFileSystem.format(volume)
+            adapter = KryptaFuseOps(filesystem)
+            handle = adapter.create("/research.txt", 0o600)
+            test_payload = b"KRYPTA-OWN-TRANSPARENT-FILE-WRITE" * 4
+            if adapter.write("/research.txt", test_payload, 0, handle) != len(test_payload):
+                raise RuntimeError("FUSE adapter failed to write the research file")
+            if adapter.read("/research.txt", len(test_payload), 0, handle) != test_payload:
+                raise RuntimeError("FUSE adapter failed to read the research file")
+            if test_payload in path.read_bytes() or b"research.txt" in path.read_bytes():
+                raise RuntimeError("Plaintext present in encrypted research image")
+            try:
+                adapter.read("/a-different-file.txt", 1, 0, handle)
+            except FuseOSError as e:
+                if e.errno != errno.EBADF:
+                    raise RuntimeError("FUSE file identity check returned wrong error") from e
+            else:
+                raise RuntimeError("FUSE adapter accepted a mismatched handle and filename")
+            if adapter.release("/research.txt", handle) != 0:
+                raise RuntimeError("FUSE adapter failed to release the test handle")
+            receipt = filesystem.receipt
+        with ResearchVolume(path, key, expected_receipt=receipt) as verified:
+            fs = ResearchFileSystem(verified)
+            if fs.read_file("research.txt") != test_payload:
+                raise RuntimeError("FUSE adapter encrypted-file recovery mismatch")
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
         return run_self_test()
@@ -94,6 +139,8 @@ def main() -> int:
         return run_volume_self_test()
     if len(sys.argv) == 2 and sys.argv[1] == "--filesystem-self-test":
         return run_filesystem_self_test()
+    if len(sys.argv) == 2 and sys.argv[1] == "--fuse-self-test":
+        return run_fuse_adapter_self_test()
     if len(sys.argv) != 1:
         return 2
     from krypta.gui import main as gui_main
