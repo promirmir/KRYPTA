@@ -44,6 +44,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--image", required=True, help="Existing .kvi research file, NEVER a disk")
     parser.add_argument("--mountpoint", required=True, help="Existing empty private directory")
     parser.add_argument("--key-fd", type=int, required=True, help="Pipe/socket FD with 32 raw key bytes")
+    parser.add_argument("--expected-receipt", required=True,
+                        help="Trusted 64-char hex commit receipt obtained OUTSIDE this image")
     parser.add_argument("--accept-research-risk", action="store_true",
                         help="Confirm no important files or system drives are involved")
     args = parser.parse_args(argv)
@@ -54,7 +56,8 @@ def main(argv: list[str] | None = None) -> int:
     key = read_test_key_fd(args.key_fd)
     # Existing ResearchVolume enforces regular *.kvi, single process owner,
     # authenticated commits and does not format/create a physical disk.
-    with ResearchVolume(args.image, key, create=False) as volume:
+    with ResearchVolume(args.image, key, create=False,
+                        expected_receipt=args.expected_receipt) as volume:
         mount_research_image(volume, args.mountpoint)
     return 0
 
