@@ -12,6 +12,10 @@ The Android **0.5.0 research APK** now implements actual selected-file encryptio
 
 **Limitations:** No Android physical-device Keystore test, no secure/portable recovery key, no proof of hardware-enforced guess throttling, no complete file-write atomicity, no tested OEM compatibility, no actual Android whole-device encryption. Decrypts to an app-private disposable cache file before exporting verified plaintext; deleting an app cache file does not guarantee flash secure erasure. Data may become permanently inaccessible after device loss/Keystore reset. Do not use the debug APK for irreplaceable files.
 
+## Research live-sector migration and file integrity sweep
+
+`ResearchVolume.export_compacted_copy()` creates a NEW no-overwrite authenticated image from currently live sectors, retaining the original and reporting a different image ID/receipt. `ResearchFileSystem.verify_all()` reads/verifies all currently listed files. Negative tests check corrupted source, existing destination, failures during migration and incomplete genesis cleanup. **This is not in-place compaction, secure deletion or anti-rollback migration.** [Limits and test instructions](VIMG_LIVE_MIGRATION.md).
+
 ## Experimental encrypted volume image — KRYPTA-VIMG/0
 
 Source: `research/volume_image.py`; [design, limitations and safety](VOLUME_IMAGE_V0.md); `research/volume_demo.py`; tests in `tests/test_volume_image.py`.
