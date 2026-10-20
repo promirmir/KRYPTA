@@ -39,33 +39,33 @@ Samo uwierzytelnianie bloków nie wykryje przywrócenia całego starego, poprawn
 
 ## Pobieranie i uruchamianie obecnego kodu
 
-Repozytorium jest **PRIVATE**. Workflow GitHub Actions przygotowuje wewnętrzne pliki Windows \`.exe\`, Linux ELF i Android \`.apk\`. Są to kompilacje rozwojowe, nie opublikowane i audytowane wydania. Nie należy udostępniać ich jako gotowego szyfrowania całych urządzeń.
+Repozytorium jest **PRIVATE**. Workflow GitHub Actions przygotowuje wewnętrzne pliki Windows `.exe`, Linux ELF i Android `.apk`. Są to kompilacje rozwojowe, nie opublikowane i audytowane wydania. Nie należy udostępniać ich jako gotowego szyfrowania całych urządzeń.
 
 Windows: Python 3.10+ z Tkinterem:
 
-\`\`\`powershell
+```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[test]"
 python -m krypta gui
-\`\`\`
+```
 
 CLI, przykładowe operacje na **danych testowych**:
 
-\`\`\`powershell
+```powershell
 python -m krypta --help
 python -m krypta gen-keyfile example.key
 python -m krypta encrypt example.txt example.kry --keyfile example.key
 python -m krypta info example.kry
 python -m krypta decrypt example.kry recovered.txt --keyfile example.key
 python -m pytest -q
-\`\`\`
+```
 
 Hasło jest pobierane interaktywnie, nie z argumentów wiersza poleceń. Operacje nie powinny nadpisywać istniejącego pliku wyjściowego; oryginalny plik pozostaje bez zmian. Używaj jedynie kopii danych, które możesz utracić. Instrukcje kompilacji: [Build and release](docs/BUILD_AND_RELEASE.md); ograniczenia Androida: [Android README](android/README.md).
 
 ## Jawny nagłówek szyfrowanych plików
 
-Format \`.kry\` zawiera czytelny, niezaszyfrowany identyfikator KRYPTA i informacje o zastosowanym mechanizmie ochrony. Komunikat **nie stanowi atestu, podpisu producenta ani dowodu certyfikacji**. Jego uwierzytelnienie następuje w toku poprawnego odszyfrowania. Krótki PIN bez niezależnego silnego sekretu nadal podlega atakom słownikowym na kopię szyfrogramu. Istniejących nagłówków i komunikatów bezpieczeństwa nie wolno zmieniać w sposób, który fałszywie podnosi poziom gwarancji lub łamie kompatybilność plików.
+Format `.kry` zawiera czytelny, niezaszyfrowany identyfikator KRYPTA i informacje o zastosowanym mechanizmie ochrony. Komunikat **nie stanowi atestu, podpisu producenta ani dowodu certyfikacji**. Jego uwierzytelnienie następuje w toku poprawnego odszyfrowania. Krótki PIN bez niezależnego silnego sekretu nadal podlega atakom słownikowym na kopię szyfrogramu. Istniejących nagłówków i komunikatów bezpieczeństwa nie wolno zmieniać w sposób, który fałszywie podnosi poziom gwarancji lub łamie kompatybilność plików.
 
 ## Bezpieczeństwo i prywatność
 
