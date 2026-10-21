@@ -15,6 +15,27 @@ jobs:
           python-version: '3.11'
       - name: Install KRYPTA and pinned native Python bindings
         run: python -m pip install -e '.[test]' winfspy==0.8.4
+      - name: Install verified WinFsp runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $uri = 'https://github.com/winfsp/winfsp/releases/download/v2.2B3/winfsp-2.2.26194.msi'
+          $expected = '7B41020618CDCC33D699D0E15C1DF660F0762A09B57080049C565857AC00BD9D'
+          $msi = Join-Path $env:RUNNER_TEMP 'winfsp-2.2.26194.msi'
+          Invoke-WebRequest -Uri $uri -OutFile $msi
+          $actual = (Get-FileHash $msi -Algorithm SHA256).Hash
+          if ($actual -ne $expected) { throw 'WinFsp MSI SHA256 mismatch' }
+          $process = Start-Process msiexec.exe -ArgumentList @('/i', "`"$msi`"", '/qn', '/norestart') -Wait -PassThru
+          if ($process.ExitCode -notin @(0,3010)) { throw "WinFsp installer failed: $($process.ExitCode)" }
+          $reg = 'HKLM:\SOFTWARE\WOW6432Node\WinFsp'
+          $installDir = (Get-ItemProperty -Path $reg -ErrorAction SilentlyContinue).InstallDir
+          if (-not $installDir) {
+            $installDir = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\WinFsp' -ErrorAction SilentlyContinue).InstallDir
+          }
+          if (-not $installDir -or -not (Test-Path (Join-Path $installDir 'bin'))) {
+            throw 'WinFsp library path unavailable after install'
+          }
+          "WINFSP_LIBRARY_PATH=$installDir" >> $env:GITHUB_ENV
       - name: Require native binding import (no skip)
         shell: pwsh
         run: |
