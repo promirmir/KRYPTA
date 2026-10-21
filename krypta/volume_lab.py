@@ -89,20 +89,31 @@ def create_image(image: str | Path, envelope: str | Path, recovery: str | Path,
     image = _image_path(image)
     _distinct(image, envelope, recovery)
     identity = None
+    created_credentials: list[tuple[Path, tuple[int, int]]] = []
     try:
         with PagedResearchVolume(image, secrets.token_bytes(32), create=True) as v:
             info = os.fstat(v._f.fileno())
             identity = (info.st_dev, info.st_ino)
             fs = PagedFS2.format(v)
             provision_keys(v, password, envelope, recovery)
-            return {
+            # If any post-provisioning step fails, avoid leaving a complete
+            # recovery key and envelope for an image that will be removed.
+            for path in (Path(envelope), Path(recovery)):
+                info = os.stat(path, follow_symlinks=False)
+                if not stat.S_ISREG(info.st_mode):
+                    raise PagedKeyError("Expected ordinary credential output")
+                created_credentials.append((path, (info.st_dev, info.st_ino)))
+            report = {
                 "operation": "Created NEW development image",
                 "image_id": v.id.hex(),
                 "receipt": fs.receipt,
                 "files_verified": 0,
                 "warning": "Back up recovery OFF-device; retain receipt independently.",
             }
+        return report
     except BaseException:
+        for path, created_identity in reversed(created_credentials):
+            _remove_only_own(path, created_identity)
         if identity is not None:
             _remove_only_own(image, identity)
         raise
