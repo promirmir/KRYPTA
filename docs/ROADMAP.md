@@ -22,7 +22,8 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 - [x] Osobny moduł GUI dla zwykłych zaszyfrowanych obrazów `.kpv`: tworzenie, weryfikacja, import/eksport, odzyskiwanie hasła i migracja danych do nowego klucza.
 - [x] Każde otwarcie istniejącego obrazu wymaga zewnętrznego `receipt` i uwierzytelnienia klucza; brak cichego nadpisywania wyników.
 - [x] Dodano testy usług GUI i nowy test spakowanego programu `--paged-volume-self-test` w workflow Windows/Linux.
-- [ ] Przejście testów na aktualnym commit i fizycznych komputerach; zbudowanie, publikacja oraz potwierdzenie nowego EXE/ELF.
+- [x] Testy Windows/Linux w CI, kontrola interfejsu, testy spakowanych plików EXE/ELF oraz opublikowanie [publicznej wersji rozwojowej dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1).
+- [ ] Osobne testy na fizycznych komputerach i urządzeniach oraz niezależny audyt bezpieczeństwa; obecne wydanie nie jest wersją produkcyjną.
 - [ ] Rozszerzenie na produkcyjne katalogi/ACL i prawdziwe woluminy dyskowe bezpieczne po zaniku zasilania.
 
 [Dokumentacja Volume Lab](VOLUME_LAB_GUI.md).
