@@ -50,3 +50,20 @@ def test_out_of_bounds_write_preserves_commit(tmp_path):
             ops.write(r"\safe", ops._fs.max_file_bytes, b"x")
         assert ops._fs.receipt == receipt
         assert ops.read(r"\safe", 0, 8) == b"original"
+
+
+def test_stat_and_rename_preserve_authenticated_content(tmp_path):
+    image = tmp_path / "rename.kpv"
+    key = os.urandom(32)
+    with PagedResearchVolume(image, key, create=True) as volume:
+        ops = WindowsFileOperations(PagedFS2.format(volume))
+        ops.create(r"\old.bin")
+        ops.write(r"\old.bin", 0, b"secure data")
+        assert ops.stat(r"\old.bin")["size"] == len(b"secure data")
+        ops.rename(r"\old.bin", r"\new.bin")
+        assert ops.read(r"\new.bin", 0, 11) == b"secure data"
+        receipt = ops._fs.receipt
+    with PagedResearchVolume(image, key, expected_receipt=receipt) as volume:
+        ops = WindowsFileOperations(PagedFS2(volume))
+        assert ops.list_directory() == ["new.bin"]
+        assert ops.read(r"\new.bin", 0, 11) == b"secure data"
