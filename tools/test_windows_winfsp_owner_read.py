@@ -1,0 +1,99 @@
+"""Native WinFsp mount/unmount lifecycle smoke test, disposable images only.
+
+No host disks are formatted or opened. This intentionally denies Windows ACL
+discovery, so the filesystem must never be advertised as user-accessible.
+A successful lifecycle does NOT demonstrate read/write Explorer compatibility.
+"""
+from __future__ import annotations
+
+import os
+import tempfile
+from pathlib import Path
+
+
+def main() -> None:
+    if os.name != "nt":
+        raise RuntimeError("Native mount test requires Windows")
+    import winfspy
+    import win32api
+    import win32con
+    import win32security
+    from winfspy.plumbing.security_descriptor import SecurityDescriptor
+
+    from research.paged_volume import PagedResearchVolume
+    from research.paged_fs2 import PagedFS2
+    from research.windows_file_ops import WindowsFileOperations
+    from research.windows_winfsp_readonly import make_readonly_winfsp_operations
+
+    # Only fresh ordinary test files under the temporary CI directory.
+    with tempfile.TemporaryDirectory(prefix="krypta-winfsp-") as folder:
+        base = Path(folder)
+        image = base / "temporary.kpv"
+        mountpoint = base / "empty-mount"
+        # WinFsp creates the junction/mountpoint itself. An existing directory
+        # can produce STATUS_OBJECT_NAME_COLLISION on the native backend.
+        assert not mountpoint.exists()
+        with PagedResearchVolume(image, os.urandom(32), create=True) as volume:
+            fs = PagedFS2.format(volume)
+            ops = WindowsFileOperations(fs)
+            ops.create(r"\probe.txt")
+            ops.write(r"\probe.txt", 0, b"KRYPTA")
+            receipt = fs.receipt
+            token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+            try:
+                sid = win32security.ConvertSidToStringSid(
+                    win32security.GetTokenInformation(token, win32security.TokenUser)[0]
+                )
+            finally:
+                token.Close()
+            descriptor = SecurityDescriptor.from_string(
+                f"O:{sid}G:{sid}D:P(A;;FRFX;;;SY)(A;;FRFX;;;{sid})"
+            )
+            callbacks = make_readonly_winfsp_operations(
+                ops, winfspy, security_descriptor=descriptor
+            )
+            # CI-only diagnostics: record which native security/open callback
+            # rejected the request without broadening the volume DACL.
+            for method_name in ("get_security_by_name", "get_security",
+                                "open", "read", "read_directory"):
+                original = getattr(callbacks, method_name)
+                def trace(*args, _original=original, _name=method_name, **kwargs):
+                    print(f"WINFSP_TRACE {_name}: called", flush=True)
+                    try:
+                        value = _original(*args, **kwargs)
+                    except Exception as exc:
+                        print(f"WINFSP_TRACE {_name}: denied {type(exc).__name__}: {exc}", flush=True)
+                        raise
+                    print(f"WINFSP_TRACE {_name}: ok", flush=True)
+                    return value
+                setattr(callbacks, method_name, trace)
+            native = winfspy.FileSystem(str(mountpoint), callbacks,
+                                        read_only_volume=True,
+                                        persistent_acls=False,
+                                        case_sensitive_search=True,
+                                        case_preserved_names=True,
+                                        unicode_on_disk=True,
+                                        file_system_name="KRYPTA-TEST")
+            started = False
+            try:
+                native.start()
+                started = True
+                print("Native WinFsp dispatcher started on ephemeral directory")
+                actual = (mountpoint / "probe.txt").read_bytes()
+                if actual != b"KRYPTA":
+                    raise AssertionError("Native read returned incorrect plaintext")
+                print("PASS: actual native Windows read of KRYPTA file")
+            finally:
+                # Always close the driver mount before image/temporary-dir exit.
+                if started or native.started:
+                    native.stop()
+                    print("Native WinFsp dispatcher stopped")
+                else:
+                    print("Native mount did not start; no mounted device to stop")
+            if fs.receipt != receipt:
+                raise AssertionError("Native mount lifecycle unexpectedly changed ciphertext")
+    print("PASS: owner-only WinFsp native read and unmount on disposable image")
+
+
+if __name__ == "__main__":
+    main()
