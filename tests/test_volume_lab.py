@@ -231,3 +231,90 @@ def test_never_open_fifo_instead_of_regular_plaintext(lab):
         )
     assert verify_image(lab["image"], lab["envelope"], lab["receipt"],
                         password=PASSWORD)["files_verified"] == 0
+
+
+
+def test_import_denies_new_commit_when_existing_file_ciphertext_is_corrupted(lab):
+    """Authenticated directory metadata is NOT enough: verify old plaintext."""
+    from research.paged_keys import unlock_password
+    from research.paged_volume import PagedResearchVolume, PagedVolumeError
+    from research.paged_fs2 import PagedFS2
+
+    earlier = lab["tmp"] / "previous.bin"
+    earlier.write_bytes(os.urandom(9000))
+    first = import_file(
+        lab["image"], lab["envelope"], lab["receipt"], earlier,
+        password=PASSWORD,
+    )
+    key, _ = unlock_password(lab["envelope"], PASSWORD)
+    with PagedResearchVolume(lab["image"], key,
+                             expected_receipt=first["receipt"]) as volume:
+        fs = PagedFS2(volume)
+        sector = fs._files["previous.bin"]["blocks"][0]
+        offset = volume._entry(sector)[1] + 40
+    with lab["image"].open("r+b") as handle:
+        handle.seek(offset)
+        prior = handle.read(1)
+        handle.seek(offset)
+        handle.write(bytes([prior[0] ^ 0x80]))
+    before = lab["image"].read_bytes()
+    new_file = lab["tmp"] / "fresh.bin"
+    new_file.write_bytes(b"never-import-with-damaged-ciphertext")
+    with pytest.raises((PagedVolumeError, ValueError)):
+        import_file(
+            lab["image"], lab["envelope"], first["receipt"], new_file,
+            recovery=lab["recovery"],
+        )
+    assert lab["image"].read_bytes() == before
+    # Source ciphertext already damaged, but absolutely NO new root/commit.
+    assert new_file.read_bytes() == b"never-import-with-damaged-ciphertext"
+
+
+def test_committed_write_with_failed_followup_verification_exposes_untrusted_receipt(
+        lab, monkeypatch):
+    """Do not strand a user with only the old rollback-failing receipt."""
+    from research.paged_fs2 import PagedFS2
+    from research.paged_volume import PagedVolumeError
+    from krypta.volume_lab import PostCommitVerificationError
+    src = lab["tmp"] / "postcommit.bin"
+    src.write_bytes(b"test-post-commit-authenticated-recovery")
+    original = PagedFS2.read_file
+
+    def fake_io_failure(self, name):
+        if name == src.name:
+            raise OSError("injected read error AFTER successful root commit")
+        return original(self, name)
+
+    monkeypatch.setattr(PagedFS2, "read_file", fake_io_failure)
+    with pytest.raises(PostCommitVerificationError) as error:
+        import_file(lab["image"], lab["envelope"], lab["receipt"], src,
+                    password=PASSWORD)
+    receipt = error.value.unverified_receipt
+    assert len(receipt) == 64 and receipt != lab["receipt"]
+    monkeypatch.setattr(PagedFS2, "read_file", original)
+    with pytest.raises(PagedVolumeError, match="receipt mismatch"):
+        verify_image(lab["image"], lab["envelope"], lab["receipt"],
+                     password=PASSWORD)
+    verified = verify_image(
+        lab["image"], lab["envelope"], receipt,
+        recovery=lab["recovery"],
+    )
+    assert verified["files_verified"] == 1
+
+
+def test_key_provision_success_then_report_failure_cleans_entire_new_bundle(
+        lab, monkeypatch):
+    from research.paged_fs2 import PagedFS2
+    target = lab["tmp"] / "unreported.kpv"
+    envelope = lab["tmp"] / "unreported.pvkey"
+    recovery = lab["tmp"] / "unreported.recovery"
+    # Simulate an error AFTER provision_keys has successfully written BOTH
+    # credentials, when the newly formatted filesystem reports its receipt.
+    def fail_receipt(self):
+        raise OSError("simulated receipt retrieval fault")
+    monkeypatch.setattr(PagedFS2, "receipt", property(fail_receipt))
+    with pytest.raises(OSError, match="receipt retrieval"):
+        create_image(target, envelope, recovery, NEW_PASSWORD, NEW_PASSWORD)
+    assert not target.exists()
+    assert not envelope.exists()
+    assert not recovery.exists()
