@@ -85,6 +85,16 @@ def make_readonly_winfsp_operations(ops: WindowsFileOperations, api, *, security
         def open(self, file_name, create_options, granted_access):
             return self._resolve(file_name)
 
+        def cleanup(self, file_context, file_name, flags):
+            # A Windows handle cleanup is not a request to mutate PFS/2.
+            # Ignoring it must not conceal a write/delete operation; those
+            # are denied independently by the read-only volume and callbacks.
+            return None
+
+        def flush(self, file_context):
+            # No dirty state exists in a read-only filesystem.
+            return None
+
         def close(self, file_context):
             return None
 
