@@ -126,7 +126,9 @@ def test_no_recovery_operation_without_explicit_test_ack(emergency):
 def test_verify_cli_reopen_is_byte_read_only(emergency, capsys):
     e = emergency
     with e["image"].open("ab") as out:
-        out.write(b"partial_uncommitted_tail")
+        # An incomplete on-disk frame header is a realistic interrupted
+        # append. A full header with arbitrary magic must fail closed.
+        out.write(b"KPG1\x00")
     before = e["image"].read_bytes()
     assert main(_argv(e, "verify")) == 0
     assert "VERIFIED: 1" in capsys.readouterr().out
