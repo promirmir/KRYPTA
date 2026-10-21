@@ -19,6 +19,11 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 
 ## Odzyskiwanie bez interfejsu — postęp dev-10-1
 
+Aktualizacja PR #25: eksport używa przypiętych uchwytów katalogów i plików
+na Linux/Windows, z odmową niezaufanych lokalizacji i prywatną DACL na NTFS.
+[Model zagrożeń i testy](RESCUE_OUTPUT_SECURITY.md). **Blokada #24 pozostaje
+otwarta do niezależnego przeglądu.** To nie zamyka kryteriów produkcyjnego 1.0.
+
 - [x] `PVKEY/1` i niezależny 256-bitowy sekret odzyskiwania, oddzielony od hasła i od obrazu.
 - [x] Osobne, uruchamialne na Windows/Linux programy `KRYPTA-Rescue` do pełnej weryfikacji i odszyfrowania WSZYSTKICH aktualnych plików PFS/2 do NOWEGO katalogu.
 - [x] Testy narzędzi konsolowych wewnątrz spakowanych EXE/ELF i trzyplatformowy workflow CI **PASS** — [dev-10-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-10-1).

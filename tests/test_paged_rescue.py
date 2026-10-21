@@ -15,6 +15,13 @@ from research.paged_keys import PagedKeyError, unlock_password
 from research.paged_fs2 import PagedFS2
 from research.paged_volume import PagedResearchVolume, PagedVolumeError
 
+from research.rescue_output import private_output
+
+
+def output_type(path):
+    return type(private_output(path))
+
+
 PASS = "A long independent password for offline rescue tests!"
 
 
@@ -134,13 +141,14 @@ def test_if_second_plaintext_export_fails_owned_first_is_cleaned(prepared, monke
     insert(prepared, "first.bin", b"A" * 19000)
     insert(prepared, "second.bin", b"B" * 121)
     import research.paged_rescue as rescue
-    original = rescue._new_private_file
+    backend = output_type(prepared["root"] / "unused")
+    original = backend.write
     saved_image = prepared["image"].read_bytes()
-    def fail_on_second(p, data):
+    def fail_on_second(self, p, data):
         if Path(p).name == "second.bin":
             raise OSError("synthetic target I/O failure")
-        return original(p, data)
-    monkeypatch.setattr(rescue, "_new_private_file", fail_on_second)
+        return original(self, p, data)
+    monkeypatch.setattr(backend, "write", fail_on_second)
     dest = prepared["root"] / "failed-mid-export"
     with pytest.raises(OSError, match="synthetic"):
         call(prepared, dest)
@@ -151,12 +159,13 @@ def test_if_second_plaintext_export_fails_owned_first_is_cleaned(prepared, monke
 def test_manifest_failure_leaves_no_incomplete_ordinary_result(prepared, monkeypatch):
     insert(prepared, "example", b"temporary-unencrypted-test")
     import research.paged_rescue as rescue
-    original = rescue._new_private_file
-    def fail_manifest(p, data):
+    backend = output_type(prepared["root"] / "unused")
+    original = backend.write
+    def fail_manifest(self, p, data):
         if Path(p).name == MANIFEST_NAME:
             raise OSError("synthetic manifest fsync error")
-        return original(p, data)
-    monkeypatch.setattr(rescue, "_new_private_file", fail_manifest)
+        return original(self, p, data)
+    monkeypatch.setattr(backend, "write", fail_manifest)
     dest = prepared["root"] / "no-false-completion"
     with pytest.raises(OSError, match="manifest"):
         call(prepared, dest)
@@ -245,7 +254,7 @@ def test_completion_marker_is_not_published_if_directory_sync_fails(
     def fail_first_directory_sync(path):
         calls.append(path)
         raise OSError("synthetic directory durability failure")
-    monkeypatch.setattr(rescue, "_sync_directory", fail_first_directory_sync)
+    monkeypatch.setattr(output_type(prepared["root"] / "unused"), "sync", fail_first_directory_sync)
     dest = prepared["root"] / "no-false-complete"
     with pytest.raises(OSError, match="durability"):
         call(prepared, dest)
@@ -253,3 +262,33 @@ def test_completion_marker_is_not_published_if_directory_sync_fails(
     assert not dest.exists()
     # Failure cleanup must NEVER remove or overwrite encrypted source.
     assert prepared["image"].exists()
+
+
+def test_symlinked_output_ancestor_is_refused_before_plaintext(prepared):
+    real = prepared["root"] / "real-parent"
+    real.mkdir()
+    alias = prepared["root"] / "alias-parent"
+    try:
+        alias.symlink_to(real, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("This platform cannot create directory symlinks")
+    destination = alias / "recovered"
+    with pytest.raises((RescueError, OSError)):
+        call(prepared, destination)
+    assert not (real / "recovered").exists()
+
+
+def test_nested_symlinked_output_ancestor_is_refused(prepared):
+    real = prepared["root"] / "trusted"
+    real.mkdir()
+    alias = prepared["root"] / "redirect"
+    try:
+        alias.symlink_to(real, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Directory symlinks unavailable on this platform")
+    nested = alias / "nested"
+    nested.mkdir()
+    destination = nested / "recovered"
+    with pytest.raises((RescueError, OSError)):
+        call(prepared, destination)
+    assert not (real / "nested" / "recovered").exists()
