@@ -1,10 +1,10 @@
 # KRYPTA — kompilacje i pobieranie
 
-**Status: wewnętrzne kompilacje rozwojowe.** GitHub Actions tworzy wersje dla Windows x64, Linux x64 i Androida. Pliki nie są jeszcze audytowanymi ani podpisanymi produkcyjnie wydaniami.
+**Status: publiczne kompilacje rozwojowe (prerelease), nieprodukcyjne.** GitHub Actions tworzy wersje dla Windows x64, Linux x64 i Androida. Pliki nie są jeszcze audytowanymi ani podpisanymi produkcyjnie wydaniami.
 
 ## Pobieranie użytkownika
 
-Główny adres: **[GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**. Skonfigurowano workflow [publikacji trzech platform](../.github/workflows/publish-preview.yml), który po udanych testach i kompilacjach tworzy osobne, **prywatne prerelease** z plikami:
+Główny adres: **[GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**. Skonfigurowano workflow [publikacji trzech platform](../.github/workflows/publish-preview.yml), który po udanych testach i kompilacjach tworzy osobne **publiczne wydania rozwojowe (prerelease)** z plikami:
 
 | System | Plik | Funkcja |
 |---|---|---|
@@ -16,7 +16,16 @@ Każdy plik wykonywalny ma odpowiadający mu załącznik SHA-256. Dla Androida d
 
 Workflow uruchamia się po zmianach kodu na gałęzi main lub jawnie ręcznie (Run workflow). Publikuje pliki tylko, gdy wszystkie trzy platformy i testy zakończą się powodzeniem. Każdy build ma oddzielny niezmienny tag wskazujący commit — nie nadpisuje poprzedniego wydania.
 
-**Releases i pliki mogą pobierać tylko osoby z dostępem do prywatnego repozytorium.** Bez tego GitHub może wyświetlić 404.
+**Repozytorium i wydania rozwojowe są publiczne.** Kod oraz EXE/ELF/APK może pobrać każdy. Publiczna dostępność nie jest deklaracją niezależnego audytu, certyfikacji ani gotowości do ochrony ważnych danych.
+
+## Alternatywne lokalne kompilacje, gdy GitHub-hosted runners są niedostępne
+
+Gdy zadania GitHub Actions nie dostają runnerów (status `failure` przy pustej liście kroków), nie należy publikować domniemanych nowych plików ani uznawać buildu za zaliczony. Przygotowano niezależne ścieżki kompilowania ze źródeł pobranych z **zaufanego repozytorium**:
+
+- Windows: `powershell -File scripts/Build-Krypta-Windows-Local.ps1`
+- Linux: `bash scripts/build-krypta-linux-local.sh`
+
+Oba skrypty wymagają Python 3.10+, instalują zależności, uruchamiają pełny pytest, budują PyInstaller, a następnie weryfikują **uruchomiony program**, w tym `--paged-volume-self-test` z tworzeniem, importem, eksportem i rotacją klucza na syntetycznych danych. Po sukcesie generują SHA-256. To lokalne **niepodpisane** kompilacje deweloperskie, nie certyfikowany ani opublikowany produkt. Nie omijają wymagań niezależnego audytu i testów na rzeczywistym sprzęcie. [Moduł Volume Lab](VOLUME_LAB_GUI.md).
 
 ## Co jest w aplikacjach
 

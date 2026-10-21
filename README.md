@@ -8,15 +8,15 @@ KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Lin
 
 **[ZOBACZ WSZYSTKIE PLIKI DO POBRANIA — GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**
 
-**Bezpośrednie pliki z potwierdzonego wydania [krypta-dev-2-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-2-1) (20.10.2026):**
+**Bezpośrednie pliki z dotychczasowego wydania rozwojowego [krypta-dev-4-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-4-1) (20.10.2026):**
 
 | System | Plik do pobrania | Główna funkcja |
 |---|---|---|
-| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-2-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault — szyfrowanie i odszyfrowywanie wybranych plików |
-| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-2-1/KRYPTA-Linux-x64)** | Graficzny File Vault; dodatkowy kod systemu plików i montowania FUSE |
-| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-2-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
+| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-4-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault — szyfrowanie i odszyfrowywanie wybranych plików |
+| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-4-1/KRYPTA-Linux-x64)** | Graficzny File Vault; dodatkowy kod systemu plików i montowania FUSE |
+| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-4-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
 
-Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze wersje znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. Repozytorium jest **prywatne**, dlatego wydania są widoczne tylko dla osób z dostępem.
+Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze wersje znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. **Repozytorium jest publiczne.** Każdy może czytać kod i pobrać udostępnione wydania rozwojowe. Kod otwarty nie oznacza zakończonego audytu ani gotowości produktu.
 
 **Status: kompilacje rozwojowe, a nie certyfikowane wydania produkcyjne.** Korzystaj wyłącznie z kopii danych testowych. Aplikacje nie szyfrują jeszcze całego dysku systemowego ani całego telefonu.
 
@@ -72,6 +72,12 @@ Własny silnik woluminów otrzymał osobny format `KRYPTA-PVKEY/1`: długie has�
 
 Rozwijany silnik może utworzyć **nowy obraz PVIMG/PFS2 z innym losowym kluczem danych**, po zweryfikowaniu i ponownym zaszyfrowaniu aktualnych plików. Nowy obraz otrzymuje również nowy klucz odzyskiwania i hasło. Operacja nie nadpisuje źródła. **Stare kopie obrazu posiadane przez inne osoby pozostają odczytywalne za pomocą starego klucza** — zmiana klucza nie cofa wcześniejszego ujawnienia danych. Jest to nadal funkcja narzędzi programistycznych, nie gotowej aplikacji EXE/APK. [Zasady rotacji i ograniczenia](docs/PFS2_DATA_KEY_ROTATION.md).
 
+## Volume Lab — interfejs testowych zaszyfrowanych obrazów
+
+Powstał osobny moduł desktopowy **Volume Lab (PFS/2)** do tworzenia zaszyfrowanych zwykłych plików `.kpv`, weryfikacji autentyczności i integralności, importu/eksportu plików, odzyskiwania hasła oraz rotacji losowego klucza szyfrowania. Jest to moduł **rozwojowy**, nie szyfruje partycji ani dysków systemowych. Wymaga zewnętrznego zaufanego `receipt`, nie nadpisuje istniejących plików i nie usuwa jawnych oryginałów. [Pełna instrukcja i ograniczenia](docs/VOLUME_LAB_GUI.md).
+
+**Uwaga dotycząca pobierania:** istniejące wydanie `krypta-dev-4-1` jest starsze od Volume Lab. Nowa funkcja pojawi się w EXE/ELF dopiero po pomyślnych testach i zbudowaniu nowego pliku wykonywalnego. Wydanie Android nadal korzysta z oddzielnej implementacji File Vault.
+
 ## Docelowe funkcje produktu
 
 1. Pełne, automatyczne szyfrowanie woluminów Windows i Linux.
@@ -91,4 +97,4 @@ Rozwijany silnik może utworzyć **nowy obraz PVIMG/PFS2 z innym losowym kluczem
 
 ### English
 
-**KRYPTA** is an independent encryption project for Windows, Linux and Android. **[Download the development EXE, Linux executable and Android APK from GitHub Releases](https://github.com/promirmir/KRYPTA/releases).** Selected-file encryption works on all three platforms; the authenticated encrypted-volume engine and Linux FUSE integration are under development. These versions do **not** protect full system disks/phones and do not have production key recovery, independent audit or guaranteed secure short-PIN protection. Use disposable test data only. Downloads are private to repository collaborators.
+**KRYPTA** is an independent encryption project for Windows, Linux and Android. **[Download the development EXE, Linux executable and Android APK from GitHub Releases](https://github.com/promirmir/KRYPTA/releases).** Selected-file encryption works on all three platforms; the authenticated encrypted-volume engine and Linux FUSE integration are under development. These versions do **not** protect full system disks/phones and do not have production key recovery, independent audit or guaranteed secure short-PIN protection. Use disposable test data only. Source code and development downloads are public. These are NOT verified production releases.

@@ -63,7 +63,7 @@ jobs:
         shell: pwsh
         run: |
           $exe = (Resolve-Path 'dist/KRYPTA.exe').Path
-          foreach ($arg in @('--self-test', '--volume-self-test', '--filesystem-self-test', '--fuse-self-test')) {
+          foreach ($arg in @('--self-test', '--volume-self-test', '--filesystem-self-test', '--fuse-self-test', '--paged-volume-self-test')) {
             $proc = Start-Process -FilePath $exe -ArgumentList $arg -Wait -PassThru
             if ($proc.ExitCode -ne 0) { throw "Windows packaged test failed: $arg" }
           }
@@ -81,6 +81,7 @@ jobs:
           ./dist/KRYPTA --volume-self-test
           ./dist/KRYPTA --filesystem-self-test
           ./dist/KRYPTA --fuse-self-test
+          ./dist/KRYPTA --paged-volume-self-test
           cp dist/KRYPTA dist/KRYPTA-Linux-x64
           (cd dist && sha256sum KRYPTA-Linux-x64 > KRYPTA-Linux-x64.sha256)
       - uses: actions/upload-artifact@v4
@@ -176,8 +177,11 @@ jobs:
           # KRYPTA — three platform development downloads
 
           Windows x64 EXE and Linux x64 ELF: interactive GUI with selected-file
-          encryption/decryption. Linux FUSE filesystem is separate development
-          source code, not automatic full-disk protection from the GUI.
+          encryption/decryption plus a separately labeled PFS/2 Volume Lab
+          for disposable ordinary .kpv encrypted files. The Volume Lab can
+          create images, verify receipts, import/export chosen files and
+          rotate a volume data key. This is NOT automatic/system-disk encryption.
+          Linux kernel FUSE still requires the separate development entrypoint.
 
           Android debug APK: encrypts/decrypts selected local documents using
           AES-256-GCM and the device's Android Keystore.
@@ -193,9 +197,9 @@ jobs:
 
           All three binaries were built in one workflow from the same commit.
           Companion SHA-256 files permit download integrity verification.
-          Private repository / private prerelease; no public release.
+          PUBLIC development prerelease; NOT a production-ready security release.
           NOTES
-      - name: Publish immutable, private development prerelease
+      - name: Publish immutable PUBLIC development prerelease (not stable)
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
