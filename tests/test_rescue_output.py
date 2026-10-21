@@ -184,6 +184,23 @@ def test_linux_shared_nonsticky_ancestor_refused(tmp_path):
     assert not (shared / "new").exists()
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux directory fd lifecycle")
+def test_linux_validation_failure_closes_just_opened_handle(tmp_path, monkeypatch):
+    from research.rescue_output import PosixOutput
+    opened = []
+    def reject(fd):
+        opened.append(fd)
+        raise RescueError("injected directory validation failure")
+    monkeypatch.setattr(PosixOutput, "_check_directory", staticmethod(reject))
+    with pytest.raises(RescueError, match="injected"):
+        with private_output(tmp_path / "new"):
+            pytest.fail("invalid directory accepted")
+    assert len(opened) == 1
+    with pytest.raises(OSError):
+        os.fstat(opened[0])
+    assert not (tmp_path / "new").exists()
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows sharing locks")
 def test_windows_pinned_directory_and_file_cannot_be_replaced(tmp_path):
     destination = tmp_path / "new"

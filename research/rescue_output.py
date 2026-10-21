@@ -69,12 +69,14 @@ class PosixOutput:
         flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
         try:
             fd = os.open("/", flags)
-            self.chain.append((None, fd, _identity(self._check_directory(fd))))
+            # Register the handle before any validation that may raise.
+            self.chain.append((None, fd, None))
+            self.chain[-1] = (None, fd, _identity(self._check_directory(fd)))
             for name in self.path.parent.parts[1:]:
                 _leaf(name)
                 fd = os.open(name, flags, dir_fd=self.chain[-1][1])
-                self.chain.append((name, fd, _identity(os.fstat(fd))))
-                self._check_directory(fd)
+                self.chain.append((name, fd, None))
+                self.chain[-1] = (name, fd, _identity(self._check_directory(fd)))
             parent = self.chain[-1][1]
             os.mkdir(self.path.name, mode=0o700, dir_fd=parent)
             # No untrusted user can replace the new entry: parent ownership
@@ -111,7 +113,12 @@ class PosixOutput:
         fd = os.open(name, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
                      | os.O_CLOEXEC, 0o600, dir_fd=self.fd)
         # Register immediately, before the first fallible write/fsync.
-        self.files.append((name, fd, _identity(os.fstat(fd))))
+        try:
+            identity = _identity(os.fstat(fd))
+        except BaseException:
+            os.close(fd)  # Unknown identity: preserve the empty entry.
+            raise
+        self.files.append((name, fd, identity))
         _write_verify(fd, data)
         self.check()
 
