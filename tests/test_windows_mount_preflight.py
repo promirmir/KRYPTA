@@ -40,3 +40,37 @@ def test_nonempty_mountpoint_and_wrong_extension_rejected(tmp_path):
     with pytest.raises(WindowsMountPreflightError):
         validate_windows_mount_request(tmp_path / "missing.img", mountpoint, "a" * 64)
     assert image.read_bytes() == b"unchanged"
+
+
+def test_reparse_point_in_mount_ancestor_rejected(tmp_path):
+    image = tmp_path / "test.kpv"
+    image.write_bytes(b"unchanged")
+    actual_parent = tmp_path / "real-parent"
+    actual_parent.mkdir()
+    mountpoint = actual_parent / "empty"
+    mountpoint.mkdir()
+    linked_parent = tmp_path / "linked-parent"
+    try:
+        os.symlink(actual_parent, linked_parent, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Creating directory links is restricted on this Windows runner")
+    with pytest.raises(WindowsMountPreflightError, match="Reparse point"):
+        validate_windows_mount_request(image, linked_parent / "empty", "a" * 64)
+    assert image.read_bytes() == b"unchanged"
+
+
+def test_reparse_point_in_image_ancestor_rejected(tmp_path):
+    real_parent = tmp_path / "images"
+    real_parent.mkdir()
+    image = real_parent / "test.kpv"
+    image.write_bytes(b"unchanged")
+    mountpoint = tmp_path / "empty"
+    mountpoint.mkdir()
+    linked_parent = tmp_path / "linked-images"
+    try:
+        os.symlink(real_parent, linked_parent, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Creating directory links is restricted on this Windows runner")
+    with pytest.raises(WindowsMountPreflightError, match="Reparse point"):
+        validate_windows_mount_request(linked_parent / "test.kpv", mountpoint, "a" * 64)
+    assert image.read_bytes() == b"unchanged"

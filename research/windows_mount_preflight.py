@@ -30,6 +30,20 @@ def validate_windows_mount_request(image: str | os.PathLike[str],
             c not in "0123456789abcdef" for c in expected_receipt):
         raise WindowsMountPreflightError("A trusted current SHA-256 receipt is required")
     image, mount_dir = Path(image), Path(mount_dir)
+    # Fail closed on reparse points at ANY path component, not just the leaf.
+    # Windows junctions may report is_symlink() == False. This is still a
+    # preliminary check, not a substitute for pinned native handles.
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", None)
+    if reparse_flag is None:
+        raise WindowsMountPreflightError("Windows reparse detection is unavailable")
+    for target in (image, mount_dir):
+        for component in (target, *target.parents):
+            try:
+                attrs = os.lstat(component).st_file_attributes
+            except (OSError, AttributeError) as exc:
+                raise WindowsMountPreflightError("Cannot inspect mount path components") from exc
+            if attrs & reparse_flag:
+                raise WindowsMountPreflightError("Reparse point in image or mount path")
     if image.suffix.lower() != ".kpv" or image.is_symlink():
         raise WindowsMountPreflightError("Only existing disposable .kpv files are allowed")
     if not image.is_file() or not stat.S_ISREG(image.stat().st_mode):
