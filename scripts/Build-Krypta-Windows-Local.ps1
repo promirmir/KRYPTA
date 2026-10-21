@@ -44,9 +44,11 @@ if (-not (Test-Path -LiteralPath $Exe -PathType Leaf)) {
 Write-Host '[4/4] Exercising compiled EXE, including PFS/2 round trip and key rotation'
 foreach ($arg in @('--self-test', '--volume-self-test', '--filesystem-self-test',
                    '--fuse-self-test', '--paged-volume-self-test')) {
-    & $Exe $arg
-    if ($LASTEXITCODE -ne 0) {
-        throw "Compiled executable failed smoke check $arg. DO NOT DISTRIBUTE."
+    # GUI / --windowed applications can detach from an interactive shell.
+    # Explicit -Wait and the returned process exit code prevent false PASS.
+    $proc = Start-Process -FilePath $Exe -ArgumentList $arg -PassThru -Wait
+    if ($null -eq $proc -or $proc.ExitCode -ne 0) {
+        throw "Compiled EXE failed smoke check $arg. DO NOT DISTRIBUTE."
     }
 }
 $Hash = (Get-FileHash -LiteralPath $Exe -Algorithm SHA256).Hash.ToLowerInvariant()
