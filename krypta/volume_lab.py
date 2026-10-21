@@ -126,6 +126,21 @@ def verify_image(image: str | Path, envelope: str | Path, receipt: str,
         }
 
 
+class PostCommitVerificationError(RuntimeError):
+    """Commit succeeded but later content authentication failed.
+
+    unverified_receipt is only forensic recovery metadata, NOT a trusted
+    anti-rollback anchor or proof the data is sound.
+    """
+
+    def __init__(self, unverified_receipt: str):
+        super().__init__(
+            "Write may have committed, but verification failed. "
+            "DO NOT trust old receipt or updated state without recovery review."
+        )
+        self.unverified_receipt = unverified_receipt
+
+
 def import_file(image: str | Path, envelope: str | Path, receipt: str,
                 source: str | Path, *, password: str | None = None,
                 recovery: str | Path | None = None) -> dict:
@@ -140,11 +155,21 @@ def import_file(image: str | Path, envelope: str | Path, receipt: str,
         if len(payload) > MAX_FILE_BYTES:
             raise ValueError("File grew past the 32-MiB limit while reading")
     with _open(image, envelope, receipt, password=password, recovery=recovery) as fs:
+        # Check ALL live ciphertext before another COW commit. A valid
+        # directory/receipt alone cannot detect damaged file contents.
+        fs.verify_all()
         # Never overwrite an existing encrypted file; publish one COW commit.
         name = source.name
         fs.write_file(name, payload, replace=False)
-        if fs.read_file(name) != payload:
-            raise RuntimeError("New authenticated file failed verification")
+        committed_receipt = fs.receipt
+        try:
+            if fs.read_file(name) != payload:
+                raise ValueError("New authenticated file failed verification")
+            fs.verify_all()
+        except Exception as exc:
+            # The new commit already exists. Expose its receipt only as
+            # UNVERIFIED recovery metadata, never as a trusted new anchor.
+            raise PostCommitVerificationError(committed_receipt) from exc
         return {
             "operation": "Imported encrypted file",
             "file": name,
