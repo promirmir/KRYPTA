@@ -109,6 +109,12 @@ def rescue_export_all(
         raise RescueError("Recovery output directory must not already exist")
     if not destination.name or destination.name in (".", ".."):
         raise RescueError("Invalid recovery destination directory")
+    # Reject already-present symlinked ancestors (defense in depth only).
+    # This does NOT close directory-replacement races in shared locations.
+    parent = destination.parent.absolute()
+    for component in (parent, *parent.parents):
+        if component.is_symlink():
+            raise RescueError("Symlinked output directory ancestor is forbidden")
     if destination.parent.is_symlink() or not destination.parent.is_dir():
         raise RescueError("Recovery destination parent must be an existing ordinary directory")
     if not stat.S_ISDIR(os.stat(destination.parent, follow_symlinks=False).st_mode):
