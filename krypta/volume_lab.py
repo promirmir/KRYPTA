@@ -65,7 +65,8 @@ def _get_key(envelope: str | Path, *, password: str | None = None,
 
 @contextlib.contextmanager
 def _open(image: str | Path, envelope: str | Path, receipt: str,
-          *, password: str | None = None, recovery: str | Path | None = None):
+          *, password: str | None = None, recovery: str | Path | None = None,
+          read_only: bool = False):
     """Open only with explicit authenticated image ID and external receipt."""
     image = _image_path(image)
     _distinct(image, envelope)
@@ -74,7 +75,8 @@ def _open(image: str | Path, envelope: str | Path, receipt: str,
     ):
         raise PagedKeyError("Supply the trusted, latest 64-hex external receipt")
     key, bound_id = _get_key(envelope, password=password, recovery=recovery)
-    with PagedResearchVolume(image, key, expected_receipt=receipt) as volume:
+    with PagedResearchVolume(image, key, expected_receipt=receipt,
+                             read_only=read_only) as volume:
         if not hmac.compare_digest(bound_id, volume.id):
             raise PagedKeyError("Credential is bound to a different volume image")
         yield PagedFS2(volume)
@@ -123,7 +125,8 @@ def create_image(image: str | Path, envelope: str | Path, recovery: str | Path,
 def verify_image(image: str | Path, envelope: str | Path, receipt: str,
                  *, password: str | None = None,
                  recovery: str | Path | None = None) -> dict:
-    with _open(image, envelope, receipt, password=password, recovery=recovery) as fs:
+    with _open(image, envelope, receipt, password=password, recovery=recovery,
+               read_only=True) as fs:
         outcome = fs.verify_all()
         return {
             "operation": "Authenticated image verification",
@@ -199,7 +202,8 @@ def export_file(image: str | Path, envelope: str | Path, receipt: str,
     """Verify authenticated plaintext BEFORE exclusive-create export."""
     image = _image_path(image)
     _distinct(image, envelope, output)
-    with _open(image, envelope, receipt, password=password, recovery=recovery) as fs:
+    with _open(image, envelope, receipt, password=password, recovery=recovery,
+               read_only=True) as fs:
         payload = fs.read_file(name)
         _new_private_file(output, payload)
         return {
