@@ -283,3 +283,18 @@ def test_nested_symlinked_output_ancestor_is_refused(prepared):
     with pytest.raises(RescueError, match="Symlinked output directory ancestor"):
         call(prepared, destination)
     assert not (real / "nested" / "recovered").exists()
+
+
+def test_output_directory_identity_mismatch_fails_closed(prepared):
+    import research.paged_rescue as rescue
+    parent = prepared["root"]
+    destination = parent / "identity-guard"
+    destination.mkdir()
+    identity = destination.stat()
+    original_identity = (identity.st_dev, identity.st_ino)
+    rescue._assert_output_directory_identity(destination, original_identity)
+    with pytest.raises(RescueError, match="identity changed"):
+        rescue._assert_output_directory_identity(destination, (original_identity[0], -1))
+    destination.rename(parent / "moved-identity-guard")
+    with pytest.raises(OSError):
+        rescue._assert_output_directory_identity(destination, original_identity)
