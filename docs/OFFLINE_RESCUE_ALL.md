@@ -75,3 +75,11 @@ Tryb ten NIE przywróci danych, gdy brakuje odpowiedniego \`.pvkey\`,
 oddzielnego klucza recovery albo poprawnego, niezależnego bieżącego receipt;
 ani gdy zaszyfrowana treść jest nieodwracalnie uszkodzona. **Zielony CI nie
 zastępuje kopii zapasowej i praktycznego testu przywrócenia.**
+# Bezpieczeństwo katalogu docelowego (PR #25)
+
+Wybierz NOWY katalog pod prywatnym, zaufanym katalogiem lokalnym. Eksport
+odrzuca symlinki/junctions, niezaufane uprawnienia i nieobsługiwane systemy
+plików. Windows: lokalny stały dysk NTFS; Linux: obsługiwane lokalne systemy
+plików. Nie zmieniaj praw współdzielonego katalogu, aby obchodzić odmowę.
+[Szczegóły uchwytów, ACL, sprzątania i ograniczeń](RESCUE_OUTPUT_SECURITY.md).
+Przegląd niezależny oraz kwalifikacja sprzętowa nadal wymagane; #24 otwarte.
