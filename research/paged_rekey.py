@@ -92,7 +92,8 @@ def rotate_pfs2_data_key(
     owned: list[tuple[Path, tuple[int, int]]] = []
     try:
         with PagedResearchVolume(source_image, old_key,
-                                 expected_receipt=source_receipt) as original:
+                                 expected_receipt=source_receipt,
+                                 read_only=True) as original:
             if not hmac.compare_digest(original.id, source_image_id):
                 raise PagedKeyError("Credential belongs to a different encrypted image")
             old_fs = PagedFS2(original)
@@ -138,7 +139,7 @@ def rotate_pfs2_data_key(
             # Verify the finalized on-disk image using the new independent key
             # and its own external receipt, not just live Python handles.
             with PagedResearchVolume(destination_image, fresh_key,
-                                     expected_receipt=receipt) as opened:
+                                     expected_receipt=receipt, read_only=True) as opened:
                 if opened.id.hex() != image_id:
                     raise PagedKeyError("New PVIMG image identity mismatch")
                 check = PagedFS2(opened).verify_all()

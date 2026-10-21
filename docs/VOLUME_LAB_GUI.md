@@ -77,20 +77,28 @@ zapisaniu plików kluczy, mechanizm sprząta wyłącznie pliki utworzone
 przez tę operację i rozpoznane po identyfikatorze pliku, nie kasując
 wcześniejszych plików użytkownika.
 
-## Otwarcie istniejącego obrazu a ślady po przerwanym zapisie
+## Otwarcie istniejącego obrazu: prawdziwy tryb read-only (nowy etap)
 
-Aktualny silnik `PagedResearchVolume` podczas otwierania obrazu do
-weryfikacji, odczytu lub eksportu działa na deskryptorze **read/write**
-i po pomyślnej kontroli zaufanego `receipt` może **przyciąć niezatwierdzony
-ogon logu** pozostały po przerwanym zapisie. Zatwierdzony stan obrazu i jego
-`receipt` nie powinny się przez to zmienić, ale **nie jest to bezwarunkowo
-operacja wyłącznie do odczytu bajtów pliku**. Nie używać modułu na jedynej
-kopii danych ani na kopii potrzebnej do śledztwa/analizy uszkodzeń; przed
-diagnostyką zachować nienaruszoną kopię obrazu.
+Dla operacji **Weryfikuj** i **Eksportuj** silnik PVIMG korzysta teraz z
+otwarcia z deskryptorem systemowym `O_RDONLY`, blokadą współdzieloną
+(`LOCK_SH` na POSIX; `LK_NBRLCK` na Windows) i jawnie odrzuca próby
+zapisu. Operacja nie obcina niezatwierdzonego ogona logu po przerwanym
+zapisie i nie przepisuje bajtów samego obrazu. Pozwala to zbadać integralność
+bez automatycznego niszczenia śladów po awarii.
 
-Potrzebny jest osobny audyt i tryb otwarcia tylko do odczytu, który nigdy
-nie przycina obrazu. Do jego realizacji nie należy modyfikować mechanizmu
-odzyskiwania i integralności w `main` bez zaliczonych testów Windows/Linux.
+Podczas **Dodaj plik** nadal stosowane jest wyłączne otwarcie zapisywalne;
+przed nową transakcją weryfikowana jest cała aktualna zawartość. Weryfikacja
+oryginału przy **Zmień klucz** działa tylko do odczytu, a sam nowy
+obraz jest zapisywany do oddzielnego pliku. Tak samo odbywa się końcowa
+weryfikacja nowego obrazu.
+
+Uwaga: brak modyfikowania pliku obrazu nie gwarantuje niezmienności jego
+otoczenia (np. czasów dostępu, snapshotów, metadanych hosta, historii
+operacji systemu). Blokady współdzielone wymagają współpracy wszystkich
+piszących procesów — niezaufany proces może nie przestrzegać blokad.
+Zaufany aktualny `receipt` jest nadal konieczny do wykrywania rollback.
+Pełen audyt niezależny i akceptacja na fizycznych systemach pozostają
+do wykonania.
 
 ## Hasła, odzyskiwanie i ograniczenia
 
