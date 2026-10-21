@@ -8,13 +8,13 @@ KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Lin
 
 **[ZOBACZ WSZYSTKIE PLIKI DO POBRANIA — GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**
 
-**Bezpośrednie pliki z dotychczasowego wydania rozwojowego [krypta-dev-4-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-4-1) (20.10.2026):**
+**Bezpośrednie pliki z nowego wydania rozwojowego [krypta-dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1) (21.10.2026):**
 
 | System | Plik do pobrania | Główna funkcja |
 |---|---|---|
-| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-4-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault — szyfrowanie i odszyfrowywanie wybranych plików |
-| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-4-1/KRYPTA-Linux-x64)** | Graficzny File Vault; dodatkowy kod systemu plików i montowania FUSE |
-| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-4-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
+| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-7-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault oraz Volume Lab (testowe zaszyfrowane obrazy) |
+| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-7-1/KRYPTA-Linux-x64)** | Graficzny File Vault i Volume Lab; oddzielne narzędzie Linux FUSE |
+| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-7-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
 
 Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze wersje znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. **Repozytorium jest publiczne.** Każdy może czytać kod i pobrać udostępnione wydania rozwojowe. Kod otwarty nie oznacza zakończonego audytu ani gotowości produktu.
 
@@ -32,6 +32,7 @@ Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze 
 | Hasło i Argon2id | ✅ | ✅ | — |
 | Android Keystore i uwierzytelnienie urządzenia | — | — | ✅ |
 | Własny silnik zaszyfrowanych woluminów PVIMG/1 | W kodzie | W kodzie | — |
+| **Volume Lab PFS/2 — obrazy .kpv (wydanie dev-7-1)** | ✅ test | ✅ test | — |
 | Potwierdzone montowanie zaszyfrowanego katalogu przez FUSE | — | ✅ osobne narzędzie | — |
 | Transparentne szyfrowanie całego urządzenia | ❌ | ❌ | ❌ |
 | Sprzętowy limit prób krótkiego PIN-u | ❌ | ❌ | ❌ |
@@ -66,17 +67,17 @@ chmod +x KRYPTA-Linux-x64
 
 ## Odblokowanie zaszyfrowanych woluminów — prace nad kluczami
 
-Własny silnik woluminów otrzymał osobny format `KRYPTA-PVKEY/1`: długie hasło (Argon2id) i **niezależny 256-bitowy klucz odzyskiwania**. Obsługiwane jest również testowe montowanie FUSE z kluczem odblokowanym przez hasło zamiast surowego klucza. Funkcja jest na razie dostępna w narzędziach źródłowych, **nie jako ukończona funkcja pobieranego EXE lub APK**. Krótki PIN bez prawdziwej sprzętowej kontroli prób nie daje odporności na odgadywanie. [Dokumentacja](docs/PVKEY_PASSWORD_RECOVERY.md).
+Własny silnik woluminów otrzymał osobny format `KRYPTA-PVKEY/1`: długie hasło (Argon2id) i **niezależny 256-bitowy klucz odzyskiwania**. Obsługiwane jest również testowe montowanie FUSE z kluczem odblokowanym przez hasło zamiast surowego klucza. Mechanizm jest dostępny w narzędziach źródłowych; w **wydaniu dev-7-1** desktop Volume Lab (Windows/Linux) udostępnia testowe odblokowywanie obrazów hasłem lub osobnym kluczem odzyskiwania. Android APK nie obsługuje tego formatu. Krótki PIN bez prawdziwej sprzętowej kontroli prób nie daje odporności na odgadywanie. [Dokumentacja](docs/PVKEY_PASSWORD_RECOVERY.md).
 
 ## Wymiana klucza zaszyfrowanego obrazu — prace nad migracją
 
-Rozwijany silnik może utworzyć **nowy obraz PVIMG/PFS2 z innym losowym kluczem danych**, po zweryfikowaniu i ponownym zaszyfrowaniu aktualnych plików. Nowy obraz otrzymuje również nowy klucz odzyskiwania i hasło. Operacja nie nadpisuje źródła. **Stare kopie obrazu posiadane przez inne osoby pozostają odczytywalne za pomocą starego klucza** — zmiana klucza nie cofa wcześniejszego ujawnienia danych. Jest to nadal funkcja narzędzi programistycznych, nie gotowej aplikacji EXE/APK. [Zasady rotacji i ograniczenia](docs/PFS2_DATA_KEY_ROTATION.md).
+Rozwijany silnik może utworzyć **nowy obraz PVIMG/PFS2 z innym losowym kluczem danych**, po zweryfikowaniu i ponownym zaszyfrowaniu aktualnych plików. Nowy obraz otrzymuje również nowy klucz odzyskiwania i hasło. Operacja nie nadpisuje źródła. **Stare kopie obrazu posiadane przez inne osoby pozostają odczytywalne za pomocą starego klucza** — zmiana klucza nie cofa wcześniejszego ujawnienia danych. Funkcja jest dostępna w narzędziach źródłowych oraz w **testowym Volume Lab dla Windows/Linux (dev-7-1)**. Nie dotyczy Android APK ani dysków systemowych. [Zasady rotacji i ograniczenia](docs/PFS2_DATA_KEY_ROTATION.md).
 
 ## Volume Lab — interfejs testowych zaszyfrowanych obrazów
 
 Powstał osobny moduł desktopowy **Volume Lab (PFS/2)** do tworzenia zaszyfrowanych zwykłych plików `.kpv`, weryfikacji autentyczności i integralności, importu/eksportu plików, odzyskiwania hasła oraz rotacji losowego klucza szyfrowania. Jest to moduł **rozwojowy**, nie szyfruje partycji ani dysków systemowych. Wymaga zewnętrznego zaufanego `receipt`, nie nadpisuje istniejących plików i nie usuwa jawnych oryginałów. [Pełna instrukcja i ograniczenia](docs/VOLUME_LAB_GUI.md).
 
-**Uwaga dotycząca pobierania:** istniejące wydanie `krypta-dev-4-1` jest starsze od Volume Lab. Nowa funkcja pojawi się w EXE/ELF dopiero po pomyślnych testach i zbudowaniu nowego pliku wykonywalnego. Wydanie Android nadal korzysta z oddzielnej implementacji File Vault.
+**Aktualne wydanie:** `krypta-dev-7-1` zawiera Volume Lab w EXE Windows oraz Linux ELF. Jego testy pakowanego programu i trzyplatformowy workflow GitHub Actions zakończyły się powodzeniem. To wciąż **wersja rozwojowa**, a nie pełne szyfrowanie dysków ani niezależnie audytowany produkt. Android APK nadal używa oddzielnego File Vault.
 
 ## Docelowe funkcje produktu
 
