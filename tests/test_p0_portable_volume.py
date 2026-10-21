@@ -48,3 +48,23 @@ def test_wrong_key_does_not_modify_encrypted_image(tmp_path):
         with PagedResearchVolume(image, os.urandom(32)) as volume:
             PagedFileSystem(volume)
     assert image.read_bytes() == before
+
+
+def test_stale_external_receipt_rejected_without_mutation(tmp_path):
+    """A previously trusted receipt must not unlock a newer image state."""
+    image = tmp_path / "stale-receipt.kpv"
+    key = os.urandom(32)
+    with PagedResearchVolume(image, key, create=True) as volume:
+        fs = PagedFileSystem.format(volume)
+        fs.write_file("entry", b"first commit")
+        stale_receipt = fs.receipt
+        fs.write_file("entry", b"second commit", replace=True)
+        latest_receipt = fs.receipt
+        assert latest_receipt != stale_receipt
+    before = image.read_bytes()
+    with pytest.raises(PagedVolumeError):
+        with PagedResearchVolume(image, key, expected_receipt=stale_receipt):
+            pytest.fail("stale receipt was accepted")
+    assert image.read_bytes() == before
+    with PagedResearchVolume(image, key, expected_receipt=latest_receipt) as volume:
+        assert PagedFileSystem(volume).read_file("entry") == b"second commit"
