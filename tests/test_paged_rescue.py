@@ -253,3 +253,17 @@ def test_completion_marker_is_not_published_if_directory_sync_fails(
     assert not dest.exists()
     # Failure cleanup must NEVER remove or overwrite encrypted source.
     assert prepared["image"].exists()
+
+
+def test_symlinked_output_ancestor_is_refused_before_plaintext(prepared):
+    real = prepared["root"] / "real-parent"
+    real.mkdir()
+    alias = prepared["root"] / "alias-parent"
+    try:
+        alias.symlink_to(real, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("This platform cannot create directory symlinks")
+    destination = alias / "recovered"
+    with pytest.raises(RescueError, match="Symlinked output directory ancestor"):
+        call(prepared, destination)
+    assert not (real / "recovered").exists()
