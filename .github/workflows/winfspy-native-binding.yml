@@ -43,5 +43,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Native winfspy binding missing or incompatible' }
       - name: Execute native-binding test without skips
         run: python -m pytest -q -rs tests/test_windows_winfsp_native_contract.py
+      - name: Native ephemeral WinFsp mount and unmount
+        shell: pwsh
+        run: |
+          python tools/test_windows_winfsp_mount_lifecycle.py
+          if ($LASTEXITCODE -ne 0) { throw 'Native WinFsp mount lifecycle failed' }
       - name: Explain remaining gate
-        run: echo "This checks Python/native binding compatibility only; it does NOT certify WinFsp driver installation or actual mounting."
+        run: echo "Lifecycle test only: WinFsp start/stop is checked, but ACL-gated Explorer access and file I/O are NOT certified."

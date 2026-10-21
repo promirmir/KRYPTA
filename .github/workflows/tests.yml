@@ -84,3 +84,35 @@ jobs:
       - name: Execute packaged Linux rescue self-test
         if: runner.os == 'Linux'
         run: ./dist/KRYPTA-Rescue --self-test
+
+  native-winfsp-lifecycle:
+    name: native WinFsp mount / Windows 2022
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependencies and native Python binding
+        run: python -m pip install -e '.[test]' winfspy==0.8.4
+      - name: Install hash-verified WinFsp runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = Join-Path $env:RUNNER_TEMP 'winfsp-2.2.26194.msi'
+          Invoke-WebRequest -Uri 'https://github.com/winfsp/winfsp/releases/download/v2.2B3/winfsp-2.2.26194.msi' -OutFile $msi
+          if ((Get-FileHash $msi -Algorithm SHA256).Hash -ne '7B41020618CDCC33D699D0E15C1DF660F0762A09B57080049C565857AC00BD9D') {
+            throw 'WinFsp MSI hash mismatch'
+          }
+          $process = Start-Process msiexec.exe -ArgumentList @('/i', "`"$msi`"", '/qn', '/norestart') -Wait -PassThru
+          if ($process.ExitCode -notin @(0, 3010)) { throw "WinFsp install failed: $($process.ExitCode)" }
+          $dir = (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\WinFsp' -ErrorAction SilentlyContinue).InstallDir
+          if (-not $dir) { $dir = (Get-ItemProperty 'HKLM:\SOFTWARE\WinFsp' -ErrorAction SilentlyContinue).InstallDir }
+          if (-not $dir -or -not (Test-Path (Join-Path $dir 'bin'))) { throw 'Native WinFsp binaries missing' }
+          "WINFSP_LIBRARY_PATH=$dir" >> $env:GITHUB_ENV
+      - name: Require actual native mount lifecycle
+        shell: pwsh
+        run: |
+          python -m tools.test_windows_winfsp_mount_lifecycle
+          if ($LASTEXITCODE -ne 0) { throw 'Native WinFsp mount smoke test failed' }
