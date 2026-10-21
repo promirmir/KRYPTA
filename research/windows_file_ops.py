@@ -45,10 +45,20 @@ class WindowsFileOperations:
             self._fs._check()
             return self._fs.read_range(name, offset, length)
 
+    def _require_unambiguous_new_name(self, name: str, *, original: str | None = None) -> None:
+        # PFS/2 is case-sensitive; Windows applications commonly are not.
+        # Refuse ambiguous collisions instead of pretending both names refer
+        # to the same entry or silently overwriting either ciphertext.
+        target = name.casefold()
+        for existing in self._fs.list_files():
+            if existing != original and existing.casefold() == target:
+                raise PagedFS2Error("Ambiguous case-insensitive filename collision")
+
     def create(self, path: str) -> None:
         name = self._filename(path)
         with self._lock:
             self._fs._check()
+            self._require_unambiguous_new_name(name)
             self._fs.write_file(name, b"", replace=False)
 
     def write(self, path: str, offset: int, data: bytes) -> int:
@@ -87,4 +97,5 @@ class WindowsFileOperations:
         old_name, new_name = self._filename(source), self._filename(destination)
         with self._lock:
             self._fs._check()
+            self._require_unambiguous_new_name(new_name, original=old_name)
             self._fs.rename_file(old_name, new_name)
