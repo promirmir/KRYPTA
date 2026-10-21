@@ -8,13 +8,22 @@ KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Lin
 
 **[ZOBACZ WSZYSTKIE PLIKI DO POBRANIA — GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**
 
-**Bezpośrednie pliki z aktualnego wydania rozwojowego [krypta-dev-9-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-9-1) (21.10.2026):**
+**Bezpośrednie pliki z aktualnego wydania rozwojowego [krypta-dev-10-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-10-1) (21.10.2026):**
 
 | System | Plik do pobrania | Główna funkcja |
 |---|---|---|
-| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-9-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault oraz Volume Lab (testowe zaszyfrowane obrazy) |
-| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-9-1/KRYPTA-Linux-x64)** | Graficzny File Vault i Volume Lab; oddzielne narzędzie Linux FUSE |
-| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-9-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
+| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault oraz Volume Lab (testowe zaszyfrowane obrazy) |
+| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Linux-x64)** | Graficzny File Vault i Volume Lab; oddzielne narzędzie Linux FUSE |
+| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
+
+**Nowość dev-10-1 — niezależne narzędzia ratunkowe (bez GUI):**
+
+| System | Program odzyskiwania |
+|---|---|
+| Windows x64 | [KRYPTA-Windows-x64-Rescue.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Windows-x64-Rescue.exe) |
+| Linux x64 | [KRYPTA-Linux-x64-Rescue](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Linux-x64-Rescue) |
+
+Programy wymagają pasującego pliku `.pvkey`, oddzielnego 32-bajtowego klucza odzyskiwania oraz niezależnie przechowanego aktualnego `receipt`. Po uwierzytelnieniu całego obrazu PFS/2 tworzą **nowy folder z odszyfrowanymi, JAWNYMI plikami**. Źródłowy obraz pozostaje bez zmian. Nie jest to odzyskiwanie pełnego dysku ani niezależnie audytowane rozwiązanie produkcyjne. [Instrukcja](docs/OFFLINE_RESCUE_ALL.md).
 
 Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze wersje znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. **Repozytorium jest publiczne.** Każdy może czytać kod i pobrać udostępnione wydania rozwojowe. Kod otwarty nie oznacza zakończonego audytu ani gotowości produktu.
 
@@ -82,11 +91,11 @@ Powstał osobny moduł desktopowy **Volume Lab (PFS/2)** do tworzenia zaszyfrowa
 
 **Aktualne wydanie:** `krypta-dev-9-1` zawiera Volume Lab w EXE Windows oraz Linux ELF. Jego testy pakowanego programu i trzyplatformowy workflow GitHub Actions zakończyły się powodzeniem. To wciąż **wersja rozwojowa**, a nie pełne szyfrowanie dysków ani niezależnie audytowany produkt. Android APK nadal używa oddzielnego File Vault.
 
-## Awaryjne odzyskiwanie obrazu bez interfejsu graficznego (w rozwoju)
+## Awaryjne odzyskiwanie bez aplikacji graficznej
 
-W kodzie źródłowym znajduje się osobna procedura odzyskiwania bez GUI: `python -m research.paged_key_cli list-files` i `export-file`. Korzysta z niezależnego 256-bitowego klucza odzyskiwania i aktualnego zaufanego `receipt`, weryfikuje dane oraz eksportuje wybrany plik do **nowej, jawnej kopii bez nadpisywania**. Podczas tworzenia nowego testowego obrazu obie niezależne metody odblokowania są teraz ponownie sprawdzane po zamknięciu woluminu. [Instrukcja odzyskiwania i ograniczenia](docs/OFFLINE_RECOVERY_CLI.md).
+**Dev-10-1:** oprócz źródłowych poleceń `python -m research.paged_key_cli list-files` i `export-file` istnieją już oddzielne, testowane w CI programy konsolowe Windows i Linux. Mogą odzyskać **wszystkie aktualne pliki** z obrazu `.kpv` do osobnego nowego folderu bez uruchamiania GUI. Wymagane są oryginalny obraz, `.pvkey`, oddzielny klucz recovery i aktualny zaufany `receipt`. Wynik to **niezaszyfrowany plaintext** i manifest bez podpisu; awaria procesu może zostawić częściowy folder. [Procedura pełnego odzyskiwania](docs/OFFLINE_RESCUE_ALL.md) · [Polecenia odzyskiwania pojedynczych plików](docs/OFFLINE_RECOVERY_CLI.md).
 
-**Narzędzie odzyskiwania z konsoli nie jest osobną funkcją pobranego EXE ani APK z `krypta-dev-9-1`.** Wymaga kodu Python ze zgodnej wersji repozytorium. Bezpieczne odzyskiwanie po utracie aplikacji, urządzenia i wszystkich środowisk nadal wymaga osobnych testów i audytu.
+Funkcja nadal **nie odzyskuje danych z całych zaszyfrowanych dysków systemowych, telefonu ani Android Keystore**, nie odtwarza utraconego klucza odzyskiwania i nie zastępuje sprawdzonej kopii zapasowej.
 
 ## Docelowe funkcje produktu
 
