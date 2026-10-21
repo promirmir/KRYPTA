@@ -1,0 +1,26 @@
+name: KRYPTA / mandatory WinFsp binding contract
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  winfspy-native-binding:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install KRYPTA and pinned native Python bindings
+        run: python -m pip install -e '.[test]' winfspy==0.8.4
+      - name: Require native binding import (no skip)
+        shell: pwsh
+        run: |
+          python -c "import winfspy; assert hasattr(winfspy, 'BaseFileSystemOperations')"
+          if ($LASTEXITCODE -ne 0) { throw 'Native winfspy binding missing or incompatible' }
+      - name: Execute native-binding test without skips
+        run: python -m pytest -q -rs tests/test_windows_winfsp_native_contract.py
+      - name: Explain remaining gate
+        run: echo "This checks Python/native binding compatibility only; it does NOT certify WinFsp driver installation or actual mounting."
