@@ -253,3 +253,48 @@ def test_completion_marker_is_not_published_if_directory_sync_fails(
     assert not dest.exists()
     # Failure cleanup must NEVER remove or overwrite encrypted source.
     assert prepared["image"].exists()
+
+
+def test_symlinked_output_ancestor_is_refused_before_plaintext(prepared):
+    real = prepared["root"] / "real-parent"
+    real.mkdir()
+    alias = prepared["root"] / "alias-parent"
+    try:
+        alias.symlink_to(real, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("This platform cannot create directory symlinks")
+    destination = alias / "recovered"
+    with pytest.raises(RescueError, match="Symlinked output directory ancestor"):
+        call(prepared, destination)
+    assert not (real / "recovered").exists()
+
+
+def test_nested_symlinked_output_ancestor_is_refused(prepared):
+    real = prepared["root"] / "trusted"
+    real.mkdir()
+    alias = prepared["root"] / "redirect"
+    try:
+        alias.symlink_to(real, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Directory symlinks unavailable on this platform")
+    nested = alias / "nested"
+    nested.mkdir()
+    destination = nested / "recovered"
+    with pytest.raises(RescueError, match="Symlinked output directory ancestor"):
+        call(prepared, destination)
+    assert not (real / "nested" / "recovered").exists()
+
+
+def test_output_directory_identity_mismatch_fails_closed(prepared):
+    import research.paged_rescue as rescue
+    parent = prepared["root"]
+    destination = parent / "identity-guard"
+    destination.mkdir()
+    identity = destination.stat()
+    original_identity = (identity.st_dev, identity.st_ino)
+    rescue._assert_output_directory_identity(destination, original_identity)
+    with pytest.raises(RescueError, match="identity changed"):
+        rescue._assert_output_directory_identity(destination, (original_identity[0], -1))
+    destination.rename(parent / "moved-identity-guard")
+    with pytest.raises(OSError):
+        rescue._assert_output_directory_identity(destination, original_identity)
