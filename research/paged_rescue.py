@@ -73,6 +73,18 @@ def _sync_directory(path: Path) -> None:
         os.close(fd)
 
 
+def _assert_output_directory_identity(path: Path, identity: tuple[int, int]) -> None:
+    """Fail closed if the output directory path was replaced between operations.
+
+    This check narrows the attack window but is NOT an atomic dirfd/openat
+    solution and does not make writable/shared ancestor directories safe.
+    """
+    info = os.stat(path, follow_symlinks=False)
+    if (not stat.S_ISDIR(info.st_mode)
+            or (info.st_dev, info.st_ino) != identity):
+        raise RescueError("Recovery output directory identity changed")
+
+
 def rescue_export_all(
     image: str | Path,
     envelope: str | Path,
@@ -143,12 +155,14 @@ def rescue_export_all(
         try:
             files: list[dict] = []
             for name in names:
+                _assert_output_directory_identity(destination, output_id)
                 plaintext = fs.read_file(name)
                 digest = hashlib.sha256(plaintext).hexdigest()
                 if not hmac.compare_digest(digest, fs.stat(name)["sha256"]):
                     raise RescueError("Authenticated file digest mismatch")
                 path = destination / name
                 owned.append((path, _new_private_file(path, plaintext)))
+                _assert_output_directory_identity(destination, output_id)
                 # Detect post-write I/O or unexpected filesystem changes.
                 from krypta.core import _open_checked_file
                 with _open_checked_file(path) as f:
@@ -178,6 +192,7 @@ def rescue_export_all(
             ).encode("utf-8") + b"\n"
             # A completion marker is meaningful only after all exported
             # file entries and their fsynced payloads have been persisted.
+            _assert_output_directory_identity(destination, output_id)
             _sync_directory(destination)
             mpath = destination / MANIFEST_NAME
             owned.append((mpath, _new_private_file(mpath, report)))
