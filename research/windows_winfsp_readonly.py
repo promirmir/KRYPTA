@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from .windows_file_ops import WindowsFileOperations
 
 
-def make_readonly_winfsp_operations(ops: WindowsFileOperations, api):
+def make_readonly_winfsp_operations(ops: WindowsFileOperations, api, *, security_descriptor=None):
     """Build WinFsp callbacks using explicit injectable winfspy bindings."""
     if not isinstance(ops, WindowsFileOperations):
         raise TypeError("Authenticated PFS/2 operations required")
@@ -71,9 +71,16 @@ def make_readonly_winfsp_operations(ops: WindowsFileOperations, api):
                     "volume_label": "KRYPTA-TEST"}
 
         def get_security_by_name(self, file_name):
-            # No unreviewed ACL descriptor is provided: deny access rather
-            # than allow an unsafe mount to advertise protection.
-            raise api.NTStatusAccessDenied()
+            if security_descriptor is None:
+                raise api.NTStatusAccessDenied()
+            context = self._resolve(file_name)
+            attributes = self._info(context)["file_attributes"]
+            return attributes, security_descriptor.handle, security_descriptor.size
+
+        def get_security(self, file_context):
+            if security_descriptor is None:
+                raise api.NTStatusAccessDenied()
+            return security_descriptor
 
         def open(self, file_name, create_options, granted_access):
             return self._resolve(file_name)
