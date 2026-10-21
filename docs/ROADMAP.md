@@ -17,6 +17,17 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 
 **Other UI features, badges and secondary integrations must not take priority over this independent volume engine.**
 
+## Odzyskiwanie bez interfejsu — postęp dev-10-1
+
+- [x] `PVKEY/1` i niezależny 256-bitowy sekret odzyskiwania, oddzielony od hasła i od obrazu.
+- [x] Osobne, uruchamialne na Windows/Linux programy `KRYPTA-Rescue` do pełnej weryfikacji i odszyfrowania WSZYSTKICH aktualnych plików PFS/2 do NOWEGO katalogu.
+- [x] Testy narzędzi konsolowych wewnątrz spakowanych EXE/ELF i trzyplatformowy workflow CI **PASS** — [dev-10-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-10-1).
+- [x] Źródłowy obraz otwierany tylko do odczytu; output wyłącznie po pełnej weryfikacji; manifest zakończenia zapisywany jako ostatni.
+- [ ] Sprawdzone odtworzenie na nowym fizycznym urządzeniu po utracie hasła, utracie komputera i awarii zasilania, wraz z niezależną kopią kluczy.
+- [ ] Odzyskiwanie całych dysków, niezależne środowisko bootowalne, audyt katalogów ACL/NTFS i formalny przegląd bezpieczeństwa.
+
+**Ograniczenie:** odzyskane pliki są JAWNE, a manifest nie jest podpisany. [Instrukcja](OFFLINE_RESCUE_ALL.md).
+
 ## Desktop Volume Lab / PFS/2
 
 - [x] Osobny moduł GUI dla zwykłych zaszyfrowanych obrazów `.kpv`: tworzenie, weryfikacja, import/eksport, odzyskiwanie hasła i migracja danych do nowego klucza.
