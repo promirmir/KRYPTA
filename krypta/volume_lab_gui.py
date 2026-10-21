@@ -296,12 +296,12 @@ class VolumeLabWindow(tk.Toplevel):
                 "receipt tylko do diagnostyki. Zachowaj obraz i kopie zapasowe.",
                 parent=self,
             )
-        if success and "receipt" in report:
+        if success and report.get("receipt_changed") is True:
             messagebox.showwarning(
                 "KRYPTA / RECEIPT",
-                "Operacja zakończona. NOWY RECEIPT z pola wynikowego MUSI zostać "
-                "zachowany w osobnym, niezależnie zaufanym miejscu przed następnym "
-                "otwarciem woluminu. Stary receipt nie jest już aktualny.",
+                "Operacja ZMIENIŁA stan zaszyfrowanego obrazu. NOWY RECEIPT "
+                "z pola wynikowego zapisz w niezależnie zaufanym miejscu. "
+                "Nie stosuj starego receipt do tego nowego stanu.",
                 parent=self,
             )
 
