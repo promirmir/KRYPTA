@@ -8,13 +8,11 @@ from __future__ import annotations
 import argparse
 import getpass
 import os
-import secrets
 import stat
 import sys
-from pathlib import Path
 
 from .paged_keys import (
-    PagedKeyError, provision_keys, unlock_password, unlock_recovery,
+    PagedKeyError, unlock_password, unlock_recovery,
     rewrap_password_with_recovery,
 )
 from .paged_volume import PagedResearchVolume, PagedVolumeError
@@ -57,40 +55,18 @@ def _password(args) -> str:
     return getpass.getpass("KRYPTA password (input hidden): ")
 
 
-def _delete_only_created_image(path: Path, identity: tuple[int, int]) -> None:
-    try:
-        info = os.stat(path, follow_symlinks=False)
-        if stat.S_ISREG(info.st_mode) and (info.st_dev, info.st_ino) == identity:
-            path.unlink()
-    except OSError:
-        pass
-
-
 def _new(args) -> None:
-    """Create only a fresh exclusive-create PVIMG test image and key envelope."""
-    if Path(args.image).suffix.lower() != ".kpv":
-        raise PagedKeyError("Only disposable .kpv filenames are allowed")
+    """Create using the same verified dual-unlock service as desktop."""
+    from krypta.volume_lab import create_image
+
     password = _password(args)
-    key = secrets.token_bytes(32)
-    img = Path(args.image)
-    created = None
-    try:
-        with PagedResearchVolume(img, key, create=True) as vol:
-            info = os.fstat(vol._f.fileno())
-            created = (info.st_dev, info.st_ino)
-            fs = PagedFS2.format(vol)
-            provision_keys(vol, password, args.envelope, args.recovery)
-            receipt = fs.receipt
-            identity = vol.id.hex()
-        print("CREATED: KRYPTA-PFS/2 development image, password bundle and separate recovery file")
-        print("IMAGE ID:", identity)
-        print("EXTERNAL RECEIPT:", receipt)
-        print("Store the current RECEIPT in independently trusted storage; update it after every filesystem change.")
-        print("Back up the recovery file OFF this machine and separately from the encrypted image.")
-    except BaseException:
-        if created is not None:
-            _delete_only_created_image(img, created)
-        raise
+    report = create_image(args.image, args.envelope, args.recovery,
+                          password, password)
+    print("CREATED: KRYPTA-PFS/2 development image, password bundle and separate recovery file")
+    print("IMAGE ID:", report["image_id"])
+    print("EXTERNAL RECEIPT:", report["receipt"])
+    print("Store the current RECEIPT in independently trusted storage; update it after every filesystem change.")
+    print("Back up the recovery file OFF this machine and separately from the encrypted image.")
 
 
 def _check(args) -> None:
@@ -99,7 +75,8 @@ def _check(args) -> None:
     else:
         key, expected_id = unlock_password(args.envelope, _password(args))
     with PagedResearchVolume(args.image, key,
-                             expected_receipt=args.expected_receipt) as vol:
+                             expected_receipt=args.expected_receipt,
+                             read_only=True) as vol:
         if vol.id != expected_id:
             raise PagedKeyError("Unlocked key bundle belongs to a DIFFERENT encrypted image")
         fs = PagedFS2(vol)
@@ -108,6 +85,31 @@ def _check(args) -> None:
               report["bytes_verified"], "authenticated plaintext bytes")
         print("IMAGE ID:", vol.id.hex())
         print("EXTERNAL RECEIPT:", report["receipt"])
+
+
+def _offline_list_files(args) -> None:
+    """List file names only after authenticating all live data using recovery."""
+    from krypta.volume_lab import verify_image
+
+    report = verify_image(args.image, args.envelope, args.expected_receipt,
+                          recovery=args.recovery)
+    print("VERIFIED RECOVERY IMAGE:", report["image_id"])
+    print("AUTHENTICATED FILES:", report["files_verified"])
+    for item in report["files"]:
+        print("FILE:", repr(item["name"]), "BYTES:", item["size"])
+    print("NO FILES EXPORTED. Trusted external receipt remains unchanged.")
+
+
+def _offline_export_file(args) -> None:
+    """Restore exactly one verified file with exclusive-create plaintext output."""
+    from krypta.volume_lab import export_file
+
+    report = export_file(args.image, args.envelope, args.expected_receipt,
+                         args.name, args.output, recovery=args.recovery)
+    print("EXPORTED VERIFIED PLAINTEXT:", repr(report["file"]))
+    print("BYTES:", report["bytes_verified"])
+    print("WARNING: Output is UNENCRYPTED. Protect its location and permissions.")
+    print("EXTERNAL RECEIPT UNCHANGED:", report["receipt"])
 
 
 def _recover(args) -> None:
@@ -164,6 +166,23 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--expected-receipt", required=True)
     verify.add_argument("--acknowledge-test-only", action="store_true")
 
+    # Offline recovery does not require the desktop GUI or a password.
+    offline_list = sub.add_parser("list-files",
+                                  help="Verify and list files using offline recovery key")
+    offline_export = sub.add_parser("export-file",
+                                    help="Restore ONE authenticated file to NEW plaintext")
+    for action in (offline_list, offline_export):
+        action.add_argument("--image", required=True)
+        action.add_argument("--envelope", required=True)
+        action.add_argument("--recovery", required=True)
+        action.add_argument("--expected-receipt", required=True,
+                            help="Trusted current image receipt from separate storage")
+        action.add_argument("--acknowledge-test-only", action="store_true")
+    offline_export.add_argument("--name", required=True,
+                                help="Exact name from list-files")
+    offline_export.add_argument("--output", required=True,
+                                help="NEW output path; never overwrite existing files")
+
     recovery = sub.add_parser("recover-password", help="Create a new password envelope using recovery")
     recovery.add_argument("--envelope", required=True)
     recovery.add_argument("--recovery", required=True)
@@ -198,6 +217,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.recovery is not None and args.password_fd is not None:
             parser.error("Select either recovery file or password pipe, not both")
         _check(args)
+    elif args.command == "list-files":
+        _offline_list_files(args)
+    elif args.command == "export-file":
+        _offline_export_file(args)
     elif args.command == "recover-password":
         _recover(args)
     elif args.command == "rotate-volume-key":
