@@ -114,5 +114,5 @@ jobs:
       - name: Require actual native mount lifecycle
         shell: pwsh
         run: |
-          python tools/test_windows_winfsp_mount_lifecycle.py
+          python -m tools.test_windows_winfsp_mount_lifecycle
           if ($LASTEXITCODE -ne 0) { throw 'Native WinFsp mount smoke test failed' }
