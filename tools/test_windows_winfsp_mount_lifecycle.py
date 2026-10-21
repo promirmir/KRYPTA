@@ -26,8 +26,9 @@ def main() -> None:
         base = Path(folder)
         image = base / "temporary.kpv"
         mountpoint = base / "empty-mount"
-        mountpoint.mkdir()
-        assert not list(mountpoint.iterdir())
+        # WinFsp creates the junction/mountpoint itself. An existing directory
+        # can produce STATUS_OBJECT_NAME_COLLISION on the native backend.
+        assert not mountpoint.exists()
         with PagedResearchVolume(image, os.urandom(32), create=True) as volume:
             fs = PagedFS2.format(volume)
             ops = WindowsFileOperations(fs)
@@ -52,6 +53,8 @@ def main() -> None:
                 if started or native.started:
                     native.stop()
                     print("Native WinFsp dispatcher stopped")
+                else:
+                    print("Native mount did not start; no mounted device to stop")
             if fs.receipt != receipt:
                 raise AssertionError("Native mount lifecycle unexpectedly changed ciphertext")
     print("PASS: native WinFsp ephemeral start/stop (NOT user-accessible filesystem)")
