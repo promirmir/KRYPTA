@@ -27,4 +27,7 @@ def test_real_winfspy_readonly_callback_surface(tmp_path):
         handle = adapter.open(r"\native.txt", 0, 0)
         assert adapter.read(handle, 0, 4) == b"test"
         assert adapter.get_file_info(handle)["file_size"] == 4
+        assert adapter.cleanup(handle, r"\native.txt", 0) is None
+        assert adapter.flush(handle) is None
+        adapter.close(handle)
         assert fs.receipt == before
