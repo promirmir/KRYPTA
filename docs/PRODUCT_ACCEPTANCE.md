@@ -12,6 +12,10 @@
 - [ ] Weryfikacja odporności na wyłączenie zasilania i restart w każdym punkcie transakcji na odizolowanych maszynach i urządzeniach testowych.
 - [ ] Procedury ratunkowe uruchamiane bez udziału aplikacji głównej; udokumentowany format i przywracanie.
 
+### Postęp nad niezależnym odzyskiwaniem (2026-10-21)
+
+W przygotowaniu znajduje się awaryjny CLI dla PFS/2 z podaniem niezależnego klucza recovery i zaufanego potwierdzenia stanu. Umożliwia sprawdzenie wszystkich plików i eksport jednej kopii plaintext bez GUI i bez nadpisywania. Tworzenie woluminu jest uznawane za udane dopiero po odblokowaniu **hasłem i kluczem odzyskiwania z nowo otwartego obrazu**. Są to funkcje badawcze i **nie zamykają kryteriów P0/P2**: potrzebne są dowody na drugim urządzeniu, z wyłączeniem zasilania, po awariach oraz z niezależną kopią narzędzia i dokumentacji. [Procedura](OFFLINE_RECOVERY_CLI.md).
+
 ## P1 — własny produkcyjny silnik zaszyfrowanego woluminu
 
 - [ ] Ostateczna, wersjonowana specyfikacja on-disk z jawnie zdefiniowaną polityką kryptograficzną i niezależnym przeglądem.
