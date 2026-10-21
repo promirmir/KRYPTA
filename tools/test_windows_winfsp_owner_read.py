@@ -38,6 +38,8 @@ def main() -> None:
             ops = WindowsFileOperations(fs)
             ops.create(r"\probe.txt")
             ops.write(r"\probe.txt", 0, b"KRYPTA")
+            ops.create(r"\second.txt")
+            ops.write(r"\second.txt", 0, b"SECOND")
             receipt = fs.receipt
             token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
             try:
@@ -83,6 +85,18 @@ def main() -> None:
                 if actual != b"KRYPTA":
                     raise AssertionError("Native read returned incorrect plaintext")
                 print("PASS: actual native Windows read of KRYPTA file")
+                names = {p.name for p in mountpoint.iterdir()}
+                if names != {"probe.txt", "second.txt"}:
+                    raise AssertionError(f"Native Windows directory listing wrong: {names!r}")
+                if (mountpoint / "second.txt").read_bytes() != b"SECOND":
+                    raise AssertionError("Second file not readable through native mount")
+                try:
+                    (mountpoint / "missing.txt").read_bytes()
+                except FileNotFoundError:
+                    pass
+                else:
+                    raise AssertionError("Nonexistent native file was readable")
+                print("PASS: native Windows directory listing, second-file read, missing-file rejection")
                 # Exercise actual Windows handles, not just mocked callbacks.
                 # All mutation attempts must fail and retain authenticated content.
                 mutation_attempts = (
