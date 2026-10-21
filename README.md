@@ -82,6 +82,12 @@ Powstał osobny moduł desktopowy **Volume Lab (PFS/2)** do tworzenia zaszyfrowa
 
 **Aktualne wydanie:** `krypta-dev-8-1` zawiera Volume Lab w EXE Windows oraz Linux ELF. Jego testy pakowanego programu i trzyplatformowy workflow GitHub Actions zakończyły się powodzeniem. To wciąż **wersja rozwojowa**, a nie pełne szyfrowanie dysków ani niezależnie audytowany produkt. Android APK nadal używa oddzielnego File Vault.
 
+## Awaryjne odzyskiwanie obrazu bez interfejsu graficznego (w rozwoju)
+
+Na gałęzi rozwojowej przygotowano osobną procedurę CLI: `python -m research.paged_key_cli list-files` i `export-file`. Korzysta z niezależnego 256-bitowego klucza odzyskiwania i aktualnego zaufanego `receipt`, weryfikuje dane oraz eksportuje wybrany plik do **nowej, jawnej kopii bez nadpisywania**. Podczas tworzenia nowego testowego obrazu obie niezależne metody odblokowania są teraz ponownie sprawdzane po zamknięciu woluminu. [Instrukcja odzyskiwania i ograniczenia](docs/OFFLINE_RECOVERY_CLI.md).
+
+**To nie jest jeszcze funkcja wydania `krypta-dev-8-1`.** Wymaga kodu Python ze zgodnej wersji repozytorium. Bezpieczne odzyskiwanie po utracie aplikacji, urządzenia i wszystkich środowisk nadal wymaga osobnych testów i audytu.
+
 ## Docelowe funkcje produktu
 
 1. Pełne, automatyczne szyfrowanie woluminów Windows i Linux.

@@ -318,3 +318,83 @@ def test_key_provision_success_then_report_failure_cleans_entire_new_bundle(
     assert not target.exists()
     assert not envelope.exists()
     assert not recovery.exists()
+
+
+
+def test_create_verifies_both_independent_unlock_methods_after_close(tmp_path, monkeypatch):
+    """A successful create is validated against fresh read-only handles."""
+    import krypta.volume_lab as lab_service
+    image = tmp_path / "fresh.kpv"
+    envelope = tmp_path / "fresh.pvkey"
+    recovery = tmp_path / "fresh.recovery"
+    original = lab_service._open
+    checked = []
+
+    def traced_open(*args, **kwargs):
+        checked.append((kwargs.get("read_only"), bool(kwargs.get("password")),
+                        bool(kwargs.get("recovery"))))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(lab_service, "_open", traced_open)
+    report = lab_service.create_image(image, envelope, recovery,
+                                      PASSWORD, PASSWORD)
+    assert checked == [(True, True, False), (True, False, True)]
+    assert report["receipt_changed"] is True
+    assert lab_service.verify_image(
+        image, envelope, report["receipt"], recovery=recovery
+    )["files_verified"] == 0
+    assert image.is_file() and envelope.is_file() and recovery.is_file()
+
+
+def test_create_removes_all_new_files_if_recovery_unlock_fails(tmp_path, monkeypatch):
+    """Key provisioning must NOT report success when backup secret is unusable."""
+    import krypta.volume_lab as lab_service
+    image = tmp_path / "bad-backup.kpv"
+    envelope = tmp_path / "bad-backup.pvkey"
+    recovery = tmp_path / "bad-backup.recovery"
+
+    def corrupt_recovery(*_args, **_kwargs):
+        raise PagedKeyError("injected recovery unwrap failure after provisioning")
+
+    monkeypatch.setattr(lab_service, "unlock_recovery", corrupt_recovery)
+    with pytest.raises(PagedKeyError, match="injected recovery"):
+        lab_service.create_image(image, envelope, recovery,
+                                 PASSWORD, PASSWORD)
+    assert not image.exists()
+    assert not envelope.exists()
+    assert not recovery.exists()
+
+
+def test_create_removes_all_new_files_if_reopened_authentication_fails(tmp_path, monkeypatch):
+    """Corrupt or unverified on-disk image must not survive as a 'success'."""
+    from research.paged_fs2 import PagedFS2
+    image = tmp_path / "bad-volume.kpv"
+    envelope = tmp_path / "bad-volume.pvkey"
+    recovery = tmp_path / "bad-volume.recovery"
+    original = PagedFS2.verify_all
+    called = []
+
+    def failure_after_reopen(self):
+        called.append(self._volume.read_only)
+        if self._volume.read_only:
+            raise ValueError("injected image authentication failure")
+        return original(self)
+
+    monkeypatch.setattr(PagedFS2, "verify_all", failure_after_reopen)
+    with pytest.raises(ValueError, match="injected image"):
+        create_image(image, envelope, recovery, PASSWORD, PASSWORD)
+    assert called == [True]
+    assert not image.exists()
+    assert not envelope.exists()
+    assert not recovery.exists()
+
+
+def test_create_failure_never_removes_preexisting_recovery_secret(tmp_path):
+    original_recovery = tmp_path / "precious-existing-backup.recovery"
+    original_recovery.write_bytes(b"DO-NOT-DELETE" * 4)
+    image = tmp_path / "should-not-exist.kpv"
+    envelope = tmp_path / "should-not-exist.pvkey"
+    with pytest.raises(PagedKeyError, match="overwrite"):
+        create_image(image, envelope, original_recovery, PASSWORD, PASSWORD)
+    assert original_recovery.read_bytes() == b"DO-NOT-DELETE" * 4
+    assert not image.exists() and not envelope.exists()

@@ -113,6 +113,22 @@ def create_image(image: str | Path, envelope: str | Path, recovery: str | Path,
                 "files_verified": 0,
                 "warning": "Back up recovery OFF-device; retain receipt independently.",
             }
+
+        # Do not report a volume as successfully created simply because the
+        # encrypted bytes and key envelopes were written. Reopen the finalized
+        # image with BOTH independently provisioned recovery methods and the
+        # exact trusted receipt. If the key bundle is unusable, clean up the
+        # newly created files while they are still owned by this operation.
+        for credential in ({"password": password}, {"recovery": recovery}):
+            with _open(image, envelope, report["receipt"],
+                       read_only=True, **credential) as reopened:
+                if reopened._volume.id.hex() != report["image_id"]:
+                    raise PagedKeyError("Reopened image identity mismatch")
+                result = reopened.verify_all()
+                if (result["files_verified"] != 0
+                        or result["bytes_verified"] != 0
+                        or result["receipt"] != report["receipt"]):
+                    raise PagedKeyError("New image or independent unlock failed")
         return report
     except BaseException:
         for path, created_identity in reversed(created_credentials):

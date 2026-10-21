@@ -14,6 +14,10 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
+## Offline independent recovery / verified provisioning (development)
+
+A new recovery-key-only command-line path `list-files` / `export-file` operates without Tk GUI. It requires the independently trusted current external receipt and an independently generated 256-bit recovery secret. The source image is opened readonly and fully authenticated before listing; single-file export is exclusive-create and deliberately produces plaintext. Newly provisioned PFS/2 images must also reopen and verify using both password and recovery methods before reporting success. These changes require executable CI confirmation and a separate review, are source-based (Python dependencies needed), and do not yet provide stable whole-device recovery or a certified offline rescue binary. [Procedure](OFFLINE_RECOVERY_CLI.md).
+
 ## Desktop PFS/2 Volume Lab (2026-10-21, public development EXE/ELF)
 
 A separately labeled opt-in Tkinter GUI now exposes authenticated operations on disposable ordinary `.kpv` images: create, verify, import/export, password recovery and full-volume key rotation. All existing-image calls **require a caller-supplied externally trusted receipt**, rather than auto-accepting an image's own receipt. Existing output files refuse overwrite; the plaintext import source is not deleted. The desktop PyInstaller release workflow is configured to test the newly packaged backend end-to-end using disposable data.
