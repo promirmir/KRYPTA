@@ -101,3 +101,43 @@ def test_volume_lab_receipt_save_never_overwrites_and_root_close_guard(monkeypat
     finally:
         if app.winfo_exists():
             app.destroy()
+
+
+
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get("DISPLAY"),
+                    reason="Tk requires graphical display")
+def test_readonly_receipt_is_not_falsely_reported_as_changed(monkeypatch):
+    import tkinter as tk
+    import krypta.volume_lab_gui as ui
+
+    root = tk.Tk()
+    root.withdraw()
+    lab = ui.VolumeLabWindow(root)
+    warnings, errors = [], []
+    monkeypatch.setattr(ui.messagebox, "showwarning",
+                        lambda *args, **kwargs: warnings.append(args))
+    monkeypatch.setattr(ui.messagebox, "showerror",
+                        lambda *args, **kwargs: errors.append(args))
+    try:
+        receipt = "a" * 64
+        lab._finish(True, {"operation": "Authenticated image verification",
+                           "receipt": receipt, "receipt_changed": False})
+        assert warnings == []
+        assert lab.latest_receipt == receipt
+
+        lab._finish(True, {"operation": "Imported encrypted file",
+                           "receipt": "b" * 64, "receipt_changed": True})
+        assert len(warnings) == 1
+        assert lab.latest_receipt == "b" * 64
+
+        lab._finish(False, {
+            "result": "Post-commit check failed",
+            "UNVERIFIED_RECEIPT_RECOVERY_ONLY": "c" * 64,
+        })
+        assert errors
+        assert lab.latest_receipt is None
+        assert str(lab.save_receipt_button["state"]) == "disabled"
+        assert "UNVERIFIED_RECEIPT_RECOVERY_ONLY" in lab.result.get("1.0", "end")
+    finally:
+        lab.destroy()
+        root.destroy()
