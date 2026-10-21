@@ -4,9 +4,11 @@
 
 ## Zweryfikowane wydanie rozwojowe (2026-10-21)
 
-**[Pobierz KRYPTA dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-8-1).** Zostało automatycznie zbudowane i opublikowane przez [GitHub Actions z pięcioma udanymi zadaniami](https://github.com/promirmir/KRYPTA/actions/runs/39665972976), z commitu `e0f5fc7db9d9322f674ff56dc53d412ae1437e18`.
+**[Pobierz KRYPTA dev-9-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-9-1).** Trzy platformy zostały zbudowane i opublikowane po sukcesie wszystkich pięciu zadań [GitHub Actions](https://github.com/promirmir/KRYPTA/actions/runs/39672196319) z commitu `11fa0606116e2767133c6773210a341218262cf9`.
 
-**Nowość względem dev-7-1:** sprawdzanie integralności, eksport i weryfikacja migrowanego obrazu PVIMG/PFS2 działają przez deskryptor `O_RDONLY`, nie przycinają ogona po przerwanym commicie. [PR #21](https://github.com/promirmir/KRYPTA/pull/21) przeszedł testy na Windows/Linux oraz rzeczywistym FUSE w CI.
+**Wprowadzone w dev-8-1 i utrzymane w dev-9-1:** kontrola integralności, eksport oraz weryfikacja migrowanego obrazu PVIMG/PFS2 korzystają z otwierania `O_RDONLY`, bez przycinania ogona po przerwanym zapisie. [PR #21](https://github.com/promirmir/KRYPTA/pull/21) ma potwierdzenie testami Windows/Linux i rzeczywistym FUSE w CI.
+
+**Nowość dev-9-1:** Volume Lab przed zgłoszeniem utworzenia woluminu ponownie sprawdza odblokowanie obrazu hasłem i osobnym kluczem odzyskiwania. Awaryjne polecenia `list-files`/`export-file` do odzyskiwania bez GUI są dostępne **wyłącznie w kodzie źródłowym**, wymagają Python i osobnego klucza recovery oraz zaufanego receipt. [PR #23](https://github.com/promirmir/KRYPTA/pull/23) · [Procedura](OFFLINE_RECOVERY_CLI.md).
 
 **Windows/Linux:** graficzny File Vault i Volume Lab PFS/2 dla zwykłych testowych plików `.kpv`. Sprawdzono skompilowane pliki wykonywalne testami `--self-test`, `--volume-self-test`, `--filesystem-self-test`, `--fuse-self-test`, `--paged-volume-self-test`.
 
@@ -41,7 +43,7 @@ Oba skrypty wymagają Python 3.10+, instalują zależności, uruchamiają pełny
 
 ## Co jest w aplikacjach
 
-Windows i Linux: File Vault (.kry) oraz testowy Volume Lab PFS/2 w wydaniu dev-7-1. File Vault obsługuje autoryzowane szyfrowanie pojedynczych plików, AES-256-GCM i wyprowadzanie klucza z hasła przez Argon2id. Kod PVIMG/PFS i Linux FUSE znajduje się w repozytorium jako osobne narzędzia; GUI nie szyfruje automatycznie dysku systemowego.
+Windows i Linux: File Vault (.kry) oraz testowy Volume Lab PFS/2 w wydaniu dev-9-1. File Vault obsługuje autoryzowane szyfrowanie pojedynczych plików, AES-256-GCM i wyprowadzanie klucza z hasła przez Argon2id. Kod PVIMG/PFS i Linux FUSE znajduje się w repozytorium jako osobne narzędzia; GUI nie szyfruje automatycznie dysku systemowego.
 
 Android: KRYPTA-MOBILE/1 obsługuje wybrane pliki w Storage Access Framework, AES-256-GCM i klucz zawinięty przez Android Keystore. Jest to inny format niż desktop .kry. Zwykła aplikacja APK nie szyfruje całego telefonu.
 
