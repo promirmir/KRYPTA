@@ -52,6 +52,21 @@ def main() -> None:
             callbacks = make_readonly_winfsp_operations(
                 ops, winfspy, security_descriptor=descriptor
             )
+            # CI-only diagnostics: record which native security/open callback
+            # rejected the request without broadening the volume DACL.
+            for method_name in ("get_security_by_name", "get_security",
+                                "open", "read", "read_directory"):
+                original = getattr(callbacks, method_name)
+                def trace(*args, _original=original, _name=method_name, **kwargs):
+                    print(f"WINFSP_TRACE {_name}: called", flush=True)
+                    try:
+                        value = _original(*args, **kwargs)
+                    except Exception as exc:
+                        print(f"WINFSP_TRACE {_name}: denied {type(exc).__name__}: {exc}", flush=True)
+                        raise
+                    print(f"WINFSP_TRACE {_name}: ok", flush=True)
+                    return value
+                setattr(callbacks, method_name, trace)
             native = winfspy.FileSystem(str(mountpoint), callbacks,
                                         read_only_volume=True,
                                         persistent_acls=False,
