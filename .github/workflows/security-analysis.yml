@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'krypta/**'
+      - 'research/**'
       - 'pyproject.toml'
       - '.github/workflows/security-analysis.yml'
   schedule:
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - 'krypta/**'
+      - 'research/**'
       - 'pyproject.toml'
       - '.github/workflows/security-analysis.yml'
 
@@ -25,7 +27,11 @@ permissions:
 
 jobs:
   source-and-dependency-audit:
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -37,9 +43,9 @@ jobs:
           python -m pip install -e '.[test]'
           python -m pip install 'bandit>=1.7.10,<2' 'pip-audit>=2.7,<3'
       - name: Validate Python syntax
-        run: python -m compileall -q krypta tests
+        run: python -m compileall -q krypta research tests
       - name: Static analysis for high and medium-severity findings
-        run: python -m bandit -r krypta -q -ll
+        run: python -m bandit -r krypta research/paged_rescue.py research/rescue_output.py research/rescue_output_windows.py -q -ll
       - name: Audit resolved runtime and test dependencies (fail closed)
         shell: bash
         run: |
