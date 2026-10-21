@@ -53,6 +53,30 @@ Nadal nie jest to sprzętowy sejf dla najnowszego `receipt`.
 - Nadal brak automatycznie utrzymywanego magazynu anti-rollback, odpornego
   na wyłączenie zasilania w każdym momencie.
 
+## Weryfikacja przy zapisie i błędy po zatwierdzeniu
+
+Przed dodaniem pliku silnik musi teraz wykonać **pełną weryfikację
+uwierzytelnionej zawartości wszystkich aktualnych plików**. Zgodny
+`receipt` i poprawny katalog nie wystarczają, jeśli starsze sektory
+zaszyfrowanych danych zostały uszkodzone. Wykrycie błędu wstrzymuje nowy
+commit. Po zakończeniu commitu nowy plik i katalog są ponownie sprawdzane.
+
+Jeżeli commit został zatwierdzony, ale **późniejsza weryfikacja zawiedzie**,
+interfejs nie zgłasza sukcesu. Wyświetla tylko diagnostyczny
+`UNVERIFIED_RECEIPT_RECOVERY_ONLY`, który **nie może być automatycznie
+zapisany ani użyty jako zaufane potwierdzenie stanu**. Należy zachować
+obraz, oryginały i kopie zapasowe do niezależnej analizy. Stary receipt
+może już nie odpowiadać aktualnemu obrazowi.
+
+Powiadomienie o konieczności aktualizacji zaufanego `receipt` pojawia
+się tylko po operacjach rzeczywiście **zmieniających obraz** (utworzenie,
+import i rotacja). Sama weryfikacja/eksport nie zastępuje receipt.
+
+Gdy tworzenie nowego woluminu nie kończy się poprawnym raportem po
+zapisaniu plików kluczy, mechanizm sprząta wyłącznie pliki utworzone
+przez tę operację i rozpoznane po identyfikatorze pliku, nie kasując
+wcześniejszych plików użytkownika.
+
 ## Hasła, odzyskiwanie i ograniczenia
 
 - Wymagane długie hasła; krótki PIN bez ograniczania prób przez sprzęt
