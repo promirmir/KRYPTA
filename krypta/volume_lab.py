@@ -105,6 +105,7 @@ def create_image(image: str | Path, envelope: str | Path, recovery: str | Path,
                 created_credentials.append((path, (info.st_dev, info.st_ino)))
             report = {
                 "operation": "Created NEW development image",
+                "receipt_changed": True,
                 "image_id": v.id.hex(),
                 "receipt": fs.receipt,
                 "files_verified": 0,
@@ -126,6 +127,7 @@ def verify_image(image: str | Path, envelope: str | Path, receipt: str,
         outcome = fs.verify_all()
         return {
             "operation": "Authenticated image verification",
+            "receipt_changed": False,
             "image_id": fs._volume.id.hex(),
             "receipt": outcome["receipt"],
             "files_verified": outcome["files_verified"],
@@ -183,6 +185,7 @@ def import_file(image: str | Path, envelope: str | Path, receipt: str,
             raise PostCommitVerificationError(committed_receipt) from exc
         return {
             "operation": "Imported encrypted file",
+            "receipt_changed": True,
             "file": name,
             "bytes_verified": len(payload),
             "receipt": fs.receipt,
@@ -201,6 +204,7 @@ def export_file(image: str | Path, envelope: str | Path, receipt: str,
         _new_private_file(output, payload)
         return {
             "operation": "Exported authenticated plaintext",
+            "receipt_changed": False,
             "file": name,
             "bytes_verified": len(payload),
             "receipt": fs.receipt,
@@ -240,6 +244,7 @@ def rotate_image(image: str | Path, envelope: str | Path, receipt: str,
     )
     return {
         "operation": "Re-encrypted current files using NEW random data key",
+        "receipt_changed": True,
         "image_id": result["destination_image_id"],
         "receipt": result["destination_receipt"],
         "files_verified": result["files_verified"],
