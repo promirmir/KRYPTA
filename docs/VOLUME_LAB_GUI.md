@@ -77,6 +77,21 @@ zapisaniu plików kluczy, mechanizm sprząta wyłącznie pliki utworzone
 przez tę operację i rozpoznane po identyfikatorze pliku, nie kasując
 wcześniejszych plików użytkownika.
 
+## Otwarcie istniejącego obrazu a ślady po przerwanym zapisie
+
+Aktualny silnik `PagedResearchVolume` podczas otwierania obrazu do
+weryfikacji, odczytu lub eksportu działa na deskryptorze **read/write**
+i po pomyślnej kontroli zaufanego `receipt` może **przyciąć niezatwierdzony
+ogon logu** pozostały po przerwanym zapisie. Zatwierdzony stan obrazu i jego
+`receipt` nie powinny się przez to zmienić, ale **nie jest to bezwarunkowo
+operacja wyłącznie do odczytu bajtów pliku**. Nie używać modułu na jedynej
+kopii danych ani na kopii potrzebnej do śledztwa/analizy uszkodzeń; przed
+diagnostyką zachować nienaruszoną kopię obrazu.
+
+Potrzebny jest osobny audyt i tryb otwarcia tylko do odczytu, który nigdy
+nie przycina obrazu. Do jego realizacji nie należy modyfikować mechanizmu
+odzyskiwania i integralności w `main` bez zaliczonych testów Windows/Linux.
+
 ## Hasła, odzyskiwanie i ograniczenia
 
 - Wymagane długie hasła; krótki PIN bez ograniczania prób przez sprzęt
