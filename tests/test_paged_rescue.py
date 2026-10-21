@@ -267,3 +267,19 @@ def test_symlinked_output_ancestor_is_refused_before_plaintext(prepared):
     with pytest.raises(RescueError, match="Symlinked output directory ancestor"):
         call(prepared, destination)
     assert not (real / "recovered").exists()
+
+
+def test_nested_symlinked_output_ancestor_is_refused(prepared):
+    real = prepared["root"] / "trusted"
+    real.mkdir()
+    alias = prepared["root"] / "redirect"
+    try:
+        alias.symlink_to(real, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Directory symlinks unavailable on this platform")
+    nested = alias / "nested"
+    nested.mkdir()
+    destination = nested / "recovered"
+    with pytest.raises(RescueError, match="Symlinked output directory ancestor"):
+        call(prepared, destination)
+    assert not (real / "nested" / "recovered").exists()
