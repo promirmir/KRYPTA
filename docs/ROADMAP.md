@@ -22,7 +22,8 @@ Status on 2026-10-20: **research alpha, not complete full-disk encryption**. Wor
 - [x] Osobny moduł GUI dla zwykłych zaszyfrowanych obrazów `.kpv`: tworzenie, weryfikacja, import/eksport, odzyskiwanie hasła i migracja danych do nowego klucza.
 - [x] Każde otwarcie istniejącego obrazu wymaga zewnętrznego `receipt` i uwierzytelnienia klucza; brak cichego nadpisywania wyników.
 - [x] Dodano testy usług GUI i nowy test spakowanego programu `--paged-volume-self-test` w workflow Windows/Linux.
-- [x] Testy Windows/Linux w CI, kontrola interfejsu, testy spakowanych plików EXE/ELF oraz opublikowanie [publicznej wersji rozwojowej dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1).
+- [x] Testy Windows/Linux w CI, kontrola interfejsu, testy spakowanych plików EXE/ELF oraz opublikowanie [publicznej wersji rozwojowej dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-8-1).
+- [x] PVIMG otwieranie w trybie tylko do odczytu do weryfikacji/eksportu i migracji klucza, zachowanie ogona logu po awarii — [PR #21](https://github.com/promirmir/KRYPTA/pull/21), testy Windows/Linux.
 - [ ] Osobne testy na fizycznych komputerach i urządzeniach oraz niezależny audyt bezpieczeństwa; obecne wydanie nie jest wersją produkcyjną.
 - [ ] Rozszerzenie na produkcyjne katalogi/ACL i prawdziwe woluminy dyskowe bezpieczne po zaniku zasilania.
 

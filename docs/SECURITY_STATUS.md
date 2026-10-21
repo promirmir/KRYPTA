@@ -20,6 +20,12 @@ A separately labeled opt-in Tkinter GUI now exposes authenticated operations on 
 
 **Build verification complete, NOT a production-security approval:** [PR #19](https://github.com/promirmir/KRYPTA/pull/19) merged after successful cross-platform unit tests, security analysis and virtual-display GUI tests. [Three-platform build workflow](https://github.com/promirmir/KRYPTA/actions/runs/39661949384) compiled and exercised packaged EXE/ELF smoke tests and compiled/tested/linted Android. Public [dev-7-1 download](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1) was published from commit `cafca79fc438a3dfbed0fd6c1224a057c84c8973`. No independent audit, real-device acceptance, Windows full-disk encryption, Linux system partition encryption or Android full-device encryption is offered. [Full limitations](VOLUME_LAB_GUI.md).
 
+## PVIMG true read-only forensic inspection (2026-10-21, dev-8-1)
+
+[PR #21](https://github.com/promirmir/KRYPTA/pull/21) added an explicit `read_only=True` PVIMG open mode, using an OS read-only descriptor and platform locking. Verification and authenticated export no longer truncate uncommitted crash-recovery tails; the source image of a volume-key migration is read-only as well. Test coverage includes byte-for-byte preservation of an interrupted image, write refusal, lock contention and real Linux FUSE integration. Cross-platform tests and production of the *development* EXE/ELF/APK passed in [GitHub Actions](https://github.com/promirmir/KRYPTA/actions/runs/39665972976), published as [dev-8-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-8-1).
+
+This is **not** a guarantee that host filesystem metadata, access timestamps or forensic disk evidence are preserved, nor a substitute for a trusted external rollback anchor or a third-party audit. The Android APK remains selected-file only.
+
 ## PFS/2 actual volume-key rotation and live-file re-encryption (2026-10-20)
 
 `research/paged_rekey.py` now creates an independently keyed NEW PVIMG/PFS2 encrypted image after verifying all currently live files of a source image against the latest externally trusted receipt. Fresh random 256-bit DEK, new image ID and independent password/recovery slots are created, with source unchanged. Source corruption, wrong old credentials/receipt and partial destination failures cause refusal without overwriting any source. New target is reopened for authenticated final verification. The `research/paged_key_cli.py rotate-volume-key` subcommand keeps passwords out of argv/env.

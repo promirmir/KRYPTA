@@ -8,13 +8,13 @@ KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Lin
 
 **[ZOBACZ WSZYSTKIE PLIKI DO POBRANIA — GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**
 
-**Bezpośrednie pliki z nowego wydania rozwojowego [krypta-dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1) (21.10.2026):**
+**Bezpośrednie pliki z nowego wydania rozwojowego [krypta-dev-8-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-8-1) (21.10.2026):**
 
 | System | Plik do pobrania | Główna funkcja |
 |---|---|---|
-| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-7-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault oraz Volume Lab (testowe zaszyfrowane obrazy) |
-| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-7-1/KRYPTA-Linux-x64)** | Graficzny File Vault i Volume Lab; oddzielne narzędzie Linux FUSE |
-| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-7-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
+| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-8-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault oraz Volume Lab (testowe zaszyfrowane obrazy) |
+| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-8-1/KRYPTA-Linux-x64)** | Graficzny File Vault i Volume Lab; oddzielne narzędzie Linux FUSE |
+| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-8-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
 
 Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze wersje znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. **Repozytorium jest publiczne.** Każdy może czytać kod i pobrać udostępnione wydania rozwojowe. Kod otwarty nie oznacza zakończonego audytu ani gotowości produktu.
 
@@ -75,9 +75,12 @@ Rozwijany silnik może utworzyć **nowy obraz PVIMG/PFS2 z innym losowym kluczem
 
 ## Volume Lab — interfejs testowych zaszyfrowanych obrazów
 
+**Nowość w dev-8-1:** weryfikacja obrazu, eksport plików i weryfikacja przy migracji klucza korzystają z systemowego trybu otwierania tylko do odczytu. Nie usuwają niezatwierdzonych fragmentów logu po przerwanym zapisie. Utrzymanie `receipt` poza obrazem nadal jest obowiązkowe. [Dowody z CI](https://github.com/promirmir/KRYPTA/actions/runs/39665972976).
+
+
 Powstał osobny moduł desktopowy **Volume Lab (PFS/2)** do tworzenia zaszyfrowanych zwykłych plików `.kpv`, weryfikacji autentyczności i integralności, importu/eksportu plików, odzyskiwania hasła oraz rotacji losowego klucza szyfrowania. Jest to moduł **rozwojowy**, nie szyfruje partycji ani dysków systemowych. Wymaga zewnętrznego zaufanego `receipt`, nie nadpisuje istniejących plików i nie usuwa jawnych oryginałów. [Pełna instrukcja i ograniczenia](docs/VOLUME_LAB_GUI.md).
 
-**Aktualne wydanie:** `krypta-dev-7-1` zawiera Volume Lab w EXE Windows oraz Linux ELF. Jego testy pakowanego programu i trzyplatformowy workflow GitHub Actions zakończyły się powodzeniem. To wciąż **wersja rozwojowa**, a nie pełne szyfrowanie dysków ani niezależnie audytowany produkt. Android APK nadal używa oddzielnego File Vault.
+**Aktualne wydanie:** `krypta-dev-8-1` zawiera Volume Lab w EXE Windows oraz Linux ELF. Jego testy pakowanego programu i trzyplatformowy workflow GitHub Actions zakończyły się powodzeniem. To wciąż **wersja rozwojowa**, a nie pełne szyfrowanie dysków ani niezależnie audytowany produkt. Android APK nadal używa oddzielnego File Vault.
 
 ## Docelowe funkcje produktu
 

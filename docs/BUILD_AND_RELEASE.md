@@ -4,7 +4,9 @@
 
 ## Zweryfikowane wydanie rozwojowe (2026-10-21)
 
-**[Pobierz KRYPTA dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1).** Zostało automatycznie zbudowane i opublikowane przez [GitHub Actions z pięcioma udanymi zadaniami](https://github.com/promirmir/KRYPTA/actions/runs/39661949384), z commitu `cafca79fc438a3dfbed0fd6c1224a057c84c8973`.
+**[Pobierz KRYPTA dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-8-1).** Zostało automatycznie zbudowane i opublikowane przez [GitHub Actions z pięcioma udanymi zadaniami](https://github.com/promirmir/KRYPTA/actions/runs/39665972976), z commitu `e0f5fc7db9d9322f674ff56dc53d412ae1437e18`.
+
+**Nowość względem dev-7-1:** sprawdzanie integralności, eksport i weryfikacja migrowanego obrazu PVIMG/PFS2 działają przez deskryptor `O_RDONLY`, nie przycinają ogona po przerwanym commicie. [PR #21](https://github.com/promirmir/KRYPTA/pull/21) przeszedł testy na Windows/Linux oraz rzeczywistym FUSE w CI.
 
 **Windows/Linux:** graficzny File Vault i Volume Lab PFS/2 dla zwykłych testowych plików `.kpv`. Sprawdzono skompilowane pliki wykonywalne testami `--self-test`, `--volume-self-test`, `--filesystem-self-test`, `--fuse-self-test`, `--paged-volume-self-test`.
 

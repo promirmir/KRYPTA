@@ -137,8 +137,8 @@ do wykonania.
 - Skrypty lokalne nie podpisują EXE/ELF, nie tworzą APK i nie publikują
   plików jako zaufanych wersji produkcyjnych. Nie obchodzą wymogu audytu.
 
-**Status 21.10.2026:** Volume Lab został zbudowany i opublikowany w
-[publicznej wersji rozwojowej dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1),
+**Status 21.10.2026 (aktualny dev-8-1):** Volume Lab został zbudowany i opublikowany w
+[publicznej wersji rozwojowej dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-8-1),
 a [testy spakowanych EXE/ELF i proces trzech platform](https://github.com/promirmir/KRYPTA/actions/runs/39661949384)
 zakończyły się powodzeniem. Funkcja pozostaje **rozwojowa** i nie została
 niezależnie zaudytowana ani sprawdzona na wszystkich rzeczywistych urządzeniach.
