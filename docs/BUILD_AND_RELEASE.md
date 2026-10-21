@@ -4,9 +4,11 @@
 
 ## Zweryfikowane wydanie rozwojowe (2026-10-21)
 
-**[Pobierz KRYPTA dev-9-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-9-1).** Trzy platformy zostały zbudowane i opublikowane po sukcesie wszystkich pięciu zadań [GitHub Actions](https://github.com/promirmir/KRYPTA/actions/runs/39672196319) z commitu `11fa0606116e2767133c6773210a341218262cf9`.
+**[Pobierz KRYPTA dev-10-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-10-1).** Trzy platformy i dwa niezależne programy ratunkowe zostały zbudowane, przetestowane i opublikowane po powodzeniu wszystkich pięciu zadań [GitHub Actions](https://github.com/promirmir/KRYPTA/actions/runs/39673702715) z commitu `8c8181436d58f8f0d63b4ec42e43e8bf308cb40c`.
 
 **Wprowadzone w dev-8-1 i utrzymane w dev-9-1:** kontrola integralności, eksport oraz weryfikacja migrowanego obrazu PVIMG/PFS2 korzystają z otwierania `O_RDONLY`, bez przycinania ogona po przerwanym zapisie. [PR #21](https://github.com/promirmir/KRYPTA/pull/21) ma potwierdzenie testami Windows/Linux i rzeczywistym FUSE w CI.
+
+**Nowość dev-10-1:** w wydaniu znajdują się **osobne programy konsolowe** `KRYPTA-Windows-x64-Rescue.exe` i `KRYPTA-Linux-x64-Rescue` do odzyskiwania *wszystkich* plików z testowego obrazu PFS/2. CI uruchomił obydwa z komendą `--self-test`: pełne przygotowanie, zapis, symulowany przerwany log, odczyt przy pomocy niezależnego klucza oraz porównanie odszyfrowanych plików. Narzędzie wymaga osobnego klucza odzyskiwania, pliku .pvkey i zaufanego aktualnego receipt. Wynik jest **JAWNY**, nie zaszyfrowany. [Dokumentacja](OFFLINE_RESCUE_ALL.md) · [PR #22](https://github.com/promirmir/KRYPTA/pull/22).
 
 **Nowość dev-9-1:** Volume Lab przed zgłoszeniem utworzenia woluminu ponownie sprawdza odblokowanie obrazu hasłem i osobnym kluczem odzyskiwania. Awaryjne polecenia `list-files`/`export-file` do odzyskiwania bez GUI są dostępne **wyłącznie w kodzie źródłowym**, wymagają Python i osobnego klucza recovery oraz zaufanego receipt. [PR #23](https://github.com/promirmir/KRYPTA/pull/23) · [Procedura](OFFLINE_RECOVERY_CLI.md).
 
@@ -25,6 +27,8 @@ Główny adres: **[GitHub Releases](https://github.com/promirmir/KRYPTA/releases
 | Windows x64 | KRYPTA-Windows-x64.exe | Graficzny File Vault oraz osobny testowy Volume Lab PFS/2 |
 | Linux x64 | KRYPTA-Linux-x64 | Graficzny File Vault oraz osobny testowy Volume Lab PFS/2 |
 | Android | KRYPTA-Android-debug.apk | Szyfrowanie/odszyfrowywanie wskazanych plików za pomocą AES-256-GCM oraz Android Keystore |
+| Windows x64 | KRYPTA-Windows-x64-Rescue.exe | Osobne konsolowe odzyskiwanie wszystkich PFS/2 plików (jawny output) |
+| Linux x64 | KRYPTA-Linux-x64-Rescue | Osobne konsolowe odzyskiwanie wszystkich PFS/2 plików (jawny output) |
 
 Każdy plik wykonywalny ma odpowiadający mu załącznik SHA-256. Dla Androida dołączona jest lista żądanych uprawnień.
 
