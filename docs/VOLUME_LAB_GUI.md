@@ -129,6 +129,10 @@ odzyskiwania i integralności w `main` bez zaliczonych testów Windows/Linux.
 - Skrypty lokalne nie podpisują EXE/ELF, nie tworzą APK i nie publikują
   plików jako zaufanych wersji produkcyjnych. Nie obchodzą wymogu audytu.
 
-**Status przed zakończeniem CI:** kod jest przygotowany do sprawdzenia, ale
-nie należy reklamować ani testowych woluminów, ani GUI jako rozwiązania
-zakończonego i gotowego do ochrony ważnych danych.
+**Status 21.10.2026:** Volume Lab został zbudowany i opublikowany w
+[publicznej wersji rozwojowej dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1),
+a [testy spakowanych EXE/ELF i proces trzech platform](https://github.com/promirmir/KRYPTA/actions/runs/39661949384)
+zakończyły się powodzeniem. Funkcja pozostaje **rozwojowa** i nie została
+niezależnie zaudytowana ani sprawdzona na wszystkich rzeczywistych urządzeniach.
+Nie wolno jej przedstawiać jako gotowej ochrony jedynych kopii danych,
+dysków systemowych czy urządzeń mobilnych.
