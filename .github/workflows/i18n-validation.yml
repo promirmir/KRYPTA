@@ -10,6 +10,7 @@ on:
       - 'android/app/src/main/res/**'
       - 'tests/test_i18n.py'
       - 'tests/test_desktop_languages.py'
+      - 'tests/test_volume_lab_gui.py'
       - '.github/workflows/i18n-validation.yml'
   workflow_dispatch:
   pull_request:
@@ -20,7 +21,12 @@ on:
       - 'android/app/src/main/res/**'
       - 'tests/test_i18n.py'
       - 'tests/test_desktop_languages.py'
+      - 'tests/test_volume_lab_gui.py'
       - '.github/workflows/i18n-validation.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -41,4 +47,4 @@ jobs:
       - name: Check Android resource generation
         run: python tools/sync_android_strings.py --check
       - name: Exercise language switcher for every locale
-        run: xvfb-run -a python -m pytest -q tests/test_i18n.py tests/test_desktop_languages.py
+        run: xvfb-run -a python -m pytest -q tests/test_i18n.py tests/test_desktop_languages.py tests/test_volume_lab_gui.py
