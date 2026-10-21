@@ -4,6 +4,29 @@
 
 This page is evidence-based; a passing test is not a proof of confidentiality under every threat model.
 
+## Verified independent bulk recovery checkpoint — dev-10-1
+
+[PR #22](https://github.com/promirmir/KRYPTA/pull/22) merged to main
+`8c8181436d58f8f0d63b4ec42e43e8bf308cb40c` after all four
+Windows/Linux Python test configurations and security analysis passed. The
+[three-platform workflow](https://github.com/promirmir/KRYPTA/actions/runs/39673702715)
+then passed ALL required jobs and published separate console
+`KRYPTA-Windows-x64-Rescue.exe` and `KRYPTA-Linux-x64-Rescue` alongside
+the preexisting GUI/Android builds, each with a SHA-256 checksum.
+
+The independent console rescue decrypts ALL existing authenticated PFS/2
+files using an offline 256-bit recovery secret plus a matching PVKEY/1 envelope
+and separately trusted current receipt. It first fully authenticates source
+data and only then creates an exclusive new output directory. Source reads
+are forensic read-only; normal failures clean only newly created output.
+The final completion manifest is **not cryptographically signed**, and an
+abrupt process crash can leave incomplete **UNENCRYPTED PLAINTEXT** files.
+
+This is NOT a production recovery certification, full-disk recovery or
+Android Keystore recovery. No independent audit, hardware fault-injection
+campaign, Windows ACL red-team review or migration on a new physical
+machine has yet been demonstrated. [Usage](OFFLINE_RESCUE_ALL.md).
+
 ## Product completion and verified capability reporting (2026-10-20)
 
 KRYPTA is being developed as a **fully working independent encryption product**, not a permanent technology demonstration. Completion requirements are now explicitly defined in [PRODUCT_ACCEPTANCE.md](PRODUCT_ACCEPTANCE.md). A successful unit test is evidence for a specific component, not proof of production security; unreleased or nonfunctional modules must remain clearly identified.
