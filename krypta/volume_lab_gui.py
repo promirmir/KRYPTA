@@ -177,10 +177,12 @@ class VolumeLabWindow(tk.Toplevel):
             if bool(data.get("password")) == bool(data.get("recovery")):
                 messagebox.showerror("KRYPTA Volume Lab",
                                      "Podaj hasło ALBO plik odzyskiwania.", parent=self)
+                data.clear()
                 return
         if action == "rotate" and bool(data.get("old_password")) == bool(data.get("old_recovery")):
             messagebox.showerror("KRYPTA Volume Lab",
                                  "Podaj dokładnie jedną starą metodę odblokowania.", parent=self)
+            data.clear()
             return
         if not messagebox.askyesno(
             "KRYPTA / test-only",
@@ -188,6 +190,7 @@ class VolumeLabWindow(tk.Toplevel):
             "masz kopie zapasowe i nie szyfrujesz partycji ani jedynej kopii ważnych danych?",
             parent=self
         ):
+            data.clear()
             return
         self.busy = True
         self.status.set("Przetwarzanie i weryfikacja…")
@@ -218,11 +221,22 @@ class VolumeLabWindow(tk.Toplevel):
             }[action]
             response = method()
         except Exception as exc:
-            # No secret, plaintext, path, stack trace or ciphertext in UI errors.
-            kind = type(exc).__name__
-            self.after(0, lambda k=kind: self._finish(
-                False, {"result": "Operacja odmówiona lub nieudana", "category": k,
-                        "advice": "Sprawdź ścieżki, długość hasła, zgodność receipt i kopie zapasowe."}))
+            # Do not lose recovery metadata if the write committed before
+            # an integrity check subsequently failed; never call it trusted.
+            if isinstance(exc, operations.PostCommitVerificationError):
+                report = {
+                    "result": "ZAPIS MÓGŁ SIĘ ZAKOŃCZYĆ, ALE WERYFIKACJA NIE PRZESZŁA",
+                    "UNVERIFIED_RECEIPT_RECOVERY_ONLY": exc.unverified_receipt,
+                    "warning": "NIE UŻYWAJ jako zaufanego receipt. "
+                               "Zachowaj kopię obrazu; wymagane osobne sprawdzenie odzyskiwania.",
+                }
+            else:
+                report = {
+                    "result": "Operacja odmówiona lub nieudana",
+                    "category": type(exc).__name__,
+                    "advice": "Sprawdź ścieżki, hasło, receipt i kopie zapasowe.",
+                }
+            self.after(0, lambda value=report: self._finish(False, value))
         else:
             self.after(0, lambda value=response: self._finish(True, value))
         finally:
@@ -274,6 +288,14 @@ class VolumeLabWindow(tk.Toplevel):
         self.save_receipt_button.configure(
             state="normal" if self.latest_receipt else "disabled")
         self.status.set("Zakończono" if success else "Odmowa / błąd — brak potwierdzenia powodzenia")
+        if "UNVERIFIED_RECEIPT_RECOVERY_ONLY" in report:
+            messagebox.showerror(
+                "KRYPTA / UWAGA: wynik NIEZWERYFIKOWANY",
+                "Zapis mógł zostać zatwierdzony, ale późniejszy test danych zawiódł. "
+                "Nie ufaj staremu receipt. W polu wyniku jest NIEZWERYFIKOWANY "
+                "receipt tylko do diagnostyki. Zachowaj obraz i kopie zapasowe.",
+                parent=self,
+            )
         if success and "receipt" in report:
             messagebox.showwarning(
                 "KRYPTA / RECEIPT",
