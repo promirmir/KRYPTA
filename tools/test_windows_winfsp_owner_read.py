@@ -47,7 +47,7 @@ def main() -> None:
             finally:
                 token.Close()
             descriptor = SecurityDescriptor.from_string(
-                f"O:{sid}G:{sid}D:P(A;;GRGX;;;SY)(A;;GRGX;;;{sid})"
+                f"O:{sid}G:{sid}D:P(A;;FRFX;;;SY)(A;;FRFX;;;{sid})"
             )
             callbacks = make_readonly_winfsp_operations(
                 ops, winfspy, security_descriptor=descriptor
