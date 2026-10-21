@@ -76,3 +76,15 @@ class WindowsFileOperations:
         with self._lock:
             self._fs._check()
             self._fs.delete_file(name)
+
+    def stat(self, path: str) -> dict:
+        name = self._filename(path)
+        with self._lock:
+            self._fs._check()
+            return dict(self._fs.stat(name))
+
+    def rename(self, source: str, destination: str) -> None:
+        old_name, new_name = self._filename(source), self._filename(destination)
+        with self._lock:
+            self._fs._check()
+            self._fs.rename_file(old_name, new_name)
