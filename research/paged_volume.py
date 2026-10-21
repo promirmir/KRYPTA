@@ -67,12 +67,12 @@ def _ref(value: object) -> bool:
             and all(c in "0123456789abcdef" for c in value[1]))
 
 
-def _open_regular(path: Path, create: bool) -> BinaryIO:
+def _open_regular(path: Path, create: bool, read_only: bool = False) -> BinaryIO:
     name = str(path)
     if (path.suffix.lower() != ".kpv" or name.startswith(("\\\\.\\", "\\\\?\\"))
             or path.is_symlink() or (os.name == "posix" and name.startswith("/dev/"))):
         raise PagedVolumeError("Only disposable regular .kpv files are supported")
-    flags = (os.O_RDWR | getattr(os, "O_BINARY", 0) |
+    flags = ((os.O_RDONLY if read_only else os.O_RDWR) | getattr(os, "O_BINARY", 0) |
              getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0) |
              getattr(os, "O_NOFOLLOW", 0))
     if create:
@@ -86,26 +86,29 @@ def _open_regular(path: Path, create: bool) -> BinaryIO:
             raise PagedVolumeError("Physical devices are forbidden")
         if os.name == "posix":
             import fcntl
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(fd, (fcntl.LOCK_SH if read_only else fcntl.LOCK_EX) | fcntl.LOCK_NB)
         elif os.name == "nt":
             import msvcrt
             os.lseek(fd, MAX_IMAGE_BYTES + 4096, os.SEEK_SET)
             try:
-                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                msvcrt.locking(fd, msvcrt.LK_NBRLCK if read_only else msvcrt.LK_NBLCK, 1)
             finally:
                 os.lseek(fd, 0, os.SEEK_SET)
-        return os.fdopen(fd, "r+b", buffering=0)
+        return os.fdopen(fd, "rb" if read_only else "r+b", buffering=0)
     except BaseException:
         os.close(fd)
         raise
 
 
 class PagedResearchVolume:
-    """Sparse paged *research* image, single-writer and fail-closed on writes."""
+    """Sparse authenticated test image with optional forensic-safe read-only mode."""
 
     def __init__(self, path: str | Path, key: bytes, *, create: bool = False,
                  expected_sequence: int | None = None,
-                 expected_receipt: str | None = None):
+                 expected_receipt: str | None = None,
+                 read_only: bool = False):
+        if type(read_only) is not bool or (create and read_only):
+            raise PagedVolumeError("Read-only mode requires an existing image")
         if not isinstance(key, bytes) or len(key) != 32:
             raise PagedVolumeError("Expected a separately held random 32-byte test key")
         if expected_sequence is not None and (type(expected_sequence) is not int
@@ -117,7 +120,8 @@ class PagedResearchVolume:
             raise PagedVolumeError("Invalid external receipt")
         self.path = Path(path)
         self.key = key
-        self._f = _open_regular(self.path, create)
+        self.read_only = read_only
+        self._f = _open_regular(self.path, create, read_only)
         self._closed = False
         self._poisoned = False
         self.sequence = -1
@@ -151,7 +155,7 @@ class PagedResearchVolume:
             # modifying any incomplete tail. Reads authenticate data on demand.
             if not create and self.root is not None:
                 self._validate_tree(self.root, ROOT_LEVEL, 0, self._commit_offset, set())
-            if not create and self._trim_offset is not None:
+            if not create and self._trim_offset is not None and not self.read_only:
                 self._f.truncate(self._trim_offset)
                 self._flush()
         except BaseException:
@@ -170,6 +174,8 @@ class PagedResearchVolume:
             raise
 
     def _flush(self) -> None:
+        if self.read_only:
+            raise PagedVolumeError("Read-only research volume: no writes allowed")
         self._f.flush()
         os.fsync(self._f.fileno())
 
@@ -180,6 +186,8 @@ class PagedResearchVolume:
             raise PagedVolumeError("Uncertain write outcome; close and reopen")
 
     def _append(self, kind: bytes, payload: bytes) -> int:
+        if self.read_only:
+            raise PagedVolumeError("Read-only research volume: no writes allowed")
         if kind not in (b"D", b"N", b"C") or len(payload) > MAX_RECORD_BYTES:
             raise PagedVolumeError("Invalid research frame")
         self._f.seek(0, os.SEEK_END)
@@ -376,6 +384,8 @@ class PagedResearchVolume:
 
     def _write_many_atomic(self, updates: Mapping[int, bytes], limit: int) -> int:
         self._check()
+        if self.read_only:
+            raise PagedVolumeError("Read-only research volume: no writes allowed")
         if (not isinstance(updates, Mapping)
                 or not 1 <= len(updates) <= limit):
             raise PagedVolumeError("Invalid atomic encrypted sector count")
@@ -438,6 +448,8 @@ class PagedResearchVolume:
         image or exceeds the per-transaction sector cap.
         """
         self._check()
+        if self.read_only:
+            raise PagedVolumeError("Read-only research volume: no writes allowed")
         if (type(offset) is not int or offset < 0 or
                 not isinstance(data, bytes) or not data or
                 offset + len(data) > MAX_BLOCKS * BLOCK_BYTES):
