@@ -197,9 +197,9 @@ jobs:
 
           All three binaries were built in one workflow from the same commit.
           Companion SHA-256 files permit download integrity verification.
-          Private repository / private prerelease; no public release.
+          PUBLIC development prerelease; NOT a production-ready security release.
           NOTES
-      - name: Publish immutable, private development prerelease
+      - name: Publish immutable PUBLIC development prerelease (not stable)
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
