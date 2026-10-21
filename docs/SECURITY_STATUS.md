@@ -1,6 +1,6 @@
-# KRYPTA Security Status — research checkpoint (2026-10-20)
+# KRYPTA Security Status — public development checkpoint (2026-10-21)
 
-**Private pre-release research. No independent security audit. No hardware PIN anti-hammering. No system-disk or removable-volume encryption is implemented.**
+**Public source and PUBLIC development binaries (prerelease). No independent security audit. No hardware PIN anti-hammering. No system-disk or removable-volume encryption is implemented.**
 
 This page is evidence-based; a passing test is not a proof of confidentiality under every threat model.
 
@@ -14,11 +14,11 @@ The Android selected-file implementation exists. Older locale strings misleading
 
 [PR #9](https://github.com/promirmir/KRYPTA/pull/9) merged isolated `research/paged_volume.py`: a 3-level authenticated copy-on-write radix tree with bounded 1-GiB sparse logical addressing and 512-MiB on-disk log quota. [Cross-platform regression CI](https://github.com/promirmir/KRYPTA/actions/runs/39470286063) passed on four Windows/Linux Python combinations. The subsequent byte-range `read_at` / `write_at` methods are an integration building block, not an OS mount. **No production-ready whole-disk encryption or certified security result is claimed.**
 
-## Desktop PFS/2 Volume Lab (2026-10-20, development branch)
+## Desktop PFS/2 Volume Lab (2026-10-21, public development EXE/ELF)
 
 A separately labeled opt-in Tkinter GUI now exposes authenticated operations on disposable ordinary `.kpv` images: create, verify, import/export, password recovery and full-volume key rotation. All existing-image calls **require a caller-supplied externally trusted receipt**, rather than auto-accepting an image's own receipt. Existing output files refuse overwrite; the plaintext import source is not deleted. The desktop PyInstaller release workflow is configured to test the newly packaged backend end-to-end using disposable data.
 
-**Not yet proven as a downloadable feature:** current GitHub-hosted runners cannot be assigned, so no new EXE/ELF containing the code has been built and verified in CI. Development PR requires complete validation before merge. No Windows full-disk encryption, Linux system partition encryption or Android full-device encryption is offered. [Full limitations](VOLUME_LAB_GUI.md).
+**Build verification complete, NOT a production-security approval:** [PR #19](https://github.com/promirmir/KRYPTA/pull/19) merged after successful cross-platform unit tests, security analysis and virtual-display GUI tests. [Three-platform build workflow](https://github.com/promirmir/KRYPTA/actions/runs/39661949384) compiled and exercised packaged EXE/ELF smoke tests and compiled/tested/linted Android. Public [dev-7-1 download](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1) was published from commit `cafca79fc438a3dfbed0fd6c1224a057c84c8973`. No independent audit, real-device acceptance, Windows full-disk encryption, Linux system partition encryption or Android full-device encryption is offered. [Full limitations](VOLUME_LAB_GUI.md).
 
 ## PFS/2 actual volume-key rotation and live-file re-encryption (2026-10-20)
 
