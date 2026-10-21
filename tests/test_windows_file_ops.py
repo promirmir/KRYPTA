@@ -67,3 +67,23 @@ def test_stat_and_rename_preserve_authenticated_content(tmp_path):
         ops = WindowsFileOperations(PagedFS2(volume))
         assert ops.list_directory() == ["new.bin"]
         assert ops.read(r"\new.bin", 0, 11) == b"secure data"
+
+
+def test_windows_casefold_collision_fails_without_mutation(tmp_path):
+    image = tmp_path / "collision.kpv"
+    with PagedResearchVolume(image, os.urandom(32), create=True) as volume:
+        ops = WindowsFileOperations(PagedFS2.format(volume))
+        ops.create(r"\Report.txt")
+        ops.write(r"\Report.txt", 0, b"original")
+        previous_receipt = ops._fs.receipt
+        with pytest.raises(PagedFS2Error, match="collision"):
+            ops.create(r"\report.TXT")
+        assert ops._fs.receipt == previous_receipt
+        assert ops.read(r"\Report.txt", 0, 8) == b"original"
+
+        ops.create(r"\another.txt")
+        previous_receipt = ops._fs.receipt
+        with pytest.raises(PagedFS2Error, match="collision"):
+            ops.rename(r"\another.txt", r"\REPORT.txt")
+        assert ops._fs.receipt == previous_receipt
+        assert sorted(ops.list_directory()) == ["Report.txt", "another.txt"]
