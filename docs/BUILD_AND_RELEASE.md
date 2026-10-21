@@ -2,14 +2,24 @@
 
 **Status: publiczne kompilacje rozwojowe (prerelease), nieprodukcyjne.** GitHub Actions tworzy wersje dla Windows x64, Linux x64 i Androida. Pliki nie są jeszcze audytowanymi ani podpisanymi produkcyjnie wydaniami.
 
+## Zweryfikowane wydanie rozwojowe (2026-10-21)
+
+**[Pobierz KRYPTA dev-7-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-7-1).** Zostało automatycznie zbudowane i opublikowane przez [GitHub Actions z pięcioma udanymi zadaniami](https://github.com/promirmir/KRYPTA/actions/runs/39661949384), z commitu `cafca79fc438a3dfbed0fd6c1224a057c84c8973`.
+
+**Windows/Linux:** graficzny File Vault i Volume Lab PFS/2 dla zwykłych testowych plików `.kpv`. Sprawdzono skompilowane pliki wykonywalne testami `--self-test`, `--volume-self-test`, `--filesystem-self-test`, `--fuse-self-test`, `--paged-volume-self-test`.
+
+**Android:** APK `debug` do szyfrowania wskazanych lokalnych dokumentów. Weryfikacja automatyczna obejmowała testy jednostkowe, kompilację, Android lint, sprawdzenie deklarowanych uprawnień i SHA-256. **Nie posiada Volume Lab**; nie używać do jedynej kopii plików.
+
+Obecne dowody to CI i testy spakowanych plików, **nie test urządzeń rzeczywistych, podpis produkcyjny czy niezależny audyt kryptograficzny**.
+
 ## Pobieranie użytkownika
 
 Główny adres: **[GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**. Skonfigurowano workflow [publikacji trzech platform](../.github/workflows/publish-preview.yml), który po udanych testach i kompilacjach tworzy osobne **publiczne wydania rozwojowe (prerelease)** z plikami:
 
 | System | Plik | Funkcja |
 |---|---|---|
-| Windows x64 | KRYPTA-Windows-x64.exe | Graficzne szyfrowanie/odszyfrowywanie wskazanych plików |
-| Linux x64 | KRYPTA-Linux-x64 | Graficzne szyfrowanie/odszyfrowywanie wskazanych plików |
+| Windows x64 | KRYPTA-Windows-x64.exe | Graficzny File Vault oraz osobny testowy Volume Lab PFS/2 |
+| Linux x64 | KRYPTA-Linux-x64 | Graficzny File Vault oraz osobny testowy Volume Lab PFS/2 |
 | Android | KRYPTA-Android-debug.apk | Szyfrowanie/odszyfrowywanie wskazanych plików za pomocą AES-256-GCM oraz Android Keystore |
 
 Każdy plik wykonywalny ma odpowiadający mu załącznik SHA-256. Dla Androida dołączona jest lista żądanych uprawnień.
@@ -29,7 +39,7 @@ Oba skrypty wymagają Python 3.10+, instalują zależności, uruchamiają pełny
 
 ## Co jest w aplikacjach
 
-Windows i Linux: File Vault (.kry) obsługuje autoryzowane szyfrowanie pojedynczych plików, AES-256-GCM i wyprowadzanie klucza z hasła przez Argon2id. Kod PVIMG/PFS i Linux FUSE znajduje się w repozytorium jako osobne narzędzia; GUI nie szyfruje automatycznie dysku systemowego.
+Windows i Linux: File Vault (.kry) oraz testowy Volume Lab PFS/2 w wydaniu dev-7-1. File Vault obsługuje autoryzowane szyfrowanie pojedynczych plików, AES-256-GCM i wyprowadzanie klucza z hasła przez Argon2id. Kod PVIMG/PFS i Linux FUSE znajduje się w repozytorium jako osobne narzędzia; GUI nie szyfruje automatycznie dysku systemowego.
 
 Android: KRYPTA-MOBILE/1 obsługuje wybrane pliki w Storage Access Framework, AES-256-GCM i klucz zawinięty przez Android Keystore. Jest to inny format niż desktop .kry. Zwykła aplikacja APK nie szyfruje całego telefonu.
 
