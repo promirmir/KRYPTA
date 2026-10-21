@@ -83,6 +83,25 @@ def main() -> None:
                 if actual != b"KRYPTA":
                     raise AssertionError("Native read returned incorrect plaintext")
                 print("PASS: actual native Windows read of KRYPTA file")
+                # Exercise actual Windows handles, not just mocked callbacks.
+                # All mutation attempts must fail and retain authenticated content.
+                mutation_attempts = (
+                    ("overwrite", lambda: (mountpoint / "probe.txt").write_bytes(b"CHANGED")),
+                    ("create", lambda: (mountpoint / "new.txt").write_bytes(b"NEW")),
+                    ("delete", lambda: (mountpoint / "probe.txt").unlink()),
+                    ("rename", lambda: (mountpoint / "probe.txt").rename(mountpoint / "renamed.txt")),
+                )
+                for action, attempt in mutation_attempts:
+                    try:
+                        attempt()
+                    except OSError:
+                        print(f"PASS: native Windows {action} rejected")
+                    else:
+                        raise AssertionError(f"Read-only mounted volume allowed {action}")
+                if (mountpoint / "probe.txt").read_bytes() != b"KRYPTA":
+                    raise AssertionError("Data changed after rejected mutation")
+                if (mountpoint / "new.txt").exists() or (mountpoint / "renamed.txt").exists():
+                    raise AssertionError("Rejected mutation left a visible file")
             finally:
                 # Always close the driver mount before image/temporary-dir exit.
                 if started or native.started:
