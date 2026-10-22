@@ -199,9 +199,15 @@ def test_gui_forms_have_separate_required_secret_fields():
     from krypta.volume_lab_gui import FORMS
     assert {command for _, _, command in FORMS} == {
         "create", "verify", "import", "export", "rotate", "recover",
+        "mount_readonly",
     }
     for _, fields, _ in FORMS:
         assert len([key for key, *_ in fields]) == len(set(key for key, *_ in fields))
+    mount_fields = next(fields for _, fields, action in FORMS
+                        if action == "mount_readonly")
+    mount_names = {key for key, *_ in mount_fields}
+    assert mount_names == {"image", "envelope", "receipt", "drive", "recovery"}
+    assert "password" not in mount_names  # Password belongs only in the child console.
 
 
 
