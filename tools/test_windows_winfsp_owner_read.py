@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import os
 import tempfile
+import sys
+import faulthandler
 from pathlib import Path
 
 
@@ -29,15 +31,66 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="krypta-winfsp-") as folder:
         base = Path(folder)
         image = base / "temporary.kpv"
-        mountpoint = base / "empty-mount"
-        # WinFsp creates the junction/mountpoint itself. An existing directory
-        # can produce STATUS_OBJECT_NAME_COLLISION on the native backend.
-        assert not mountpoint.exists()
+        # CI-only disposable drive letter. A directory reparse-point mount
+        # previously stalled in the Windows directory-query path even after
+        # the underlying WinFsp callback emitted the proper EOF sentinel.
+        used_drives = win32api.GetLogicalDrives()
+        free_letters = [
+            chr(ord("A") + idx)
+            for idx in range(ord("Z") - ord("A"), ord("P") - ord("A"), -1)
+            if not (used_drives & (1 << idx))
+        ]
+        if not free_letters:
+            raise RuntimeError("No free disposable CI drive letter")
+        drive = free_letters[0] + ":"
+        mountpoint = Path(drive + "\\")
+        assert not mountpoint.exists(), "CI drive already exists"
+        # Reference control: establish whether WinFsp/Windows can enumerate
+        # its own upstream memfs at the same drive letter on this runner.
+        from winfspy.memfs import create_memory_file_system
+        baseline_file = base / "baseline.txt"
+        baseline_file.write_bytes(b"WINFSP-REFERENCE")
+        # Use winfspy's own reference configuration, including its native
+        # volume flags, to avoid confounding the driver baseline with KRYPTA
+        # settings. The memory-file callbacks still reject every write.
+        control = create_memory_file_system(drive, label="WINFSP-CONTROL",
+                                            verbose=False, testing=True)
+        control.operations._import_files(baseline_file)
+        baseline_second = base / "baseline-second.txt"
+        baseline_second.write_bytes(b"SECOND-REFERENCE")
+        control.operations._import_files(baseline_second)
+        control.operations.read_only = True
+        # Trace low-level enumeration from the upstream reference as a
+        # control, including byte counts and the empty-directory terminator.
+        upstream_ll = control.operations.ll_read_directory
+        def trace_upstream_ll(*args, **kwargs):
+            status = upstream_ll(*args, **kwargs)
+            print(f"WINFSP_CONTROL_LL_DIR: status={status} bytes={args[5][0]}", flush=True)
+            return status
+        control.operations.ll_read_directory = trace_upstream_ll
+        control_started = False
+        try:
+            control.start()
+            control_started = True
+            print("WINFSP_CONTROL: enumerating upstream memory filesystem", flush=True)
+            faulthandler.dump_traceback_later(12, file=sys.stderr)
+            try:
+                baseline_names = list(os.listdir(mountpoint))
+            finally:
+                faulthandler.cancel_dump_traceback_later()
+            if set(baseline_names) != {"baseline.txt", "baseline-second.txt"}:
+                raise AssertionError(f"Upstream control listing incorrect: {baseline_names!r}")
+            print("PASS: upstream WinFsp memfs native directory enumeration", flush=True)
+        finally:
+            if control_started or control.started:
+                control.stop()
         with PagedResearchVolume(image, os.urandom(32), create=True) as volume:
             fs = PagedFS2.format(volume)
             ops = WindowsFileOperations(fs)
             ops.create(r"\probe.txt")
             ops.write(r"\probe.txt", 0, b"KRYPTA")
+            ops.create(r"\second.txt")
+            ops.write(r"\second.txt", 0, b"SECOND")
             receipt = fs.receipt
             token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
             try:
@@ -58,7 +111,7 @@ def main() -> None:
                                 "open", "read", "read_directory"):
                 original = getattr(callbacks, method_name)
                 def trace(*args, _original=original, _name=method_name, **kwargs):
-                    print(f"WINFSP_TRACE {_name}: called", flush=True)
+                    print(f"WINFSP_TRACE {_name}: called marker={args[1]!r}" if _name == "read_directory" and len(args) > 1 else f"WINFSP_TRACE {_name}: called", flush=True)
                     try:
                         value = _original(*args, **kwargs)
                     except Exception as exc:
@@ -67,22 +120,67 @@ def main() -> None:
                     print(f"WINFSP_TRACE {_name}: ok", flush=True)
                     return value
                 setattr(callbacks, method_name, trace)
-            native = winfspy.FileSystem(str(mountpoint), callbacks,
+            # Diagnostics only: capture driver response status and actual
+            # directory bytes. A successful high-level callback does not
+            # establish successful low-level buffer termination.
+            from winfspy.plumbing import ffi
+            original_ll = callbacks.ll_read_directory
+            def traced_ll(*args, **kwargs):
+                print(f"WINFSP_LL_DIR: request buffer_size={args[4]}", flush=True)
+                result = original_ll(*args, **kwargs)
+                print(f"WINFSP_LL_DIR: status={result} bytes={args[5][0]}", flush=True)
+                return result
+            callbacks.ll_read_directory = traced_ll
+            native = winfspy.FileSystem(drive, callbacks,
+                                        # Mirror the working upstream WinFsp
+                                        # baseline's volume parameters. The ACL
+                                        # below remains restricted to owner/SYSTEM.
+                                        sector_size=512,
+                                        sectors_per_allocation_unit=1,
+                                        file_info_timeout=1000,
+                                        post_cleanup_when_modified_only=True,
+                                        reject_irp_prior_to_transact0=False,
+                                        # Defense in depth: in addition to owner-
+                                        # scoped read ACLs and rejecting all mutation
+                                        # callbacks, WinFsp itself must deny writes.
                                         read_only_volume=True,
-                                        persistent_acls=False,
+                                        # Each open returns a distinct Context object; WinFsp
+                                        # must interpret it as a per-open file descriptor,
+                                        # not the shared file node (its default mode).
+                                        um_file_context_is_user_context2=True,
+                                        persistent_acls=True,
                                         case_sensitive_search=True,
                                         case_preserved_names=True,
                                         unicode_on_disk=True,
-                                        file_system_name="KRYPTA-TEST")
+                                        file_system_name=drive)
             started = False
             try:
                 native.start()
                 started = True
+                print(f"WINFSP_DIAG: disposable test drive {drive}", flush=True)
                 print("Native WinFsp dispatcher started on ephemeral directory")
                 actual = (mountpoint / "probe.txt").read_bytes()
                 if actual != b"KRYPTA":
                     raise AssertionError("Native read returned incorrect plaintext")
                 print("PASS: actual native Windows read of KRYPTA file")
+                print("WINFSP_DIAG: entering native directory enumeration", flush=True)
+                faulthandler.dump_traceback_later(12, file=sys.stderr)
+                try:
+                    names = {p.name for p in mountpoint.iterdir()}
+                finally:
+                    faulthandler.cancel_dump_traceback_later()
+                print(f"WINFSP_DIAG: listed names={sorted(names)}", flush=True)
+                if names != {"probe.txt", "second.txt"}:
+                    raise AssertionError(f"Native Windows directory listing wrong: {names!r}")
+                if (mountpoint / "second.txt").read_bytes() != b"SECOND":
+                    raise AssertionError("Second file not readable through native mount")
+                try:
+                    (mountpoint / "missing.txt").read_bytes()
+                except FileNotFoundError:
+                    pass
+                else:
+                    raise AssertionError("Nonexistent native file was readable")
+                print("PASS: native Windows directory listing, second-file read, missing-file rejection")
                 # Exercise actual Windows handles, not just mocked callbacks.
                 # All mutation attempts must fail and retain authenticated content.
                 mutation_attempts = (
