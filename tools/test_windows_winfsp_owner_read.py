@@ -56,7 +56,18 @@ def main() -> None:
         control = create_memory_file_system(drive, label="WINFSP-CONTROL",
                                             verbose=False, testing=True)
         control.operations._import_files(baseline_file)
+        baseline_second = base / "baseline-second.txt"
+        baseline_second.write_bytes(b"SECOND-REFERENCE")
+        control.operations._import_files(baseline_second)
         control.operations.read_only = True
+        # Trace low-level enumeration from the upstream reference as a
+        # control, including byte counts and the empty-directory terminator.
+        upstream_ll = control.operations.ll_read_directory
+        def trace_upstream_ll(*args, **kwargs):
+            status = upstream_ll(*args, **kwargs)
+            print(f"WINFSP_CONTROL_LL_DIR: status={status} bytes={args[5][0]}", flush=True)
+            return status
+        control.operations.ll_read_directory = trace_upstream_ll
         control_started = False
         try:
             control.start()
@@ -67,7 +78,7 @@ def main() -> None:
                 baseline_names = list(os.listdir(mountpoint))
             finally:
                 faulthandler.cancel_dump_traceback_later()
-            if baseline_names != ["baseline.txt"]:
+            if set(baseline_names) != {"baseline.txt", "baseline-second.txt"}:
                 raise AssertionError(f"Upstream control listing incorrect: {baseline_names!r}")
             print("PASS: upstream WinFsp memfs native directory enumeration", flush=True)
         finally:
@@ -121,11 +132,14 @@ def main() -> None:
                 return result
             callbacks.ll_read_directory = traced_ll
             native = winfspy.FileSystem(drive, callbacks,
-                                        # Match explicit native disk geometry from
-                                        # winfspy's working memory filesystem,
-                                        # with 4-KiB allocation units.
+                                        # Mirror the working upstream WinFsp
+                                        # baseline's volume parameters. The ACL
+                                        # below remains restricted to owner/SYSTEM.
                                         sector_size=512,
-                                        sectors_per_allocation_unit=8,
+                                        sectors_per_allocation_unit=1,
+                                        file_info_timeout=1000,
+                                        post_cleanup_when_modified_only=True,
+                                        reject_irp_prior_to_transact0=False,
                                         # Diagnostic only: isolate native ReadOnlyVolume
                                         # flag from reference memfs. All mutation
                                         # callbacks and the owner-only DACL still
@@ -135,11 +149,11 @@ def main() -> None:
                                         # must interpret it as a per-open file descriptor,
                                         # not the shared file node (its default mode).
                                         um_file_context_is_user_context2=True,
-                                        persistent_acls=False,
+                                        persistent_acls=True,
                                         case_sensitive_search=True,
                                         case_preserved_names=True,
                                         unicode_on_disk=True,
-                                        file_system_name="KRYPTA-TEST")
+                                        file_system_name=drive)
             started = False
             try:
                 native.start()
