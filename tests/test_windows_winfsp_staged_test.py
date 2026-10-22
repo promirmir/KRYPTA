@@ -182,7 +182,7 @@ def test_two_threads_cannot_share_writer(harness):
     def open_writer():
         gate.wait()
         try:
-            return bridge.open(r"\\sample.txt", 0, 0x0002)
+            return bridge.open(r"\sample.txt", 0, 0x0002)
         except WriteProtected:
             return None
 
@@ -202,7 +202,7 @@ def test_two_threads_cannot_share_writer(harness):
 def test_commit_acknowledgement_lost_freezes_write_session(harness, monkeypatch):
     image, key, pin, result, volume, fs, bridge, root = harness
     before = fs.receipt
-    h = bridge.open(r"\\sample.txt", 0, 0x0002)
+    h = bridge.open(r"\sample.txt", 0, 0x0002)
     bridge.write(h, b"changed", 0, False, False)
     original_commit = volume._commit
 
@@ -217,7 +217,7 @@ def test_commit_acknowledgement_lost_freezes_write_session(harness, monkeypatch)
     with pytest.raises(WriteProtected):
         bridge.write(h, b"another", 0, False, False)
     with pytest.raises(WriteProtected):
-        bridge.open(r"\\sample.txt", 0, 0x0002)
+        bridge.open(r"\sample.txt", 0, 0x0002)
     bridge.close(h)
     volume.close()
     with pytest.raises(PagedVolumeError, match="receipt mismatch"):
