@@ -29,7 +29,9 @@ def test_complete_cross_os_fixture_trip_through_copy(tmp_path):
     changed = image.read_bytes()
     verify(root)
     assert image.read_bytes() == changed
-    with pytest.raises(PagedVolumeError, match="receipt mismatch"):
+    # The constructor checks stale sequence BEFORE stale receipt.
+    # Both guards fail closed; the separate test below exercises receipt alone.
+    with pytest.raises(PagedVolumeError, match="External sequence mismatch"):
         update(root)
     assert image.read_bytes() == changed
 
