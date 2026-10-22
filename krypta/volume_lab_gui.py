@@ -122,8 +122,24 @@ class VolumeLabWindow(tk.Toplevel):
             fill="x", pady=(10, 12)
         )
 
+        ttk.Label(
+            top, text="Wybierz funkcję (lista obejmuje także niewidoczne karty):"
+        ).pack(anchor="w")
+        self.operation_picker = ttk.Combobox(
+            top, state="readonly", values=[title for title, _, _ in FORMS],
+        )
+        self.operation_picker.pack(fill="x", pady=(2, 6))
         notebook = ttk.Notebook(top)
         notebook.pack(fill="both", expand=True)
+        self.operation_picker.current(0)
+        self.operation_picker.bind(
+            "<<ComboboxSelected>>",
+            lambda _event: notebook.select(self.operation_picker.current()),
+        )
+        notebook.bind(
+            "<<NotebookTabChanged>>",
+            lambda _event: self.operation_picker.current(notebook.index("current")),
+        )
         for title, fields, command in FORMS:
             panel = ttk.Frame(notebook, padding=14)
             notebook.add(panel, text=title)
@@ -179,7 +195,8 @@ class VolumeLabWindow(tk.Toplevel):
         if key == "pin_path":
             kwargs["filetypes"] = [("KRYPTA sealed pin", "*.kpin"), ("All files", "*.*")]
         if destination:
-            kwargs["defaultextension"] = ".kpin" if key == "pin_path" else kwargs.get("defaultextension", "")
+            if key == "pin_path":
+                kwargs["defaultextension"] = ".kpin"
             selected = filedialog.asksaveasfilename(parent=self, **kwargs)
         else:
             selected = filedialog.askopenfilename(parent=self, **kwargs)
