@@ -45,8 +45,15 @@ jobs:
           New-Item -ItemType Directory -Path $testRoot -ErrorAction Stop | Out-Null
           "TMP=$testRoot" >> $env:GITHUB_ENV
           "TEMP=$testRoot" >> $env:GITHUB_ENV
-      - name: Verify unit and adversarial regression tests
+      - name: Verify non-GUI regression tests on all platforms
+        if: runner.os != 'Windows'
         run: python -m pytest -q
+      - name: Verify Windows regression tests without cross-test Tcl state
+        if: runner.os == 'Windows'
+        run: python -m pytest -q --ignore=tests/test_volume_lab_gui.py --ignore=tests/test_desktop_languages.py
+      - name: Require ALL Windows native Tk assertions in isolated interpreters
+        if: runner.os == 'Windows'
+        run: python -m tools.test_windows_gui_isolated --repeat 3
 
   rescue-binary:
     name: rescue binary / ${{ matrix.os }} / Python ${{ matrix.python-version }}
