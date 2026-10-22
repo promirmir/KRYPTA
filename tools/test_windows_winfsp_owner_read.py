@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import os
 import tempfile
+import sys
+import faulthandler
 from pathlib import Path
 
 
@@ -69,6 +71,17 @@ def main() -> None:
                     print(f"WINFSP_TRACE {_name}: ok", flush=True)
                     return value
                 setattr(callbacks, method_name, trace)
+            # Diagnostics only: capture driver response status and actual
+            # directory bytes. A successful high-level callback does not
+            # establish successful low-level buffer termination.
+            from winfspy.plumbing import ffi
+            original_ll = callbacks.ll_read_directory
+            def traced_ll(*args, **kwargs):
+                print(f"WINFSP_LL_DIR: request buffer_size={args[4]}", flush=True)
+                result = original_ll(*args, **kwargs)
+                print(f"WINFSP_LL_DIR: status={result} bytes={args[5][0]}", flush=True)
+                return result
+            callbacks.ll_read_directory = traced_ll
             native = winfspy.FileSystem(str(mountpoint), callbacks,
                                         read_only_volume=True,
                                         # Each open returns a distinct Context object; WinFsp
@@ -89,7 +102,13 @@ def main() -> None:
                 if actual != b"KRYPTA":
                     raise AssertionError("Native read returned incorrect plaintext")
                 print("PASS: actual native Windows read of KRYPTA file")
-                names = {p.name for p in mountpoint.iterdir()}
+                print("WINFSP_DIAG: entering native directory enumeration", flush=True)
+                faulthandler.dump_traceback_later(12, file=sys.stderr)
+                try:
+                    names = {p.name for p in mountpoint.iterdir()}
+                finally:
+                    faulthandler.cancel_dump_traceback_later()
+                print(f"WINFSP_DIAG: listed names={sorted(names)}", flush=True)
                 if names != {"probe.txt", "second.txt"}:
                     raise AssertionError(f"Native Windows directory listing wrong: {names!r}")
                 if (mountpoint / "second.txt").read_bytes() != b"SECOND":
