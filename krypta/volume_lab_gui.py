@@ -57,10 +57,28 @@ RECOVER = [
     ("password", "Nowe długie hasło", True, False),
     ("confirmation", "Powtórz hasło", True, False),
 ]
+PIN_CREATE = [
+    ("image", "Istniejący obraz TESTOWY .kpv", False, False),
+    ("envelope", "Pasujący plik .pvkey", False, False),
+    ("receipt", "WCZEŚNIEJ niezależnie ZAUFANY receipt (64 znaki hex)", False, False),
+    ("pin_path", "NOWY plik .kpin w INNYM katalogu niż obraz", False, True),
+    ("password", "Hasło (ALBO plik odzyskiwania)", True, False),
+    ("recovery", "ALBO istniejący plik klucza odzyskiwania", False, False),
+]
+PIN_VERIFY = [
+    ("image", "Istniejący obraz TESTOWY .kpv (tylko odczyt)", False, False),
+    ("envelope", "Pasujący plik .pvkey", False, False),
+    ("pin_path", "Istniejący, osobno chroniony plik .kpin", False, False),
+    ("trusted_seal", "NIEZALEŻNIE zachowany SHA-256 pieczęci (64 małe znaki hex)", False, False),
+    ("password", "Hasło (ALBO plik odzyskiwania)", True, False),
+    ("recovery", "ALBO istniejący plik klucza odzyskiwania", False, False),
+]
 FORMS = [
     ("Utwórz", CREATE, "create"),
     ("Weryfikuj", OPEN, "verify"),
     ("Analiza awarii (R/O)", REVIEW, "review"),
+    ("Utwórz pin .kpin", PIN_CREATE, "pin_create"),
+    ("Sprawdź pin (R/O)", PIN_VERIFY, "pin_verify"),
     ("Montuj R/O WinFsp", MOUNT_READONLY, "mount_readonly"),
     ("Dodaj plik", OPEN + [("source", "Zwykły plik do zaszyfrowania (maks. 32 MiB)", False, False)], "import"),
     ("Eksportuj", OPEN + [
@@ -135,7 +153,7 @@ class VolumeLabWindow(tk.Toplevel):
             action.grid(row=len(fields), column=1, sticky="w", pady=16)
             self.buttons.append(action)
 
-        ttk.Label(top, text="Wynik / NOWY RECEIPT — skopiuj do niezależnie chronionego miejsca").pack(
+        ttk.Label(top, text="Wynik / RECEIPT / SHA-256 pieczęci — przechowuj niezależnie od obrazu").pack(
             anchor="w", pady=(12, 4)
         )
         self.result = tk.Text(
@@ -158,7 +176,10 @@ class VolumeLabWindow(tk.Toplevel):
         kwargs = {}
         if key in {"image", "new_image"}:
             kwargs["filetypes"] = [("KRYPTA PVIMG", "*.kpv"), ("All files", "*.*")]
+        if key == "pin_path":
+            kwargs["filetypes"] = [("KRYPTA sealed pin", "*.kpin"), ("All files", "*.*")]
         if destination:
+            kwargs["defaultextension"] = ".kpin" if key == "pin_path" else kwargs.get("defaultextension", "")
             selected = filedialog.asksaveasfilename(parent=self, **kwargs)
         else:
             selected = filedialog.askopenfilename(parent=self, **kwargs)
@@ -216,6 +237,8 @@ class VolumeLabWindow(tk.Toplevel):
             "create": {"image", "envelope", "recovery", "password", "confirmation"},
             "verify": {"image", "envelope", "receipt"},
             "review": {"image", "envelope", "receipt"},
+            "pin_create": {"image", "envelope", "receipt", "pin_path"},
+            "pin_verify": {"image", "envelope", "pin_path", "trusted_seal"},
             "import": {"image", "envelope", "receipt", "source"},
             "export": {"image", "envelope", "receipt", "name", "output"},
             "rotate": {"image", "envelope", "receipt", "new_image", "new_envelope",
@@ -230,7 +253,7 @@ class VolumeLabWindow(tk.Toplevel):
                                    "Uzupełnij wymagane pole.", parent=self)
             data.clear()
             return
-        if action in {"verify", "review", "import", "export"}:
+        if action in {"verify", "review", "pin_create", "pin_verify", "import", "export"}:
             if bool(data.get("password")) == bool(data.get("recovery")):
                 messagebox.showerror("KRYPTA Volume Lab",
                                      "Podaj hasło ALBO plik odzyskiwania.", parent=self)
@@ -241,11 +264,21 @@ class VolumeLabWindow(tk.Toplevel):
                                  "Podaj dokładnie jedną starą metodę odblokowania.", parent=self)
             data.clear()
             return
-        if not messagebox.askyesno(
-            "KRYPTA / test-only",
+        confirmation_text = (
+            "Wolno tworzyć .kpin TYLKO dla wcześniej NIEZALEŻNIE zaufanego receipt. "
+            "Odcisk SHA-256 otrzymany po operacji MUSI być chroniony w osobnym miejscu, "
+            "nie obok .kpin lub .kpv. Nie powstaje automatyczne zabezpieczenie rollback. "
+            "Potwierdzasz niezależną wcześniejszą weryfikację receipt i dane testowe?"
+            if action == "pin_create" else
+            "To jest odczyt z osobno przechowaną pieczęcią. Obraz o INNYM stanie, "
+            "również nowszym, zostanie odrzucony; niczego nie zatwierdzamy automatycznie. "
+            "Potwierdzasz, że pieczęć pochodzi z niezależnego zaufanego źródła?"
+            if action == "pin_verify" else
             "Potwierdzasz, że używasz wyłącznie jednorazowych plików testowych .kpv, "
-            "masz kopie zapasowe i nie szyfrujesz partycji ani jedynej kopii ważnych danych?",
-            parent=self
+            "masz kopie zapasowe i nie szyfrujesz partycji ani jedynej kopii ważnych danych?"
+        )
+        if not messagebox.askyesno(
+            "KRYPTA / test-only", confirmation_text, parent=self
         ):
             data.clear()
             return
@@ -263,6 +296,14 @@ class VolumeLabWindow(tk.Toplevel):
                 "verify": lambda: operations.verify_image(
                     data["image"], data["envelope"], data["receipt"],
                     password=data["password"] or None, recovery=data["recovery"] or None),
+                "pin_create": lambda: operations.seal_existing_trusted_receipt(
+                    data["image"], data["envelope"], data["receipt"], data["pin_path"],
+                    password=data["password"] or None,
+                    recovery=data["recovery"] or None),
+                "pin_verify": lambda: operations.verify_sealed_receipt_image(
+                    data["image"], data["envelope"], data["pin_path"],
+                    data["trusted_seal"], password=data["password"] or None,
+                    recovery=data["recovery"] or None),
                 "review": lambda: operations.review_uncertain_image(
                     data["image"], data["envelope"], data["receipt"],
                     password=data["password"] or None,
@@ -345,6 +386,7 @@ class VolumeLabWindow(tk.Toplevel):
         self.latest_receipt = (
             report.get("receipt") if success and
             report.get("review_only") is not True and
+            report.get("trust_promoted") is not False and
             isinstance(report.get("receipt"), str) else None
         )
         self.save_receipt_button.configure(
