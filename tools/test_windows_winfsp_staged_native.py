@@ -109,6 +109,8 @@ def main() -> None:
                     markers = ""
                     if _name == "open" and len(args) >= 3:
                         markers = f" access={args[2]!r}"
+                    elif _name == "cleanup" and len(args) >= 3:
+                        markers = f" flags={args[2]!r}"
                     elif _name == "write" and len(args) >= 5:
                         markers = (
                             f" size={len(args[1])} offset={args[2]!r}"
