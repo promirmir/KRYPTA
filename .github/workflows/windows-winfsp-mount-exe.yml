@@ -1,0 +1,59 @@
+name: KRYPTA / Windows experimental read-only mount EXE
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/windows_mount_readonly.py'
+      - 'research/windows_winfsp_readonly.py'
+      - '.github/workflows/windows-winfsp-mount-exe.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/windows_mount_readonly.py'
+      - 'research/windows_winfsp_readonly.py'
+      - '.github/workflows/windows-winfsp-mount-exe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package-test-cli:
+    name: Build isolated WinFsp mount research EXE / Windows 2022
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned Python runtime and packager
+        run: python -m pip install -e '.[test]' winfspy==0.8.4 pyinstaller==6.16.0
+      - name: Build separate console EXE, not desktop GUI
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --console --name KRYPTA-Windows-ReadOnly-Mount-TEST tools/windows_mount_readonly.py
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller Windows research mount build failed' }
+      - name: Verify packaged CLI help and calculate SHA-256
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $file = 'dist/KRYPTA-Windows-ReadOnly-Mount-TEST.exe'
+          if (!(Test-Path $file)) { throw 'Packaged EXE was not generated' }
+          & $file --help
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged EXE argument parser failed' }
+          $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+          [System.IO.File]::WriteAllText(
+            (Join-Path (Get-Location) 'dist/KRYPTA-Windows-ReadOnly-Mount-TEST.exe.sha256'),
+            ($hash + '  KRYPTA-Windows-ReadOnly-Mount-TEST.exe' + [char]10),
+            [System.Text.Encoding]::ASCII
+          )
+      - name: Upload disposable development artifact (NOT a public release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: krypta-windows-readonly-mount-experimental-exe
+          path: |
+            dist/KRYPTA-Windows-ReadOnly-Mount-TEST.exe
+            dist/KRYPTA-Windows-ReadOnly-Mount-TEST.exe.sha256
+          if-no-files-found: error
+          retention-days: 14
