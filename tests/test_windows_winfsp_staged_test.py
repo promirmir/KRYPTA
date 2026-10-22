@@ -146,8 +146,13 @@ def test_mutating_callbacks_are_fail_closed(harness):
     ):
         with pytest.raises(WriteProtected):
             getattr(bridge, name)(*args)
+    # WinFsp sends these optional metadata hints after a successful
+    # native write. They are harmless only in the synthetic test adapter.
+    assert bridge.cleanup(h, r"\sample.txt", 0xF0) is None
     with pytest.raises(WriteProtected):
         bridge.cleanup(h, r"\sample.txt", 0x01)
+    with pytest.raises(WriteProtected):
+        bridge.cleanup(h, r"\sample.txt", 0x02)
     with pytest.raises(WriteProtected):
         bridge.set_file_size(h, 9, True)
     with pytest.raises(AccessDenied):
