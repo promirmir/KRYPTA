@@ -1,8 +1,10 @@
 # KRYPTA — Nadrzędne wymagania projektu (Project Charter)
 
 **Status:** przyjęte na podstawie wymagań właściciela · 2026-10-20  
-**Repozytorium:** `promirmir/KRYPTA` · **PRIVATE do osobnej decyzji właściciela**  
+**Repozytorium:** `promirmir/KRYPTA` · **PUBLIC** (publiczne repozytorium kodu i wydania rozwojowe; nie oznacza gotowości wersji 1.0)  
 **Zasada:** to dokument nadrzędny wobec planów i opisów. Zmiana celów wymaga wyraźnej decyzji właściciela; każdą propozycję odstępstwa należy oznaczyć jako *odstępstwo*, a nie po cichu przedefiniować projekt.
+
+**Aktualny stan realizacji obowiązkowych funkcji:** [FUNCTION_STATUS.md](FUNCTION_STATUS.md). Publikacja dev EXE/ELF/APK nie jest równoznaczna z ukończeniem szyfrowania całych nośników.
 
 ## Wymóg ukończenia i zasada nazewnictwa produktu
 
