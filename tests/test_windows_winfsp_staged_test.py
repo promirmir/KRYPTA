@@ -90,6 +90,26 @@ def test_unflushed_write_is_private_and_unmount_abort_is_safe(harness):
     assert bridge.observed_receipt_UNTRUSTED is None
 
 
+
+def test_buffer_protocol_payload_is_accepted_and_invalid_buffer_rejected(harness):
+    # winfspy's native binding uses CFFI buffers, not necessarily 'bytes'.
+    # A standard non-bytes Python exporter proves this adapter does not
+    # rely on a concrete bytes type, while retaining its bounded write gate.
+    from array import array
+
+    image, key, pin, result, writer, fs, bridge, root = harness
+    before = image.read_bytes()
+    h = bridge.open(r"\\sample.txt", 0, 0x0002)
+    try:
+        assert bridge.write(h, array("B", b"ADAPTED!"), 0, False, False) == 8
+        assert bridge.read(h, 0, 8) == b"ADAPTED!"
+        with pytest.raises(AccessDenied):
+            bridge.write(h, object(), 0, False, False)
+        assert image.read_bytes() == before
+    finally:
+        bridge.close(h)
+
+
 def test_one_flush_commits_single_root_and_blocks_more_writes(harness):
     image, key, pin, result, volume, fs, bridge, root = harness
     prior = fs.receipt
