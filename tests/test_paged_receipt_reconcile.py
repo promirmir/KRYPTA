@@ -230,3 +230,9 @@ def test_cli_fail_closed_on_wrong_image_id(lab, tmp_path, capsys, monkeypatch):
     assert rc == 1
     assert "FAILED" in capsys.readouterr().err
     assert image.read_bytes() == original
+
+
+def test_real_cli_self_test_exercises_disposable_encrypted_image(capsys):
+    """No inputs from the user, no image mutation outside a private temp dir."""
+    assert cli.main(["--self-test"]) == 0
+    assert "synthetic self-test PASS" in capsys.readouterr().out
