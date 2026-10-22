@@ -153,7 +153,7 @@ class VolumeLabWindow(tk.Toplevel):
                 entry = ttk.Entry(panel, textvariable=value, width=57,
                                   show="●" if secret else "")
                 entry.grid(row=index, column=1, sticky="ew", padx=(10, 5), pady=5)
-                if key not in {"receipt", "password", "confirmation",
+                if key not in {"receipt", "trusted_seal", "password", "confirmation",
                                "old_password", "new_password", "name"}:
                     ttk.Button(panel, text="...", width=4,
                                command=lambda k=key, v=value, dest=is_output:
