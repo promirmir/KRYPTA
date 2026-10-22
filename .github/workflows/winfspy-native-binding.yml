@@ -48,7 +48,7 @@ jobs:
       - name: Native ephemeral WinFsp mount and unmount
         shell: pwsh
         run: |
-          python tools/test_windows_winfsp_mount_lifecycle.py
+          python -m tools.test_windows_winfsp_mount_lifecycle
           if ($LASTEXITCODE -ne 0) { throw 'Native WinFsp mount lifecycle failed' }
       - name: Explain remaining gate
         run: |
