@@ -268,6 +268,7 @@ def test_gui_forms_have_separate_required_secret_fields():
     assert {command for _, _, command in FORMS} == {
         "create", "verify", "import", "export", "rotate", "recover",
         "mount_readonly", "review", "pin_create", "pin_verify",
+        "import_many",
     }
     for _, fields, _ in FORMS:
         assert len([key for key, *_ in fields]) == len(set(key for key, *_ in fields))
