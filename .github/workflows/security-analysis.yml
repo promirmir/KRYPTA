@@ -51,9 +51,9 @@ jobs:
           python -m pip install -e '.[test]'
           python -m pip install 'bandit>=1.7.10,<2' 'pip-audit>=2.7,<3'
       - name: Validate Python syntax
-        run: python -m compileall -q krypta research tests tools/windows_mount_readonly.py tools/test_windows_winfsp_cli_native.py tools/test_windows_gui_isolated.py tools/review_uncertain_kpv.py tools/review_uncertain_kpv.py
+        run: python -m compileall -q krypta research tests tools/windows_mount_readonly.py tools/test_windows_winfsp_cli_native.py tools/test_windows_gui_isolated.py tools/review_uncertain_kpv.py
       - name: Static analysis for high and medium-severity findings
-        run: python -m bandit -r krypta research/paged_rescue.py research/rescue_output.py research/rescue_output_windows.py research/paged_receipt_reconcile.py tools/windows_mount_readonly.py tools/test_windows_winfsp_cli_native.py tools/test_windows_gui_isolated.py -q -ll
+        run: python -m bandit -r krypta research/paged_rescue.py research/rescue_output.py research/rescue_output_windows.py research/paged_receipt_reconcile.py tools/windows_mount_readonly.py tools/test_windows_winfsp_cli_native.py tools/test_windows_gui_isolated.py tools/review_uncertain_kpv.py -q -ll
       - name: Audit resolved runtime and test dependencies (fail closed)
         shell: bash
         run: |
