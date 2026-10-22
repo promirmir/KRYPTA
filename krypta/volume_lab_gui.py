@@ -79,6 +79,7 @@ FORMS = [
     ("Analiza awarii (R/O)", REVIEW, "review"),
     ("Utwórz pin .kpin", PIN_CREATE, "pin_create"),
     ("Sprawdź pin (R/O)", PIN_VERIFY, "pin_verify"),
+    ("Dyski fizyczne (R/O)", [], "physical_disks"),
     ("Montuj R/O WinFsp", MOUNT_READONLY, "mount_readonly"),
     ("Dodaj plik", OPEN + [("source", "Zwykły plik do zaszyfrowania (maks. 32 MiB)", False, False)], "import"),
     ("Dodaj wiele", OPEN + [("sources", "Wybierz wiele plików (razem maks. 32 MiB, jeden commit)", False, False)], "import_many"),
@@ -258,6 +259,7 @@ class VolumeLabWindow(tk.Toplevel):
         data = {key: value.get() for key, value in self.forms[action].items()}
         required = {
             "create": {"image", "envelope", "recovery", "password", "confirmation"},
+            "physical_disks": set(),
             "verify": {"image", "envelope", "receipt"},
             "review": {"image", "envelope", "receipt"},
             "pin_create": {"image", "envelope", "receipt", "pin_path"},
@@ -289,6 +291,10 @@ class VolumeLabWindow(tk.Toplevel):
             data.clear()
             return
         confirmation_text = (
+            "Odczytam tylko SYSTEMOWE METADANE rzeczywistych dysków. "
+            "Nic nie zostanie odmontowane, sformatowane, otwarte do zapisu "
+            "ani zaszyfrowane. To NIE JEST jeszcze szyfrowanie dysków."
+            if action == "physical_disks" else
             "Wolno tworzyć .kpin TYLKO dla wcześniej NIEZALEŻNIE zaufanego receipt. "
             "Odcisk SHA-256 otrzymany po operacji MUSI być chroniony w osobnym miejscu, "
             "nie obok .kpin lub .kpv. Nie powstaje automatyczne zabezpieczenie rollback. "
@@ -316,6 +322,7 @@ class VolumeLabWindow(tk.Toplevel):
     def _worker(self, action: str, data: dict[str, str]) -> None:
         try:
             method = {
+                "physical_disks": lambda: operations.inspect_physical_disks(),
                 "create": lambda: operations.create_image(**data),
                 "verify": lambda: operations.verify_image(
                     data["image"], data["envelope"], data["receipt"],

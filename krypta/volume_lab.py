@@ -279,6 +279,12 @@ def import_files(image: str | Path, envelope: str | Path, receipt: str,
         }
 
 
+def inspect_physical_disks() -> dict:
+    """Get read-only OS disk metadata; never open raw storage or encrypt it."""
+    from .physical_disks import inspect_physical_disks as scan
+    return scan()
+
+
 def export_file(image: str | Path, envelope: str | Path, receipt: str,
                 name: str, output: str | Path, *, password: str | None = None,
                 recovery: str | Path | None = None) -> dict:

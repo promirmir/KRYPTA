@@ -37,6 +37,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: python -m pip install -e '.[test]'
+      - name: Require native read-only physical disk discovery
+        run: |
+          python -c "from krypta.physical_disks import inspect_physical_disks; r = inspect_physical_disks(); assert r['physical_disk_encryption_enabled'] is False; assert all(not d['write_authorized'] for d in r['devices']); print('Read-only disk inventory passed; count =', r['device_count'])"
       - name: Select private Windows test ancestry
         if: runner.os == 'Windows'
         shell: pwsh
