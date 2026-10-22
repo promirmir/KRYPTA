@@ -50,6 +50,12 @@ jobs:
         run: |
           python -m tools.test_windows_winfsp_mount_lifecycle
           if ($LASTEXITCODE -ne 0) { throw 'Native WinFsp mount lifecycle failed' }
+      - name: Native disposable one-shot write, flush and rollback refusal
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          python -m tools.test_windows_winfsp_staged_native
+          if ($LASTEXITCODE -ne 0) { throw 'Native staged encrypted write did not pass' }
       - name: Explain remaining gate
         run: |
-          echo "Lifecycle test only: WinFsp start/stop is checked, but ACL-gated Explorer access and file I/O are NOT certified."
+          echo "Test-only staged writer: one isolated WinFsp write + explicit flush; no general mount, no production write access or independently durable anti-rollback."
