@@ -11,7 +11,7 @@
 | Graficzny File Vault — szyfrowanie i odszyfrowywanie wybranych plików | Działa w dev EXE | Działa w dev ELF | Działa w debug APK | Nie przechwytuje automatycznie zapisów wszystkich programów |
 | Własny zaszyfrowany format PVIMG/1 i PFS/2 | Działa w Volume Lab na .kpv | Działa w Volume Lab na .kpv | Brak | Maks. 32 MiB/pliki, 128 plików, obraz testowy, nie wolumin fizyczny |
 | Hasło oraz niezależny klucz do odzyskiwania PFS/2 | Działa w Volume Lab | Działa w Volume Lab | Brak wspólnego PFS/2 | PVKEY/1 wymaga długiego hasła; brak sprzętowego ogranicznika krótkiego PIN-u |
-| Import, eksport, weryfikacja integralności PFS/2 | Działa w Volume Lab | Działa w Volume Lab | Brak | Zapis/eksport wymaga jawnej operacji, a nie transparentnego montowania |
+| Import pojedynczego i wielu plików, eksport, weryfikacja PFS/2 | Działa w Volume Lab | Działa w Volume Lab | Brak | „Dodaj wiele”: kilka nowych plików i jedna zatwierdzona transakcja/receipt, maks. 32 MiB łącznie, 128 plików w woluminie; nadal bez montowania zapisu |
 | Rotacja klucza danych przez nowy zaszyfrowany obraz | Działa w Volume Lab | Działa w Volume Lab | Brak | Stare kopie i stare klucze nie są automatycznie unieważniane |
 | Ratunkowy pełny eksport aktualnych plików PFS/2 bez GUI | Działa w Rescue EXE (dev) | Działa w Rescue ELF (dev) | Brak | Źródłowy obraz tylko do odczytu; wynik jest jawny |
 | Analiza dziennika, historii receipt i symulacji przerwań | Działa w Volume Lab (R/O) / testach | Działa w Volume Lab (R/O) / testach | Brak | Historia nie potwierdza automatycznie świeżości nowszego stanu |

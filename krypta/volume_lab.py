@@ -212,6 +212,73 @@ def import_file(image: str | Path, envelope: str | Path, receipt: str,
         }
 
 
+
+def import_files(image: str | Path, envelope: str | Path, receipt: str,
+                 sources: list[str | Path], *, password: str | None = None,
+                 recovery: str | Path | None = None) -> dict:
+    """Import multiple NEW regular files in ONE test-image COW transaction.
+
+    An ambiguous write is never retried or silently promoted. Plaintext
+    sources remain unchanged. Keep the returned receipt independently.
+    """
+    from research.paged_fs2 import MAX_FILES, MAX_ATOMIC_FILE_BLOCKS, DIRECTORY_BLOCKS
+    from research.paged_volume import BLOCK_BYTES
+
+    if not isinstance(sources, (list, tuple)) or not 1 <= len(sources) <= MAX_FILES:
+        raise ValueError("Select 1 to 128 ordinary plaintext source files")
+    image = _image_path(image)
+    paths = [Path(s) for s in sources]
+    protected = [image, Path(envelope), *paths]
+    if recovery is not None:
+        protected.append(Path(recovery))
+    _distinct(*protected)
+
+    payloads: dict[str, bytes] = {}
+    blocks = 0
+    for source in paths:
+        name = source.name
+        if name in payloads:
+            raise ValueError("Source basenames must be unique inside the image")
+        with _open_checked_file(source) as handle:
+            before = os.fstat(handle.fileno())
+            if before.st_size > MAX_FILE_BYTES:
+                raise ValueError("Source exceeds PFS/2 32-MiB per-file limit")
+            payload = handle.read(MAX_FILE_BYTES + 1)
+            after = os.fstat(handle.fileno())
+            if (len(payload) > MAX_FILE_BYTES or
+                    (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) !=
+                    (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) or
+                    len(payload) != after.st_size):
+                raise ValueError("Source changed during bounded import read")
+        blocks += (len(payload) + BLOCK_BYTES - 1) // BLOCK_BYTES
+        if blocks > MAX_ATOMIC_FILE_BLOCKS - DIRECTORY_BLOCKS:
+            raise ValueError("Batch exceeds 32 MiB of single-commit sectors")
+        payloads[name] = payload
+
+    with _open(image, envelope, receipt, password=password, recovery=recovery) as fs:
+        fs.write_files_atomic(payloads)
+        unverified_receipt = fs.receipt
+        try:
+            for name, payload in payloads.items():
+                if fs.read_file(name) != payload:
+                    raise ValueError("Batch post-commit payload mismatch")
+            check = fs.verify_all()
+            if check["receipt"] != unverified_receipt:
+                raise ValueError("Batch commit receipt changed during verification")
+        except Exception as exc:
+            raise PostCommitVerificationError(unverified_receipt) from exc
+        return {
+            "operation": "Atomically imported NEW encrypted files",
+            "receipt_changed": True,
+            "files": sorted(payloads),
+            "files_imported": len(payloads),
+            "bytes_verified": sum(map(len, payloads.values())),
+            "receipt": unverified_receipt,
+            "warning": "One COW commit. Plaintext originals remain. "
+                       "Store new trusted receipt independently NOW.",
+        }
+
+
 def export_file(image: str | Path, envelope: str | Path, receipt: str,
                 name: str, output: str | Path, *, password: str | None = None,
                 recovery: str | Path | None = None) -> dict:
