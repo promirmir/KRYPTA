@@ -15,7 +15,7 @@ import tempfile
 from threading import RLock
 
 from .windows_file_ops import WindowsFileOperations
-from .windows_staged_write import StagedWindowsFileWrite, UncertainStagedCommit
+from .windows_staged_write import StagedWindowsFileWrite, UncertainStagedCommit, MAX_STAGED_FILE_BYTES
 from .windows_winfsp_readonly import make_readonly_winfsp_operations
 from .receipt_anchor import load_sealed_pin, ReceiptPinError
 
@@ -132,9 +132,18 @@ def make_one_shot_test_winfsp_operations(
                     raise api.NTStatusMediaWriteProtected()
                 stage = file_context.stage
                 try:
-                    if not isinstance(buffer, (bytes, bytearray, memoryview)):
-                        raise ValueError("Invalid buffer")
-                    payload = bytes(buffer)
+                    # winfspy's native low-level binding supplies a CFFI
+                    # buffer, not necessarily a bytes/bytearray/memoryview.
+                    # Accept only objects with Python's buffer protocol and
+                    # bound allocation BEFORE materializing plaintext bytes.
+                    try:
+                        view = memoryview(buffer)
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError("Invalid native WinFsp buffer") from exc
+                    if (view.ndim != 1 or view.itemsize != 1
+                            or view.nbytes > MAX_STAGED_FILE_BYTES):
+                        raise ValueError("Invalid or oversized native write")
+                    payload = view.tobytes()
                     if constrained_io:
                         size = len(stage._buffer)
                         if type(offset) is not int or offset < 0:
@@ -202,9 +211,16 @@ def make_one_shot_test_winfsp_operations(
         def cleanup(self, file_context, file_name, flags):
             with self._txn_guard:
                 self._active(file_context)
-                # Never convert delete/disposition/attribute changes to
-                # successful no-ops that could mislead native Windows callers.
-                if not isinstance(flags, int) or flags & ~0:
+                # Native WinFsp sends normal cleanup with metadata hints
+                # (0x10 archive; 0x20 last-access; 0x40 last-write;
+                # 0x80 change-time), even after a successful explicit flush.
+                # Cleanup is a VOID callback: Windows cannot observe errors.
+                # Ignore ONLY these optional timestamp/archive hints in this
+                # synthetic, non-production filesystem, never invent
+                # persisted NTFS metadata or mutate authenticated ciphertext.
+                # Deletion (0x01), allocation-size (0x02) and unknown flags
+                # remain forbidden. CanDelete/SetDelete are denied separately.
+                if type(flags) is not int or flags & ~0xF0:
                     raise api.NTStatusMediaWriteProtected()
                 return None
 
