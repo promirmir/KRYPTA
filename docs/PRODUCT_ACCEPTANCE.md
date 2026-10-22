@@ -2,7 +2,7 @@
 
 **Wiążący cel:** dostarczenie samodzielnego, użytkowego systemu szyfrowania — nie projektu prezentacyjnego. To dokument bramek akceptacyjnych dla wersji 1.0. Żaden moduł nie jest uznawany za ukończony na podstawie samej obecności kodu, GUI, kompilacji, testu jednostkowego ani deklaracji. Każdy pozytywny status wymaga odtwarzalnych testów na docelowej platformie i dowodów odzyskiwania danych.
 
-**Stan bieżący: W TRAKCIE REALIZACJI.** Nie utożsamiać celu z istniejącą funkcjonalnością. Aktualne wyniki i zastrzeżenia znajdują się w [SECURITY_STATUS.md](SECURITY_STATUS.md).
+**Stan bieżący: W TRAKCIE REALIZACJI.** Nie utożsamiać celu z istniejącą funkcjonalnością. Aktualne wyniki i zastrzeżenia znajdują się w [SECURITY_STATUS.md](SECURITY_STATUS.md). Jednoznaczny stan każdej głównej funkcji dla użytkownika: [FUNCTION_STATUS.md](FUNCTION_STATUS.md). Zaliczone testy dev nie zamykają automatycznie żadnej bramki wydania 1.0.
 
 ## P0 — bezpieczeństwo istniejących danych
 
