@@ -86,11 +86,15 @@ def make_one_shot_test_winfsp_operations(
             # The native kernel enforces ACLs; callback additionally refuses
             # operations after an uncertain or completed commit.
             with self._txn_guard:
-                ctx = self._resolve(file_name)
                 if not isinstance(granted_access, int):
                     raise api.NTStatusAccessDenied()
                 # FILE_WRITE_DATA and FILE_APPEND_DATA (Win32 access bits).
                 wants_write = bool(granted_access & 0x0006)
+                # Never consult potentially poisoned PFS/2 metadata after an
+                # uncertain flush merely to decide whether a writer is denied.
+                if wants_write and (self._ever_committed or self._uncertain):
+                    raise api.NTStatusMediaWriteProtected()
+                ctx = self._resolve(file_name)
                 if wants_write:
                     if (ctx.directory or self._ever_committed or self._uncertain
                             or self._writer_context is not None):
