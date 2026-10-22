@@ -8,7 +8,7 @@ import pytest
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get("DISPLAY"),
                     reason="Tk requires graphical display")
-def test_volume_lab_window_has_seven_explicit_test_image_operations():
+def test_volume_lab_window_has_eight_explicit_test_image_operations():
     import tkinter as tk
     from krypta.volume_lab_gui import VolumeLabWindow
     root = tk.Tk()
@@ -19,9 +19,12 @@ def test_volume_lab_window_has_seven_explicit_test_image_operations():
             win.update_idletasks()
             assert set(win.forms) == {
                 "create", "verify", "import", "export", "rotate", "recover",
-                "mount_readonly",
+                "mount_readonly", "review",
             }
-            assert len(win.buttons) == 7
+            assert len(win.buttons) == 8
+            assert set(win.forms['review']) == {
+                'image', 'envelope', 'receipt', 'password', 'recovery',
+            }
             assert set(win.forms['mount_readonly']) == {
                 'image', 'envelope', 'receipt', 'drive', 'recovery',
             }
@@ -145,4 +148,77 @@ def test_readonly_receipt_is_not_falsely_reported_as_changed(monkeypatch):
         assert "UNVERIFIED_RECEIPT_RECOVERY_ONLY" in lab.result.get("1.0", "end")
     finally:
         lab.destroy()
+        root.destroy()
+
+
+def test_forensic_ui_worker_routes_only_review_and_discards_credential_refs(monkeypatch):
+    from types import SimpleNamespace
+    import krypta.volume_lab_gui as ui
+    received = []
+    def stub_review(image, envelope, receipt, *, password=None, recovery=None):
+        received.append((image, envelope, receipt, password, recovery))
+        return {
+            "review_only": True,
+            "status": "DESCENDANT_FOUND_MANUAL_REVIEW_REQUIRED",
+            "observed_receipt_UNTRUSTED": "f" * 64,
+        }
+    monkeypatch.setattr(ui.operations, "review_uncertain_image", stub_review)
+    result = []
+    fake = SimpleNamespace(
+        after=lambda delay, callback: callback(),
+        _finish=lambda success, report: result.append((success, report)),
+    )
+    data = {
+        "image": "forensic.kpv", "envelope": "keys.pvkey",
+        "receipt": "a" * 64, "password": "sensitive-long-string",
+        "recovery": "",
+    }
+    ui.VolumeLabWindow._worker(fake, "review", data)
+    assert received == [
+        ("forensic.kpv", "keys.pvkey", "a" * 64, "sensitive-long-string", None)
+    ]
+    assert data == {}
+    assert len(result) == 1 and result[0][0] is True
+    assert result[0][1]["review_only"] is True
+    assert "receipt" not in result[0][1]
+
+
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get("DISPLAY"),
+                    reason="Tk requires graphical display")
+def test_forensic_ui_never_promotes_candidate_or_enables_receipt_export(monkeypatch):
+    import tkinter as tk
+    import krypta.volume_lab_gui as ui
+    root = tk.Tk()
+    root.withdraw()
+    win = ui.VolumeLabWindow(root)
+    warnings = []
+    monkeypatch.setattr(
+        ui.messagebox, "showwarning", lambda *args, **kwargs:
+        warnings.append(args)
+    )
+    try:
+        report = {
+            "review_only": True,
+            "status": "DESCENDANT_FOUND_MANUAL_REVIEW_REQUIRED",
+            "observed_receipt_UNTRUSTED": "b" * 64,
+            # Defend even against accidental future addition of generic receipt.
+            "receipt": "b" * 64,
+            "receipt_changed": False,
+        }
+        win._finish(True, report)
+        assert len(warnings) == 1
+        assert win.latest_receipt is None
+        assert str(win.save_receipt_button["state"]) == "disabled"
+        assert "ZABLOKOWANY" in win.status.get()
+        assert "observed_receipt_UNTRUSTED" in win.result.get("1.0", "end")
+        win._finish(True, {
+            "review_only": True,
+            "status": "CURRENT_RECEIPT_MATCHES_PRIOR",
+            "receipt": "a" * 64, "receipt_changed": False,
+        })
+        assert len(warnings) == 1
+        assert win.latest_receipt is None
+        assert str(win.save_receipt_button["state"]) == "disabled"
+    finally:
+        win.destroy()
         root.destroy()
