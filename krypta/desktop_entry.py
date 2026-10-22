@@ -141,7 +141,7 @@ def run_paged_volume_lab_self_test() -> int:
     from krypta.volume_lab import (
         create_image, verify_image, import_file, export_file, rotate_image,
         review_uncertain_image, seal_existing_trusted_receipt,
-        verify_sealed_receipt_image,
+        verify_sealed_receipt_image, import_folder_atomic,
     )
     from research.paged_volume import PagedVolumeError
     with tempfile.TemporaryDirectory(prefix="krypta-pfs2-gui-smoke-") as directory:
@@ -213,8 +213,29 @@ def run_paged_volume_lab_self_test() -> int:
                     password=password)
         if plaintext.read_bytes() != sample:
             raise RuntimeError("Packaged PFS2 authenticated export mismatch")
+        # Confirm the PACKAGED GUI service imports multiple files in ONE COW.
+        input_folder = root / "batch-input"
+        input_folder.mkdir(mode=0o700)
+        (input_folder / "a.txt").write_bytes(b"bundle A")
+        (input_folder / "b.txt").write_bytes(b"bundle B")
+        before_batch = verify_image(
+            image, envelope, addition["receipt"], recovery=recovery
+        )
+        committed_batch = import_folder_atomic(
+            image, envelope, addition["receipt"], input_folder,
+            password=password,
+        )
+        after_batch = verify_image(
+            image, envelope, committed_batch["receipt"], recovery=recovery
+        )
+        if (committed_batch["files_verified"] != 2
+                or after_batch["files_verified"] != 3
+                or committed_batch["receipt"] == addition["receipt"]
+                or after_batch["receipt"] != committed_batch["receipt"]
+                or before_batch["files_verified"] != 1):
+            raise RuntimeError("Packaged atomic batch import failed")
         moved = rotate_image(
-            image, envelope, addition["receipt"],
+            image, envelope, committed_batch["receipt"],
             root / "rotated.kpv", root / "rotated.pvkey",
             root / "rotated.recovery",
             "Another entirely different long passphrase 2026!",
@@ -226,7 +247,7 @@ def run_paged_volume_lab_self_test() -> int:
         if verify_image(
             root / "rotated.kpv", root / "rotated.pvkey", moved["receipt"],
             recovery=root / "rotated.recovery"
-        )["files_verified"] != 1:
+        )["files_verified"] != 3:
             raise RuntimeError("Packaged re-encrypted image validation failed")
     return 0
 
