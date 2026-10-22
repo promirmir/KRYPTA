@@ -126,7 +126,11 @@ def main() -> None:
                                         # with 4-KiB allocation units.
                                         sector_size=512,
                                         sectors_per_allocation_unit=8,
-                                        read_only_volume=True,
+                                        # Diagnostic only: isolate native ReadOnlyVolume
+                                        # flag from reference memfs. All mutation
+                                        # callbacks and the owner-only DACL still
+                                        # reject Windows write/delete/rename calls.
+                                        read_only_volume=False,
                                         # Each open returns a distinct Context object; WinFsp
                                         # must interpret it as a per-open file descriptor,
                                         # not the shared file node (its default mode).
