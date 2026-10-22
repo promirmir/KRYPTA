@@ -168,3 +168,59 @@ def test_reject_real_or_unspecific_paths_even_with_valid_pin(harness):
             WindowsFileOperations(fs), api(), test_root=root / "nonexistent",
             trusted_pin_path=pin, independently_trusted_seal=result["seal_sha256"]
         )
+
+
+def test_two_threads_cannot_share_writer(harness):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    image, key, pin, result, volume, fs, bridge, root = harness
+    before = image.read_bytes()
+    trusted = fs.receipt
+    gate = Barrier(3)
+
+    def open_writer():
+        gate.wait()
+        try:
+            return bridge.open(r"\\sample.txt", 0, 0x0002)
+        except WriteProtected:
+            return None
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        one = pool.submit(open_writer)
+        two = pool.submit(open_writer)
+        gate.wait()
+        contexts = [one.result(), two.result()]
+    assert sum(c is not None for c in contexts) == 1
+    assert image.read_bytes() == before
+    for ctx in contexts:
+        if ctx is not None:
+            bridge.close(ctx)
+    assert fs.receipt == trusted
+
+
+def test_commit_acknowledgement_lost_freezes_write_session(harness, monkeypatch):
+    image, key, pin, result, volume, fs, bridge, root = harness
+    before = fs.receipt
+    h = bridge.open(r"\\sample.txt", 0, 0x0002)
+    bridge.write(h, b"changed", 0, False, False)
+    original_commit = volume._commit
+
+    def lost_ack(*args):
+        original_commit(*args)
+        raise OSError("simulated lost acknowledgment AFTER persisted commit")
+
+    monkeypatch.setattr(volume, "_commit", lost_ack)
+    with pytest.raises(AccessDenied):
+        bridge.flush(h)
+    assert bridge.observed_receipt_UNTRUSTED is None
+    with pytest.raises(WriteProtected):
+        bridge.write(h, b"another", 0, False, False)
+    with pytest.raises(WriteProtected):
+        bridge.open(r"\\sample.txt", 0, 0x0002)
+    bridge.close(h)
+    volume.close()
+    with pytest.raises(PagedVolumeError, match="receipt mismatch"):
+        PagedResearchVolume(image, key, expected_receipt=before, read_only=True)
+    # The post-crash newer receipt must NOT be trusted by the driver.
+    assert pin.exists()
