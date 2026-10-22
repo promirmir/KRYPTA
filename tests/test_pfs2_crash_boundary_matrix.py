@@ -102,7 +102,11 @@ def test_pfs2_all_commit_record_bytes_and_sampled_data_node_boundaries(tmp_path)
             assert filesystem.read_file("important.bin") == target
             assert filesystem.read_file("unmodified.bin") == b"other data retained"
             assert filesystem.verify_all()["files_verified"] == 2
-            assert recovery._trim_offset is not None if point != final_commit_end else recovery._trim_offset is None
+            if point in (len(previous_image), final_commit_end):
+                # Exactly on a committed boundary, there is no trailing tail.
+                assert recovery._trim_offset is None
+            else:
+                assert recovery._trim_offset is not None
         # Read-only investigation must not trim a damaged tail, or alter data.
         assert cut_path.read_bytes() == contents
 
