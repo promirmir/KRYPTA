@@ -100,9 +100,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $msi = Join-Path $env:RUNNER_TEMP 'winfsp-2.2.26194.msi'
-          Invoke-WebRequest -Uri 'https://github.com/winfsp/winfsp/releases/download/v2.2B3/winfsp-2.2.26194.msi' -OutFile $msi
-          if ((Get-FileHash $msi -Algorithm SHA256).Hash -ne '7B41020618CDCC33D699D0E15C1DF660F0762A09B57080049C565857AC00BD9D') {
+          $msi = Join-Path $env:RUNNER_TEMP 'winfsp-2.2.26286.msi'
+          Invoke-WebRequest -Uri 'https://github.com/winfsp/winfsp/releases/download/v2.2B5/winfsp-2.2.26286.msi' -OutFile $msi
+          if ((Get-FileHash $msi -Algorithm SHA256).Hash -ne '293FFB9BCC0B625C85079FE85FA77F8FE98170ABA51A02AC9C83D58F6C3B0E2F') {
             throw 'WinFsp MSI hash mismatch'
           }
           $process = Start-Process msiexec.exe -ArgumentList @('/i', "`"$msi`"", '/qn', '/norestart') -Wait -PassThru
