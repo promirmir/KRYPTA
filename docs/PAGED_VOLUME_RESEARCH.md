@@ -57,6 +57,37 @@ Before any writable Windows mount or physical-device backend, repeat the
 tests on dedicated disposable VM disks/OS storage stacks, examine OS flush
 semantics, and complete an independent review.
 
+## Cross-OS interoperability acceptance gate (synthetic data only)
+
+`.github/workflows/pfs2-cross-os-interchange.yml` transfers the **same
+physical CI artifact containing a disposable `.kpv` image** between
+independent Windows 2022 and Ubuntu 22.04 hosted runners. Its two sequences
+run in opposite directions:
+
+- Linux/Python 3.11 **creates** authenticated PFS/2 files; Windows/Python 3.13
+  **reopens, verifies and modifies** those exact ciphertext bytes, publishing
+  new commit receipts; Linux/Python 3.13 **reopens and verifies** the Windows
+  mutations read-only.
+- Windows/Python 3.11 **creates** the other image; Linux/Python 3.13
+  **verifies and modifies** it; Windows/Python 3.13 **reopens and verifies** it
+  read-only.
+
+Each step runs the same source implementation on an independently provisioned
+OS runner. The middle OS performs a cross-sector overwrite and an additional
+file creation, and the final OS authenticates the final `receipt`, directory,
+all file contents and the unchanged file. The original receipt must fail
+on the final image. Synthetic input and expected hashes travel in a
+public **test fixture** manifest, explicitly not an independent trusted
+anti-rollback location. These tests do not use real disks, mounted volumes,
+user data, password secrets, production keys, hardware TPMs or Android.
+
+This closes only the **ordinary file-backed PVIMG/PFS2 cross-OS format
+read/write interoperability smoke** acceptance test. It does **not** qualify
+Windows writable WinFsp callbacks, Linux FUSE mounting across machine
+boundaries, NTFS permission semantics, durable receipt promotion, power-loss
+recovery or production removable-media encryption. The high-assurance
+cross-machine manual recovery drill from issue #27 remains outstanding.
+
 ## Security boundaries and missing features
 
 1. **NO anti-rollback guarantee:** a copied older valid complete image opens without a separately trusted expected receipt. A receipt saved next to the attacker-controlled image is not a secure anchor. No TPM/TEE trust anchor has been implemented.
