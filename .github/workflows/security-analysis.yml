@@ -7,6 +7,7 @@ on:
     paths:
       - 'krypta/**'
       - 'research/**'
+      - 'tests/**'
       - 'pyproject.toml'
       - 'tools/windows_mount_readonly.py'
       - 'tools/test_windows_winfsp_cli_native.py'
@@ -19,6 +20,7 @@ on:
     paths:
       - 'krypta/**'
       - 'research/**'
+      - 'tests/**'
       - 'pyproject.toml'
       - 'tools/windows_mount_readonly.py'
       - 'tools/test_windows_winfsp_cli_native.py'
