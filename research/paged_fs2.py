@@ -346,6 +346,76 @@ class PagedFS2:
         self._sequence = sequence
         return sequence
 
+    def import_files_atomic(self, files: dict[str, bytes]) -> int:
+        """Add 1–32 NEW flat files in one authenticated COW transaction.
+
+        At most 8 MiB of input payload. Validate and authenticate before any
+        persistent journal frame. Neither new directory entries nor new data
+        appear until the final PVIMG root is committed. The caller must retain
+        the resulting receipt independently; it is not trusted automatically.
+        """
+        self._check()
+        if type(files) is not dict or not 1 <= len(files) <= 32:
+            raise PagedFS2Error("Atomic import requires 1 to 32 new files")
+        if self._volume.read_only:
+            raise PagedFS2Error("Cannot import into read-only volume")
+        updated = dict(self._files)
+        if len(updated) + len(files) > MAX_FILES:
+            raise PagedFS2Error("PFS/2 maximum file count reached")
+        folded = {name.casefold() for name in updated}
+        total = 0
+        validated = []
+        for name, data in files.items():
+            name = _name(name)
+            if type(data) is not bytes or len(data) > MAX_FILE_BYTES:
+                raise PagedFS2Error("Invalid plaintext file or per-file limit")
+            if name in updated:
+                raise FileExistsError(name)
+            if name.casefold() in folded:
+                raise PagedFS2Error("Ambiguous case-insensitive file name")
+            folded.add(name.casefold())
+            total += len(data)
+            if total > 8 * 1024 * 1024:
+                raise PagedFS2Error("Atomic import batch exceeds 8 MiB limit")
+            validated.append((name, data))
+
+        # Validate ALL existing file ciphertext before modifying the image.
+        self.verify_all()
+        used = {sector for desc in self._files.values()
+                for sector in desc["blocks"] if sector is not None}
+        free = (index for index in range(DIRECTORY_BLOCKS, MAX_BLOCKS)
+                if index not in used)
+        staged = {}
+        for name, data in validated:
+            blocks = []
+            for position in range(0, len(data), BLOCK_BYTES):
+                block = data[position:position + BLOCK_BYTES].ljust(BLOCK_BYTES, b"\x00")
+                if block == ZERO:
+                    blocks.append(None)
+                    continue
+                try:
+                    sector = next(free)
+                except StopIteration as exc:
+                    raise PagedFS2Error("Insufficient logical sectors for atomic import") from exc
+                staged[sector] = block
+                blocks.append(sector)
+            updated[name] = {
+                "size": len(data), "blocks": blocks,
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+
+        # Serialize before any write; e.g. names can overflow 64-KiB catalogue.
+        raw = _encode(updated)
+        changes = dict(staged)
+        changes.update({
+            index: raw[index * BLOCK_BYTES:(index + 1) * BLOCK_BYTES]
+            for index in range(DIRECTORY_BLOCKS)
+        })
+        sequence = self._volume.write_many_atomic_large(changes)
+        self._files = updated
+        self._sequence = sequence
+        return sequence
+
     def write_file(self, filename: str, data: bytes, *, replace: bool = False) -> int:
         self._check()
         filename = _name(filename)
