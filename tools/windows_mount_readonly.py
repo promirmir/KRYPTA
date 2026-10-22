@@ -70,7 +70,15 @@ def _owner_read_security_descriptor():
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _arguments(argv)
+    actual_argv = list(sys.argv[1:] if argv is None else argv)
+    if actual_argv == ["--self-test"]:
+        if os.name != "nt":
+            raise RuntimeError("Native Windows self-test requires Windows")
+        # Exercise this same packed executable on a disposable image only.
+        from tools.test_windows_winfsp_cli_native import main as native_smoke
+        native_smoke()
+        return 0
+    args = _arguments(actual_argv)
     if os.name != "nt":
         raise RuntimeError("This native mount requires Windows")
     if not sys.stdin.isatty():
