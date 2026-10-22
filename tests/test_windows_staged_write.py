@@ -81,7 +81,7 @@ def test_staged_edits_restored_to_empty_do_not_fake_receipt_change(image):
     receipt = fs.receipt
     sequence = fs.sequence
     snapshot = path.read_bytes()
-    stage = StagedWindowsFileWrite(ops, r"\\empty.txt", receipt)
+    stage = StagedWindowsFileWrite(ops, r"\empty.txt", receipt)
     stage.write(0, b"not-persisted")
     stage.truncate(0)
     result = stage.commit()
