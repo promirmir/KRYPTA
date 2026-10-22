@@ -22,6 +22,9 @@ def test_volume_lab_window_has_ten_explicit_test_image_operations():
                 "mount_readonly", "review", "pin_create", "pin_verify",
             }
             assert len(win.buttons) == 10
+            assert len(win.operation_picker["values"]) == 10
+            assert "Sprawdź pin (R/O)" in win.operation_picker["values"]
+            assert str(win.operation_picker["state"]) == "readonly"
             assert set(win.forms['review']) == {
                 'image', 'envelope', 'receipt', 'password', 'recovery',
             }
