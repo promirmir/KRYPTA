@@ -84,3 +84,27 @@ independently protected and durable trust mechanism and explicit review.
 
 Relevant checks: `python -m pytest -q tests/test_paged_receipt_reconcile.py`.
 Only disposable files with synthetic keys and deliberate corruption are used.
+
+
+## Isolated packaged Windows/Linux test utility
+
+The CI workflow
+[`receipt-review-test-binaries.yml`](../.github/workflows/receipt-review-test-binaries.yml)
+builds one unsigned console executable for Windows and one Linux ELF **outside
+the production releases**, and produces SHA-256 checksum sidecars. Every
+package must execute a real disposable-image `--self-test`: it provisions
+an ephemeral key and PFS/2 image, makes a new commit after a saved old
+receipt, authenticates the descendant and checks that its input image was
+not changed. This is a packaging smoke test, not independent cryptanalysis.
+
+Open the successful GitHub Actions run for that workflow and download the
+**Windows** or **Linux** test artifact. The executable is named
+`KRYPTA-Receipt-Review-TEST.exe` (Windows) or
+`KRYPTA-Receipt-Review-TEST` (Linux). Run with `--self-test` first;
+then use the same arguments as the source command above. Both versions
+require a real interactive console when prompting for the password.
+
+This executable does **not** mount a volume, protect physical disks,
+write trusted receipts or attempt automatic rollback recovery. Binaries
+remain research-only, unsigned, short-lived CI artifacts and must not
+be used on unique or irreplaceable user data.
