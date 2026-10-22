@@ -81,6 +81,7 @@ FORMS = [
     ("Sprawdź pin (R/O)", PIN_VERIFY, "pin_verify"),
     ("Montuj R/O WinFsp", MOUNT_READONLY, "mount_readonly"),
     ("Dodaj plik", OPEN + [("source", "Zwykły plik do zaszyfrowania (maks. 32 MiB)", False, False)], "import"),
+    ("Dodaj wiele", OPEN + [("sources", "Wybierz wiele plików (razem maks. 32 MiB, jeden commit)", False, False)], "import_many"),
     ("Eksportuj", OPEN + [
         ("name", "Nazwa pliku WEWNĄTRZ zaszyfrowanego obrazu", False, False),
         ("output", "NOWY plik wyjściowy — JAWNY", False, True),
@@ -189,6 +190,11 @@ class VolumeLabWindow(tk.Toplevel):
     def _browse(self, key: str, variable: tk.StringVar, destination: bool):
         if self.busy:
             return
+        if key == "sources":
+            selected = filedialog.askopenfilenames(parent=self)
+            if selected:
+                variable.set(json.dumps(list(selected)))
+            return
         kwargs = {}
         if key in {"image", "new_image"}:
             kwargs["filetypes"] = [("KRYPTA PVIMG", "*.kpv"), ("All files", "*.*")]
@@ -257,6 +263,7 @@ class VolumeLabWindow(tk.Toplevel):
             "pin_create": {"image", "envelope", "receipt", "pin_path"},
             "pin_verify": {"image", "envelope", "pin_path", "trusted_seal"},
             "import": {"image", "envelope", "receipt", "source"},
+            "import_many": {"image", "envelope", "receipt", "sources"},
             "export": {"image", "envelope", "receipt", "name", "output"},
             "rotate": {"image", "envelope", "receipt", "new_image", "new_envelope",
                        "new_recovery", "new_password", "confirmation"},
@@ -270,7 +277,7 @@ class VolumeLabWindow(tk.Toplevel):
                                    "Uzupełnij wymagane pole.", parent=self)
             data.clear()
             return
-        if action in {"verify", "review", "pin_create", "pin_verify", "import", "export"}:
+        if action in {"verify", "review", "pin_create", "pin_verify", "import", "import_many", "export"}:
             if bool(data.get("password")) == bool(data.get("recovery")):
                 messagebox.showerror("KRYPTA Volume Lab",
                                      "Podaj hasło ALBO plik odzyskiwania.", parent=self)
@@ -328,6 +335,10 @@ class VolumeLabWindow(tk.Toplevel):
                 "import": lambda: operations.import_file(
                     data["image"], data["envelope"], data["receipt"], data["source"],
                     password=data["password"] or None, recovery=data["recovery"] or None),
+                "import_many": lambda: operations.import_files(
+                    data["image"], data["envelope"], data["receipt"],
+                    json.loads(data["sources"]), password=data["password"] or None,
+                    recovery=data["recovery"] or None),
                 "export": lambda: operations.export_file(
                     data["image"], data["envelope"], data["receipt"], data["name"], data["output"],
                     password=data["password"] or None, recovery=data["recovery"] or None),

@@ -12,12 +12,13 @@ File format and all operations are development-stage, not a production mount.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 import json
 from typing import Any
 
 from .fs_image import ResearchFSError, _name as _portable_name
 from .paged_volume import (
-    BLOCK_BYTES, MAX_BLOCKS, MAX_IMAGE_BYTES,
+    BLOCK_BYTES, MAX_BLOCKS, MAX_IMAGE_BYTES, MAX_ATOMIC_FILE_BLOCKS,
     PagedResearchVolume,
 )
 
@@ -342,6 +343,74 @@ class PagedFS2:
         # authenticated under one FINAL PVIMG commit; a failed commit leaves
         # the previous on-disk directory and external receipt unchanged.
         sequence = self._volume.write_many_atomic_large(changes)
+        self._files = updated
+        self._sequence = sequence
+        return sequence
+
+
+    def write_files_atomic(self, files: Mapping[str, bytes]) -> int:
+        """Create several NEW files in one authenticated PVIMG root commit.
+
+        Preflight includes all names, file sizes, catalogue quota and the
+        8192-sector transaction ceiling. No file is visible before the one
+        durable commit. Failed/ambiguous I/O poisons the volume handle; the
+        operator must reopen with an independently trusted receipt.
+        """
+        self._check()
+        if not isinstance(files, Mapping) or not files:
+            raise PagedFS2Error("Provide a nonempty mapping of new files")
+        if len(self._files) + len(files) > MAX_FILES:
+            raise PagedFS2Error("PFS/2 maximum file count reached")
+
+        validated = {}
+        total_blocks = 0
+        for original, payload in files.items():
+            name = _name(original)
+            if name in self._files:
+                raise FileExistsError(name)
+            if name in validated:
+                raise PagedFS2Error("Duplicate normalized PFS/2 filename")
+            if not isinstance(payload, bytes) or len(payload) > MAX_FILE_BYTES:
+                raise PagedFS2Error("Invalid PFS/2 file payload or size")
+            validated[name] = payload
+            total_blocks += (len(payload) + BLOCK_BYTES - 1) // BLOCK_BYTES
+            if total_blocks > MAX_ATOMIC_FILE_BLOCKS - DIRECTORY_BLOCKS:
+                raise PagedFS2Error("Batch exceeds the single-commit 32-MiB sector limit")
+
+        # Authenticate all existing live content BEFORE attempting a write.
+        self.verify_all()
+        used = {s for desc in self._files.values()
+                for s in desc["blocks"] if s is not None}
+        free = (s for s in range(DIRECTORY_BLOCKS, MAX_BLOCKS) if s not in used)
+        staged: dict[int, bytes] = {}
+        updated = dict(self._files)
+        for name, payload in validated.items():
+            blocks = []
+            for start in range(0, len(payload), BLOCK_BYTES):
+                chunk = payload[start:start + BLOCK_BYTES]
+                full = chunk + bytes(BLOCK_BYTES - len(chunk))
+                if full == ZERO:
+                    blocks.append(None)
+                else:
+                    try:
+                        index = next(free)
+                    except StopIteration as exc:
+                        raise PagedFS2Error("Insufficient free encrypted data sectors") from exc
+                    blocks.append(index)
+                    staged[index] = full
+            updated[name] = {
+                "size": len(payload),
+                "blocks": blocks,
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            }
+
+        # The exact canonical directory MUST fit before any frames are appended.
+        raw = _encode(updated)
+        staged.update({
+            index: raw[index * BLOCK_BYTES:(index + 1) * BLOCK_BYTES]
+            for index in range(DIRECTORY_BLOCKS)
+        })
+        sequence = self._volume.write_many_atomic_large(staged)
         self._files = updated
         self._sequence = sequence
         return sequence
