@@ -35,6 +35,11 @@ class PagedFS2Error(ResearchFSError):
     """Unsupported or invalid PFS/2 filesystem state or operation."""
 
 
+class AtomicBatchCommitUncertain(PagedFS2Error):
+    """I/O failure during COW publication; never assume the old receipt."""
+
+
+
 def _name(name: str) -> str:
     try:
         return _portable_name(name)
@@ -341,7 +346,16 @@ class PagedFS2:
         # All new data frames, radix nodes and catalogue sectors are
         # authenticated under one FINAL PVIMG commit; a failed commit leaves
         # the previous on-disk directory and external receipt unchanged.
-        sequence = self._volume.write_many_atomic_large(changes)
+        try:
+            sequence = self._volume.write_many_atomic_large(changes)
+        except BaseException as exc:
+            # Validation is finished. The final commit frame MAY have been
+            # written even when the caller did not receive its acknowledgement.
+            # Preserve image and previously trusted receipt for forensic review.
+            raise AtomicBatchCommitUncertain(
+                "Atomic import publication uncertain: quarantine image, "
+                "do not reuse previous receipt for writes"
+            ) from exc
         self._files = updated
         self._sequence = sequence
         return sequence
