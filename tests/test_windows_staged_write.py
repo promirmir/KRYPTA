@@ -75,6 +75,22 @@ def test_noop_commit_does_not_advance_receipt(image):
                    "sequence": fs.sequence}
 
 
+def test_staged_edits_restored_to_empty_do_not_fake_receipt_change(image):
+    path, _, _, fs, ops = image
+    fs.write_file("empty.txt", b"")
+    receipt = fs.receipt
+    sequence = fs.sequence
+    snapshot = path.read_bytes()
+    stage = StagedWindowsFileWrite(ops, r"\\empty.txt", receipt)
+    stage.write(0, b"not-persisted")
+    stage.truncate(0)
+    result = stage.commit()
+    assert result["receipt"] == receipt
+    assert result["receipt_changed"] is False
+    assert result["sequence"] == sequence
+    assert path.read_bytes() == snapshot
+
+
 def test_stale_base_detected_before_commit_without_overwriting(image):
     _, _, _, fs, ops = image
     initial = fs.receipt
