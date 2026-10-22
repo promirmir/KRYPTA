@@ -71,6 +71,10 @@ def main() -> None:
                 setattr(callbacks, method_name, trace)
             native = winfspy.FileSystem(str(mountpoint), callbacks,
                                         read_only_volume=True,
+                                        # Each open returns a distinct Context object; WinFsp
+                                        # must interpret it as a per-open file descriptor,
+                                        # not the shared file node (its default mode).
+                                        um_file_context_is_user_context2=True,
                                         persistent_acls=False,
                                         case_sensitive_search=True,
                                         case_preserved_names=True,
