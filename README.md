@@ -4,28 +4,30 @@
 
 KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Linux i Android umożliwiają lokalne szyfrowanie oraz odszyfrowywanie **wskazanych plików**. Rozwój obejmuje także własne zaszyfrowane woluminy, system plików, odzyskiwanie oraz zabezpieczanie kluczy.
 
+**[Co naprawdę działa, a co pozostaje do ukończenia — aktualna tabela funkcji](docs/FUNCTION_STATUS.md)**. Główny cel pozostaje bez zmian: transparentne szyfrowanie woluminów, nośników i docelowo urządzeń. Obecne pliki do pobrania są wydaniami rozwojowymi, nie sprawdzonymi narzędziami do ochrony jedynych kopii cennych danych.
+
 ## 📥 Pobierz aplikację
 
 **[ZOBACZ WSZYSTKIE PLIKI DO POBRANIA — GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**
 
-**Bezpośrednie pliki z aktualnego wydania rozwojowego [krypta-dev-10-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-10-1) (21.10.2026):**
+**Bezpośrednie pliki z aktualnego wydania rozwojowego [krypta-dev-33-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-33-1) (22.10.2026):**
 
 | System | Plik do pobrania | Główna funkcja |
 |---|---|---|
-| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault oraz Volume Lab (testowe zaszyfrowane obrazy) |
-| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Linux-x64)** | Graficzny File Vault i Volume Lab; oddzielne narzędzie Linux FUSE |
-| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
+| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-33-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault oraz Volume Lab (testowe zaszyfrowane obrazy) |
+| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-33-1/KRYPTA-Linux-x64)** | Graficzny File Vault i Volume Lab; oddzielne narzędzie Linux FUSE |
+| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-33-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
 
-**Nowość dev-10-1 — niezależne narzędzia ratunkowe (bez GUI):**
+**Osobne narzędzia ratunkowe (bez GUI):**
 
 | System | Program odzyskiwania |
 |---|---|
-| Windows x64 | [KRYPTA-Windows-x64-Rescue.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Windows-x64-Rescue.exe) |
-| Linux x64 | [KRYPTA-Linux-x64-Rescue](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-10-1/KRYPTA-Linux-x64-Rescue) |
+| Windows x64 | [KRYPTA-Windows-x64-Rescue.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-33-1/KRYPTA-Windows-x64-Rescue.exe) |
+| Linux x64 | [KRYPTA-Linux-x64-Rescue](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-33-1/KRYPTA-Linux-x64-Rescue) |
 
 Programy wymagają pasującego pliku `.pvkey`, oddzielnego 32-bajtowego klucza odzyskiwania oraz niezależnie przechowanego aktualnego `receipt`. Po uwierzytelnieniu całego obrazu PFS/2 tworzą **nowy folder z odszyfrowanymi, JAWNYMI plikami**. Źródłowy obraz pozostaje bez zmian. Nie jest to odzyskiwanie pełnego dysku ani niezależnie audytowane rozwiązanie produkcyjne. [Instrukcja](docs/OFFLINE_RESCUE_ALL.md).
 
-Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze wersje znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. **Repozytorium jest publiczne.** Każdy może czytać kod i pobrać udostępnione wydania rozwojowe. Kod otwarty nie oznacza zakończonego audytu ani gotowości produktu.
+Powyższe linki pobierają bezpośrednio pliki z wydania rozwojowego **dev-33-1**, odpowiadającego scalonemu [PR #55](https://github.com/promirmir/KRYPTA/pull/55). Nowsze wersje znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. **Repozytorium jest publiczne.** Każdy może czytać kod i pobrać udostępnione wydania rozwojowe. Kod otwarty nie oznacza zakończonego audytu ani gotowości produktu.
 
 **Status: kompilacje rozwojowe, a nie certyfikowane wydania produkcyjne.** Korzystaj wyłącznie z kopii danych testowych. Aplikacje nie szyfrują jeszcze całego dysku systemowego ani całego telefonu.
 
@@ -37,11 +39,13 @@ Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze 
 
 **Potwierdzony kolejny etap:** [PR #42](https://github.com/promirmir/KRYPTA/pull/42) został scalony po przejściu wszystkich testów i analizy bezpieczeństwa. Rzeczywisty WinFsp w Windows potwierdził wyświetlanie katalogu dwóch plików, odczyt obu, odmowę dostępu do brakującego pliku oraz blokowanie modyfikacji przy włączonej fladze tylko do odczytu. [Dowód: GitHub Actions #39733676912](https://github.com/promirmir/KRYPTA/actions/runs/39733676912).
 
-**W opracowaniu (nie w wydaniu EXE):** źródłowe, ręczne montowanie już istniejącego, uwierzytelnionego obrazu za pomocą hasła lub klucza odzyskiwania i zewnętrznego zaufanego `receipt`. [Instrukcja i ograniczenia](docs/WINDOWS_WINFSP_READONLY_MOUNT.md).
+**W narzędziu osobnym (nie jest to montowanie w głównym wydaniu EXE):** źródłowe, ręczne montowanie już istniejącego, uwierzytelnionego obrazu za pomocą hasła lub klucza odzyskiwania i zewnętrznego zaufanego `receipt`. [Instrukcja i ograniczenia](docs/WINDOWS_WINFSP_READONLY_MOUNT.md).
 
-**Istotne ograniczenia:** interfejs WinFsp to wciąż prototyp **tylko do odczytu**, wykonywany na zwykłym pliku testowym `.kpv`. Nie obsługuje zapisu przez zamontowany system plików, montowania fizycznych dysków lub partycji ani transparentnego szyfrowania Windows. Nie jest to gotowa funkcja z plików wydania `krypta-dev-10-1`; wyniki dotyczą kodu źródłowego i CI. Wymagane są dalsze testy, przegląd ACL i niezależny audyt przed korzystaniem z rzeczywistych danych.
+**Istotne ograniczenia:** interfejs WinFsp to wciąż prototyp **tylko do odczytu**, wykonywany na zwykłym pliku testowym `.kpv`. Nie obsługuje zapisu przez zamontowany system plików, montowania fizycznych dysków lub partycji ani transparentnego szyfrowania Windows. Nie jest to gotowa funkcja z plików wydania `krypta-dev-33-1`; wyniki dotyczą kodu źródłowego i CI. Wymagane są dalsze testy, przegląd ACL i niezależny audyt przed korzystaniem z rzeczywistych danych.
 
 ## Możliwości KRYPTA
+
+Poniższa tabela jest skrótem. Szczegóły, potwierdzenia i braki: [stan funkcji i droga do 1.0](docs/FUNCTION_STATUS.md).
 
 | Funkcja | Windows | Linux | Android |
 |---|:---:|:---:|:---:|
@@ -51,7 +55,7 @@ Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze 
 | Hasło i Argon2id | ✅ | ✅ | — |
 | Android Keystore i uwierzytelnienie urządzenia | — | — | ✅ |
 | Własny silnik zaszyfrowanych woluminów PVIMG/1 | W kodzie | W kodzie | — |
-| **Volume Lab PFS/2 — obrazy .kpv (wydanie dev-7-1)** | ✅ test | ✅ test | — |
+| **Volume Lab PFS/2 — obrazy .kpv (wydanie dev-33-1)** | ✅ test | ✅ test | — |
 | Potwierdzone montowanie zaszyfrowanego katalogu przez FUSE | — | ✅ osobne narzędzie | — |
 | WinFsp: natywny odczyt z testowego obrazu `.kpv` (źródła / CI, nie wydanie) | ✅ test | — | — |
 | Transparentne szyfrowanie całego urządzenia | ❌ | ❌ | ❌ |
