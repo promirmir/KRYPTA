@@ -39,6 +39,10 @@ ROTATE = OPEN[:3] + [
     ("new_password", "NOWE długie hasło", True, False),
     ("confirmation", "Powtórz nowe hasło", True, False),
 ]
+MOUNT_READONLY = OPEN[:3] + [
+    ("drive", "WOLNA litera dysku Windows (D: do Z:)", False, False),
+    ("recovery", "Opcjonalny plik odzyskiwania; bez niego hasło w osobnej konsoli", False, False),
+]
 RECOVER = [
     ("envelope", "Istniejący plik kluczy .pvkey", False, False),
     ("recovery", "Istniejący klucz odzyskiwania", False, False),
@@ -49,6 +53,7 @@ RECOVER = [
 FORMS = [
     ("Utwórz", CREATE, "create"),
     ("Weryfikuj", OPEN, "verify"),
+    ("Montuj R/O WinFsp", MOUNT_READONLY, "mount_readonly"),
     ("Dodaj plik", OPEN + [("source", "Zwykły plik do zaszyfrowania (maks. 32 MiB)", False, False)], "import"),
     ("Eksportuj", OPEN + [
         ("name", "Nazwa pliku WEWNĄTRZ zaszyfrowanego obrazu", False, False),
@@ -152,8 +157,51 @@ class VolumeLabWindow(tk.Toplevel):
         if selected:
             variable.set(selected)
 
+    def _start_readonly_mount(self) -> None:
+        """Launch an independent interactive console; never take a GUI password."""
+        if self.busy:
+            return
+        values = self.forms["mount_readonly"]
+        data = {key: value.get() for key, value in values.items()}
+        if not messagebox.askyesno(
+            "KRYPTA / montowanie wyłącznie do odczytu",
+            "To tylko TEST zwykłego obrazu .kpv, nie ochrona całego dysku. "
+            "Po zamontowaniu jawne dane będą dostępne dla bieżącego użytkownika "
+            "Windows i SYSTEM (również dla indeksowania/antywirusa). "
+            "Otworzy się osobna konsola: tam wpisz hasło i naciśnij Enter, "
+            "aby bezpiecznie odmontować. Masz kopie testowych danych?",
+            parent=self,
+        ):
+            return
+        try:
+            from .windows_mount_launcher import launch_readonly_mount
+            launch_readonly_mount(**data)
+        except (ValueError, RuntimeError, OSError):
+            self.status.set("Montowanie nieuruchomione — sprawdź WinFsp, dane i EXE")
+            messagebox.showerror(
+                "KRYPTA / WinFsp",
+                "Nie można uruchomić konsoli montowania. Wymagany jest Windows "
+                "oraz źródłowy Python.exe albo oddzielny, zaufany plik "
+                "KRYPTA-Windows-ReadOnly-Mount-TEST.exe obok głównej aplikacji. "
+                "Sprawdź ścieżki, 64-znakowy receipt i literę dysku.",
+                parent=self,
+            )
+            return
+        self.status.set("Uruchomiono konsolę — montowanie NIE jest jeszcze potwierdzone")
+        messagebox.showinfo(
+            "KRYPTA / WinFsp",
+            "Uruchomiono osobną konsolę. Dopiero po sprawdzeniu hasła, "
+            "receipt i integralności obrazu konsola potwierdzi montowanie. "
+            "Do odmontowania naciśnij Enter w konsoli. Zamknięcie tego okna "
+            "nie odmontowuje dysku. Nie używaj ważnych danych.",
+            parent=self,
+        )
+
     def _start(self, action: str) -> None:
         if self.busy:
+            return
+        if action == "mount_readonly":
+            self._start_readonly_mount()
             return
         data = {key: value.get() for key, value in self.forms[action].items()}
         required = {
