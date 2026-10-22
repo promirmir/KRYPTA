@@ -224,9 +224,65 @@ def test_two_threads_cannot_share_writer(harness):
     assert fs.receipt == trusted
 
 
+
+def _assert_all_views_quarantined(bridge, reader, root, writer):
+    # Existing handles, newly opened paths and directory enumeration must
+    # never expose data or even claim an empty directory after lost ACK.
+    for call in (
+        lambda: bridge.read(reader, 0, 8),
+        lambda: bridge.read(writer, 0, 8),
+        lambda: bridge.get_file_info(reader),
+        lambda: bridge.get_file_info(writer),
+        lambda: bridge.get_file_info(root),
+        lambda: bridge.read_directory(root, None),
+        lambda: bridge.get_dir_info_by_name(root, "sample.txt"),
+        lambda: bridge.open(r"\sample.txt", 0, 0x0001),
+        lambda: bridge.open("\\", 0, 0x0001),
+    ):
+        with pytest.raises(AccessDenied):
+            call()
+    with pytest.raises(WriteProtected):
+        bridge.open(r"\sample.txt", 0, 0x0002)
+    # Close and ordinary cleanup still work even when reads are quarantined.
+    assert bridge.cleanup(reader, r"\sample.txt", 0xF0) is None
+    for handle in (reader, root, writer):
+        bridge.close(handle)
+
+
+def test_interrupted_precommit_quarantines_previously_opened_readers(
+        harness, monkeypatch):
+    image, key, pin, result, volume, fs, bridge, root_path = harness
+    old_receipt = fs.receipt
+    reader = bridge.open(r"\sample.txt", 0, 0x0001)
+    root = bridge.open("\\", 0, 0x0001)
+    assert bridge.read(reader, 0, 8) == b"original"
+    assert [entry["file_name"] for entry in bridge.read_directory(root, None)] == ["sample.txt"]
+    writer = bridge.open(r"\sample.txt", 0, 0x0002)
+    bridge.write(writer, b"STAGED!!", 0, False, False)
+    saved = volume._append
+
+    def abort_before_root(kind, payload):
+        if kind == b"C":
+            raise OSError("simulated interruption before final commit record")
+        return saved(kind, payload)
+
+    monkeypatch.setattr(volume, "_append", abort_before_root)
+    with pytest.raises(AccessDenied):
+        bridge.flush(writer)
+    assert bridge._uncertain is True
+    assert bridge.observed_receipt_UNTRUSTED is None
+    _assert_all_views_quarantined(bridge, reader, root, writer)
+    volume.close()
+    with PagedResearchVolume(image, key, expected_receipt=old_receipt, read_only=True) as reopened:
+        assert PagedFS2(reopened).read_file("sample.txt") == b"original"
+    assert pin.read_bytes()
+
+
 def test_commit_acknowledgement_lost_freezes_write_session(harness, monkeypatch):
     image, key, pin, result, volume, fs, bridge, root = harness
     before = fs.receipt
+    reader = bridge.open(r"\sample.txt", 0, 0x0001)
+    root_handle = bridge.open("\\", 0, 0x0001)
     h = bridge.open(r"\sample.txt", 0, 0x0002)
     bridge.write(h, b"changed", 0, False, False)
     original_commit = volume._commit
@@ -241,9 +297,7 @@ def test_commit_acknowledgement_lost_freezes_write_session(harness, monkeypatch)
     assert bridge.observed_receipt_UNTRUSTED is None
     with pytest.raises(WriteProtected):
         bridge.write(h, b"another", 0, False, False)
-    with pytest.raises(WriteProtected):
-        bridge.open(r"\sample.txt", 0, 0x0002)
-    bridge.close(h)
+    _assert_all_views_quarantined(bridge, reader, root_handle, h)
     volume.close()
     with pytest.raises(PagedVolumeError, match="receipt mismatch"):
         PagedResearchVolume(image, key, expected_receipt=before, read_only=True)

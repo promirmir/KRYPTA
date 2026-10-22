@@ -56,6 +56,12 @@ jobs:
         run: |
           python -m tools.test_windows_winfsp_staged_native
           if ($LASTEXITCODE -ne 0) { throw 'Native staged encrypted write did not pass' }
+      - name: Native post-commit lost-ACK fault quarantine
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          python -m tools.test_windows_winfsp_fault_native
+          if ($LASTEXITCODE -ne 0) { throw 'Native uncertainty quarantine failed' }
       - name: Explain remaining gate
         run: |
-          echo "Test-only staged writer: one isolated WinFsp write + explicit flush; no general mount, no production write access or independently durable anti-rollback."
+          echo "Test-only isolated WinFsp with lost-ACK quarantine; no general writable mount, automated trust promotion or production authorization."
