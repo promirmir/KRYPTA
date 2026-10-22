@@ -2,6 +2,13 @@ name: KRYPTA / Desktop alpha builds
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'krypta/**'
+      - 'research/**'
+      - 'tests/**'
+      - 'tools/test_windows_gui_isolated.py'
+      - '.github/workflows/build-desktop.yml'
   push:
     branches: [main]
     paths:
