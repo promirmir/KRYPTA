@@ -196,8 +196,23 @@ def main() -> None:
                     raise AssertionError("Native WinFsp accepted second writer")
                 if fs.read_file("sample.txt") != after_data:
                     raise AssertionError("Denied second write changed authenticated data")
-                if (mountpoint / "new.txt").exists():
-                    raise AssertionError("Unexpected file creation")
+                # Native operations must not escape this strict one-file
+                # experiment, even though the test DACL allows the owner.
+                for name, mutation in (
+                    ("create", lambda: (mountpoint / "new.txt").write_bytes(b"NEW")),
+                    ("delete", lambda: target.unlink()),
+                    ("rename", lambda: target.rename(mountpoint / "renamed.txt")),
+                ):
+                    try:
+                        mutation()
+                    except OSError:
+                        pass
+                    else:
+                        raise AssertionError(f"Native {name} unexpectedly succeeded")
+                if (mountpoint / "new.txt").exists() or (mountpoint / "renamed.txt").exists():
+                    raise AssertionError("Denied metadata mutation left a visible file")
+                if fs.read_file("sample.txt") != after_data:
+                    raise AssertionError("Native mutation attempt changed ciphertext")
                 print("PASS: Windows real WinFsp write + fsync => 1 COW commit")
             finally:
                 if started or native.started:
