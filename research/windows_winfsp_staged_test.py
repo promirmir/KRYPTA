@@ -42,8 +42,11 @@ def make_one_shot_test_winfsp_operations(
         raise ReceiptPinError("Test writer requires write-open disposable volume")
     if Path(vol.path).suffix.lower() != ".kpv":
         raise ReceiptPinError("Only disposable .kpv images are accepted")
-    root = Path(test_root).resolve(strict=True)
-    image = Path(vol.path).resolve(strict=True)
+    try:
+        root = Path(test_root).resolve(strict=True)
+        image = Path(vol.path).resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ReceiptPinError("Write adapter requires a dedicated temp child image") from exc
     temp_base = Path(tempfile.gettempdir()).resolve(strict=True)
     # Avoid temp base itself: must be one new private test directory
     if (root == temp_base or root.parent != temp_base or image.parent != root
@@ -71,11 +74,12 @@ def make_one_shot_test_winfsp_operations(
             self._test_root = root
 
         class _Handle:
-            __slots__ = ("path", "directory", "stage", "closed")
+            __slots__ = ("path", "directory", "stage", "closed", "had_writer")
             def __init__(self, original, stage=None):
                 self.path = original.path
                 self.directory = original.directory
                 self.stage = stage
+                self.had_writer = stage is not None
                 self.closed = False
 
         def open(self, file_name, create_options, granted_access):
@@ -172,6 +176,8 @@ def make_one_shot_test_winfsp_operations(
                     return None
                 self._active(file_context)
                 if file_context.stage is None:
+                    if file_context.had_writer:
+                        raise api.NTStatusMediaWriteProtected()
                     return None
                 if self._ever_committed or self._uncertain:
                     raise api.NTStatusMediaWriteProtected()
@@ -180,7 +186,7 @@ def make_one_shot_test_winfsp_operations(
                 self._uncertain = True
                 try:
                     report = file_context.stage.commit()
-                except (UncertainStagedCommit, Exception):
+                except Exception:
                     raise api.NTStatusAccessDenied() from None
                 finally:
                     file_context.stage = None
