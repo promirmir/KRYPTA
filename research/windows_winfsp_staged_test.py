@@ -73,6 +73,29 @@ def make_one_shot_test_winfsp_operations(
             self.observed_receipt_UNTRUSTED = None
             self._test_root = root
 
+        def _require_verified_read(self):
+            # A lost commit acknowledgment may leave PFS/2 pointing at an
+            # unauthenticated newer (or partly written) state. Never allow
+            # the same mount to serve any more data or even a directory list.
+            # There is NO recovery by observing a candidate receipt here.
+            if self._uncertain:
+                raise api.NTStatusAccessDenied()
+
+        def _resolve(self, file_name):
+            with self._txn_guard:
+                self._require_verified_read()
+                return super()._resolve(file_name)
+
+        def _info(self, ctx):
+            with self._txn_guard:
+                self._require_verified_read()
+                return super()._info(ctx)
+
+        def read_directory(self, file_context, marker):
+            with self._txn_guard:
+                self._require_verified_read()
+                return super().read_directory(file_context, marker)
+
         class _Handle:
             __slots__ = ("path", "directory", "stage", "closed", "had_writer")
             def __init__(self, original, stage=None):
@@ -115,6 +138,7 @@ def make_one_shot_test_winfsp_operations(
         def read(self, file_context, offset, length):
             with self._txn_guard:
                 self._active(file_context)
+                self._require_verified_read()
                 if file_context.stage is None:
                     return super().read(file_context, offset, length)
                 if type(offset) is not int or type(length) is not int or offset < 0 or length < 0:
