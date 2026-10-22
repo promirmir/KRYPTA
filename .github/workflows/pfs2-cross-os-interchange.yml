@@ -1,0 +1,159 @@
+name: KRYPTA / PFS2 real Windows-Linux interchange
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/**'
+      - 'tools/test_pfs2_cross_os.py'
+      - '.github/workflows/pfs2-cross-os-interchange.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'research/**'
+      - 'tools/test_pfs2_cross_os.py'
+      - '.github/workflows/pfs2-cross-os-interchange.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-create:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[test]'
+      - name: Create real PFS2/PVIMG image on Linux
+        shell: bash
+        run: |
+          set -eu
+          mkdir "$RUNNER_TEMP/krypta-crossos"
+          python -m tools.test_pfs2_cross_os --phase create --root "$RUNNER_TEMP/krypta-crossos" --acknowledge-public-synthetic-key
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pfs2-linux-created
+          path: ${{ runner.temp }}/krypta-crossos/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-update:
+    needs: linux-create
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[test]'
+      - uses: actions/download-artifact@v4
+        with:
+          name: pfs2-linux-created
+          path: ${{ runner.temp }}/krypta-crossos
+      - name: Authenticate and modify SAME Linux-created image on Windows
+        shell: pwsh
+        run: |
+          python -m tools.test_pfs2_cross_os --phase update --root "$env:RUNNER_TEMP/krypta-crossos" --acknowledge-public-synthetic-key
+          if ($LASTEXITCODE -ne 0) { throw 'Linux-to-Windows PFS2 interchange failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pfs2-windows-updated
+          path: ${{ runner.temp }}/krypta-crossos/
+          if-no-files-found: error
+          retention-days: 7
+
+  linux-final-verify:
+    needs: windows-update
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[test]'
+      - uses: actions/download-artifact@v4
+        with:
+          name: pfs2-windows-updated
+          path: ${{ runner.temp }}/krypta-crossos
+      - name: Authenticate Windows-modified image back on Linux
+        shell: bash
+        run: |
+          set -eu
+          python -m tools.test_pfs2_cross_os --phase verify --root "$RUNNER_TEMP/krypta-crossos" --acknowledge-public-synthetic-key
+
+  windows-create:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[test]'
+      - name: Create real PFS2/PVIMG image on Windows
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/krypta-crossos" -ErrorAction Stop | Out-Null
+          python -m tools.test_pfs2_cross_os --phase create --root "$env:RUNNER_TEMP/krypta-crossos" --acknowledge-public-synthetic-key
+          if ($LASTEXITCODE -ne 0) { throw 'Windows fixture creation failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pfs2-windows-created
+          path: ${{ runner.temp }}/krypta-crossos/
+          if-no-files-found: error
+          retention-days: 7
+
+  linux-update:
+    needs: windows-create
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[test]'
+      - uses: actions/download-artifact@v4
+        with:
+          name: pfs2-windows-created
+          path: ${{ runner.temp }}/krypta-crossos
+      - name: Authenticate and modify SAME Windows-created image on Linux
+        shell: bash
+        run: |
+          set -eu
+          python -m tools.test_pfs2_cross_os --phase update --root "$RUNNER_TEMP/krypta-crossos" --acknowledge-public-synthetic-key
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pfs2-linux-updated
+          path: ${{ runner.temp }}/krypta-crossos/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-final-verify:
+    needs: linux-update
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[test]'
+      - uses: actions/download-artifact@v4
+        with:
+          name: pfs2-linux-updated
+          path: ${{ runner.temp }}/krypta-crossos
+      - name: Authenticate Linux-modified image back on Windows
+        shell: pwsh
+        run: |
+          python -m tools.test_pfs2_cross_os --phase verify --root "$env:RUNNER_TEMP/krypta-crossos" --acknowledge-public-synthetic-key
+          if ($LASTEXITCODE -ne 0) { throw 'Windows final interoperability verification failed' }
