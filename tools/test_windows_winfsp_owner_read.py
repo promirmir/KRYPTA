@@ -60,7 +60,7 @@ def main() -> None:
                                 "open", "read", "read_directory"):
                 original = getattr(callbacks, method_name)
                 def trace(*args, _original=original, _name=method_name, **kwargs):
-                    print(f"WINFSP_TRACE {_name}: called", flush=True)
+                    print(f"WINFSP_TRACE {_name}: called marker={args[1]!r}" if _name == "read_directory" and len(args) > 1 else f"WINFSP_TRACE {_name}: called", flush=True)
                     try:
                         value = _original(*args, **kwargs)
                     except Exception as exc:
