@@ -31,6 +31,14 @@ Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze 
 
 ![KRYPTA — interfejs Windows/Linux](assets/matrix-ui.png)
 
+## Aktualny postęp Windows WinFsp — 22.10.2026
+
+**Potwierdzone na rzeczywistym sterowniku WinFsp w Windows CI:** montowanie i odmontowanie tymczasowego zaszyfrowanego obrazu `.kpv` ([PR #39](https://github.com/promirmir/KRYPTA/pull/39)); otwarcie i odczyt pliku poprzez natywną ścieżkę Windows przy ograniczonym do konta testowego i SYSTEM deskryptorze tylko do odczytu ([PR #40](https://github.com/promirmir/KRYPTA/pull/40)); odrzucenie przez Windows prób nadpisania, utworzenia, usunięcia oraz zmiany nazwy pliku, z zachowaniem oryginalnych danych ([PR #41](https://github.com/promirmir/KRYPTA/pull/41)). [Zielony przebieg testów PR #41](https://github.com/promirmir/KRYPTA/actions/runs/39693827341).
+
+**Jeszcze niepotwierdzone:** natywne listowanie katalogu, odczyt wielu plików i zgłaszanie brakujących plików. [PR #42](https://github.com/promirmir/KRYPTA/pull/42) jest otwarty; jego najnowszy przebieg [CI #39694250978](https://github.com/promirmir/KRYPTA/actions/runs/39694250978) został anulowany podczas zadania WinFsp — wynik NIE jest zaliczony.
+
+**Istotne ograniczenia:** interfejs WinFsp to wciąż prototyp **tylko do odczytu**, wykonywany na zwykłym pliku testowym `.kpv`. Nie obsługuje zapisu przez zamontowany system plików, montowania fizycznych dysków lub partycji ani transparentnego szyfrowania Windows. Nie jest to gotowa funkcja z plików wydania `krypta-dev-10-1`; wyniki dotyczą kodu źródłowego i CI. Wymagane są dalsze testy, przegląd ACL i niezależny audyt przed korzystaniem z rzeczywistych danych.
+
 ## Możliwości KRYPTA
 
 | Funkcja | Windows | Linux | Android |
@@ -43,6 +51,7 @@ Powyższe linki pobierają bezpośrednio pliki z potwierdzonego wydania. Nowsze 
 | Własny silnik zaszyfrowanych woluminów PVIMG/1 | W kodzie | W kodzie | — |
 | **Volume Lab PFS/2 — obrazy .kpv (wydanie dev-7-1)** | ✅ test | ✅ test | — |
 | Potwierdzone montowanie zaszyfrowanego katalogu przez FUSE | — | ✅ osobne narzędzie | — |
+| WinFsp: natywny odczyt z testowego obrazu `.kpv` (źródła / CI, nie wydanie) | ✅ test | — | — |
 | Transparentne szyfrowanie całego urządzenia | ❌ | ❌ | ❌ |
 | Sprzętowy limit prób krótkiego PIN-u | ❌ | ❌ | ❌ |
 | Zweryfikowane przenośne odzyskiwanie kluczy | ❌ | ❌ | ❌ |
