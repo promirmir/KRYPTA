@@ -117,3 +117,6 @@ jobs:
           python -m tools.test_windows_winfsp_mount_lifecycle
           if ($LASTEXITCODE -ne 0) { throw 'Native WinFsp mount smoke test failed' }
           python -m tools.test_windows_winfsp_owner_read
+          if ($LASTEXITCODE -ne 0) { throw 'Native owner-read WinFsp filesystem test failed' }
+          python -m tools.test_windows_winfsp_cli_native
+          if ($LASTEXITCODE -ne 0) { throw 'Native verified read-only mount CLI test failed' }
