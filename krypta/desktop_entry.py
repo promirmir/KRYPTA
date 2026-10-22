@@ -140,8 +140,10 @@ def run_paged_volume_lab_self_test() -> int:
     """
     from krypta.volume_lab import (
         create_image, verify_image, import_file, export_file, rotate_image,
-        review_uncertain_image,
+        review_uncertain_image, seal_existing_trusted_receipt,
+        verify_sealed_receipt_image,
     )
+    from research.paged_volume import PagedVolumeError
     with tempfile.TemporaryDirectory(prefix="krypta-pfs2-gui-smoke-") as directory:
         root = Path(directory)
         src = root / "synthetic-input.bin"
@@ -156,9 +158,35 @@ def run_paged_volume_lab_self_test() -> int:
             image, envelope, created["receipt"], password=password
         )["files_verified"] != 0:
             raise RuntimeError("New packaged PFS2 file list was not empty")
+        # Test the same pinned-receipt service that the packaged GUI now calls.
+        # A valid image does not automatically become a trusted future state.
+        pin_dir = root / "independent-test-pin-dir"
+        pin_dir.mkdir(mode=0o700)
+        pin = pin_dir / "trusted-baseline.kpin"
+        sealed = seal_existing_trusted_receipt(
+            image, envelope, created["receipt"], pin, password=password
+        )
+        if (sealed["trust_promoted"] is not False or not pin.is_file()
+                or len(sealed["seal_sha256"]) != 64):
+            raise RuntimeError("Packaged sealed receipt pin enrollment failed")
+        checked_pin = verify_sealed_receipt_image(
+            image, envelope, pin, sealed["seal_sha256"], recovery=recovery
+        )
+        if (checked_pin["status"] != "SEALED_PIN_MATCH"
+                or checked_pin["trust_promoted"] is not False
+                or checked_pin["files_verified"] != 0):
+            raise RuntimeError("Packaged sealed pin read-only verification failed")
         addition = import_file(
             image, envelope, created["receipt"], src, recovery=recovery
         )
+        try:
+            verify_sealed_receipt_image(
+                image, envelope, pin, sealed["seal_sha256"], password=password
+            )
+        except PagedVolumeError:
+            pass  # Changed state must NEVER silently advance the pinned receipt.
+        else:
+            raise RuntimeError("Packaged app accepted unpinned later image state")
         if addition["receipt"] == created["receipt"]:
             raise RuntimeError("Encrypted import failed to advance external receipt")
         image_before_review = image.read_bytes()

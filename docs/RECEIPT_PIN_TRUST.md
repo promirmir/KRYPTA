@@ -50,9 +50,15 @@ assert report["status"] == "SEALED_PIN_MATCH"
 
 The `krypta.volume_lab` service exposes password or independent recovery-key
 wrappers for these functions, so the desktop application can integrate them
-without ever accepting a receipt observed during a failed review. The current
-GUI still needs explicit wiring and UX review. The installed WinFsp mount
-remains read-only.
+without ever accepting a receipt observed during a failed review. The desktop Volume Lab GUI now explicitly exposes **Utwórz pin .kpin**
+and **Sprawdź pin (R/O)** using these wrappers. The UI requires operators
+to enter a separately trusted prior receipt for pin creation and an
+independently retained seal for read-only verification. After success, the
+GUI displays the seal for independent storage, but does not silently save or
+protect that seal. It never enables generic receipt export for pin verification
+results (trust_promoted=False). This is an operator-managed development-only
+trust workflow, **not automatic anti-rollback protection**. The installed
+WinFsp mount remains read-only.
 
 ## Required external trust assumptions
 
