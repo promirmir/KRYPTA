@@ -31,6 +31,32 @@ Byte-range I/O validates the **actual count of sectors touched**, including an u
 
 `tests/test_paged_compaction.py` covers sparse cross-page migration, verification, unchanged originals, no-overwrite, empty volumes, wrong/corrupt data, source and destination failure, destination path swaps, fresh encryption and receipt mismatch. Only disposable ordinary files are used.
 
+## Crash cut-point acceptance matrix (test images only)
+
+`tests/test_pfs2_crash_boundary_matrix.py` creates a disposable PFS/2 image
+with two files, makes a multi-sector authenticated replacement, and inspects
+the actual append-only PVIMG frame boundaries. Every byte of the final
+authenticated commit record and representative cut points around **every**
+new data/index frame are tested by writing a truncated **copy** to a separate
+test file. The original is never modified.
+
+For incomplete commits, a forensic read-only reopen requiring the **old
+independently held receipt** must recover the entire previous directory and
+both old file contents. Only a complete, fully authenticated final commit
+may expose the new file. A complete final commit must reject the old receipt;
+an authentic but unexpected new receipt is **not automatically trusted**.
+Tampering with fully committed metadata or a complete authenticated commit
+must fail closed, not silently fall back to an older root. The test asserts
+that opening any cut image read-only never trims or repairs trailing records.
+
+This establishes a **software journal-prefix invariant** under simulated
+truncation on the CI filesystem. It is not a proof of power-loss ordering,
+sector atomicity on actual SSD/HDD/USB, controller write-cache persistence,
+filesystem barriers, signed authorization, or receipt store durability.
+Before any writable Windows mount or physical-device backend, repeat the
+tests on dedicated disposable VM disks/OS storage stacks, examine OS flush
+semantics, and complete an independent review.
+
 ## Security boundaries and missing features
 
 1. **NO anti-rollback guarantee:** a copied older valid complete image opens without a separately trusted expected receipt. A receipt saved next to the attacker-controlled image is not a secure anchor. No TPM/TEE trust anchor has been implemented.
