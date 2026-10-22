@@ -8,7 +8,7 @@ import pytest
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get("DISPLAY"),
                     reason="Tk requires graphical display")
-def test_volume_lab_window_has_eight_explicit_test_image_operations():
+def test_volume_lab_window_has_ten_explicit_test_image_operations():
     import tkinter as tk
     from krypta.volume_lab_gui import VolumeLabWindow
     root = tk.Tk()
@@ -19,11 +19,18 @@ def test_volume_lab_window_has_eight_explicit_test_image_operations():
             win.update_idletasks()
             assert set(win.forms) == {
                 "create", "verify", "import", "export", "rotate", "recover",
-                "mount_readonly", "review",
+                "mount_readonly", "review", "pin_create", "pin_verify",
             }
-            assert len(win.buttons) == 8
+            assert len(win.buttons) == 10
             assert set(win.forms['review']) == {
                 'image', 'envelope', 'receipt', 'password', 'recovery',
+            }
+            assert set(win.forms['pin_create']) == {
+                'image', 'envelope', 'receipt', 'pin_path', 'password', 'recovery',
+            }
+            assert set(win.forms['pin_verify']) == {
+                'image', 'envelope', 'pin_path', 'trusted_seal', 'password',
+                'recovery',
             }
             assert set(win.forms['mount_readonly']) == {
                 'image', 'envelope', 'receipt', 'drive', 'recovery',
