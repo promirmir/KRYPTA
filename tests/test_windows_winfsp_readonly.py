@@ -54,6 +54,12 @@ def test_readonly_winfsp_callbacks_use_authenticated_pfs2(tmp_path):
         bridge = make_readonly_winfsp_operations(ops, fake_api())
         root = bridge.open("\\", 0, 0)
         assert bridge.read_directory(root, None)[0]["file_name"] == "file.txt"
+        assert bridge.read_directory(root, "file.txt") == []
+        assert bridge.get_dir_info_by_name(root, "file.txt")["file_size"] == 6
+        with pytest.raises(NotFound):
+            bridge.get_dir_info_by_name(root, "missing.txt")
+        with pytest.raises(NotFound):
+            bridge.get_dir_info_by_name(root, r"..\\other.txt")
         handle = bridge.open(r"\file.txt", 0, 0)
         assert bridge.get_file_info(handle)["file_size"] == 6
         assert bridge.read(handle, 0, 6) == b"sample"
