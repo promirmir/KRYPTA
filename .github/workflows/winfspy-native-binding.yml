@@ -51,4 +51,5 @@ jobs:
           python tools/test_windows_winfsp_mount_lifecycle.py
           if ($LASTEXITCODE -ne 0) { throw 'Native WinFsp mount lifecycle failed' }
       - name: Explain remaining gate
-        run: echo "Lifecycle test only: WinFsp start/stop is checked, but ACL-gated Explorer access and file I/O are NOT certified."
+        run: |
+          echo "Lifecycle test only: WinFsp start/stop is checked, but ACL-gated Explorer access and file I/O are NOT certified."
