@@ -97,6 +97,29 @@ def main() -> None:
                 independently_trusted_seal=sealed["seal_sha256"],
                 security_descriptor=descriptor,
             )
+            # Diagnostic native I/O trace: metadata only, no secrets or
+            # plaintext. It is essential to distinguish Win32 failures from
+            # failures in our higher-level staged callbacks.
+            for method_name in (
+                "get_security_by_name", "open", "get_file_info", "write",
+                "flush", "cleanup", "close", "set_file_size", "overwrite",
+            ):
+                original = getattr(callbacks, method_name)
+                def trace(*args, _name=method_name, _fn=original, **kwargs):
+                    markers = ""
+                    if _name == "open" and len(args) >= 3:
+                        markers = f" access={args[2]!r}"
+                    elif _name == "write" and len(args) >= 2:
+                        markers = f" size={len(args[1])}"
+                    print(f"WINFSP_STAGE {_name} begin{markers}", flush=True)
+                    try:
+                        result = _fn(*args, **kwargs)
+                    except Exception as exc:
+                        print(f"WINFSP_STAGE {_name} denied {type(exc).__name__}", flush=True)
+                        raise
+                    print(f"WINFSP_STAGE {_name} success", flush=True)
+                    return result
+                setattr(callbacks, method_name, trace)
             native = winfspy.FileSystem(
                 drive, callbacks, sector_size=512,
                 sectors_per_allocation_unit=1,
