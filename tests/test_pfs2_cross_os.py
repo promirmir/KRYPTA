@@ -18,7 +18,7 @@ def test_complete_cross_os_fixture_trip_through_copy(tmp_path):
     prior = json.loads((tmp_path / INITIAL).read_text())
     assert prior["test_only"] is True
     original = image.read_bytes()
-    with pytest.raises(FileExistsError):
+    with pytest.raises(PagedVolumeError, match="Cannot exclusively open regular test image"):
         create(root)
     assert image.read_bytes() == original
     update(root)
