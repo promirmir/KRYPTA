@@ -15,7 +15,7 @@ import secrets
 import stat
 
 from .core import _open_checked_file
-from research.paged_fs2 import PagedFS2, MAX_FILE_BYTES
+from research.paged_fs2 import PagedFS2, MAX_FILE_BYTES, AtomicBatchCommitUncertain
 from research.paged_keys import (
     PagedKeyError, _new_private_file, _password_bytes, _remove_only_own,
     provision_keys, unlock_password, unlock_recovery,
@@ -209,6 +209,67 @@ def import_file(image: str | Path, envelope: str | Path, receipt: str,
             "bytes_verified": len(payload),
             "receipt": fs.receipt,
             "warning": "Plaintext original remains unchanged. Update trusted receipt NOW.",
+        }
+
+
+def import_folder_atomic(
+    image: str | Path, envelope: str | Path, receipt: str,
+    source_folder: str | Path, *, password: str | None = None,
+    recovery: str | Path | None = None,
+) -> dict:
+    """Import ALL 1–32 regular flat files from a source folder in one commit.
+
+    Source files remain unchanged. Refuses nested folders, links, image/key
+    aliases, duplicate casefold names and >8 MiB aggregated payload before
+    writing to the encrypted image. Never auto-accept an uncertain commit.
+    """
+    image = _image_path(image)
+    folder = Path(source_folder)
+    if folder.is_symlink() or not folder.is_dir():
+        raise ValueError("Choose an existing non-symlink source directory")
+    _distinct(image, envelope, *(p for p in (recovery,) if p is not None))
+    sources = []
+    with os.scandir(folder) as entries:
+        for item in entries:
+            if (item.is_symlink() or not item.is_file(follow_symlinks=False)):
+                raise ValueError("Atomic folder import requires only regular flat files")
+            sources.append(Path(item.path))
+            if len(sources) > 32:
+                raise ValueError("Atomic import allows at most 32 files")
+    if not sources:
+        raise ValueError("Atomic import requires at least one source file")
+    _distinct(image, envelope, *sources, *(p for p in (recovery,) if p is not None))
+    plaintexts: dict[str, bytes] = {}
+    remaining = 8 * 1024 * 1024
+    for source in sorted(sources, key=lambda p: p.name):
+        with _open_checked_file(source) as handle:
+            if os.fstat(handle.fileno()).st_size > remaining:
+                raise ValueError("Atomic import maximum total plaintext is 8 MiB")
+            payload = handle.read(remaining + 1)
+            if len(payload) > remaining:
+                raise ValueError("Atomic import maximum total plaintext is 8 MiB")
+        plaintexts[source.name] = payload
+        remaining -= len(payload)
+    with _open(image, envelope, receipt,
+               password=password, recovery=recovery) as fs:
+        # One COW commit, or a precisely marked ambiguous outcome.
+        fs.import_files_atomic(plaintexts)
+        candidate_receipt = fs.receipt
+        try:
+            fs.verify_all()
+            for name, payload in plaintexts.items():
+                if fs.read_file(name) != payload:
+                    raise ValueError("Imported plaintext readback mismatch")
+        except Exception as exc:
+            raise PostCommitVerificationError(candidate_receipt) from exc
+        return {
+            "operation": "Atomic encrypted folder import",
+            "receipt_changed": True,
+            "receipt": candidate_receipt,
+            "files_verified": len(plaintexts),
+            "bytes_verified": sum(len(data) for data in plaintexts.values()),
+            "warning": "ONE commit for all files. Sources unchanged. "
+                       "Retain the NEW receipt in an independent trusted place.",
         }
 
 
