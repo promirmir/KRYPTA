@@ -2,6 +2,13 @@ name: KRYPTA / Desktop alpha builds
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'krypta/**'
+      - 'research/**'
+      - 'tests/**'
+      - 'tools/test_windows_gui_isolated.py'
+      - '.github/workflows/build-desktop.yml'
   push:
     branches: [main]
     paths:
@@ -37,8 +44,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y python3-tk libtk8.6 libtcl8.6
       - name: Install dependencies and PyInstaller
         run: python -m pip install -e '.[test]' pyinstaller==6.16.0
-      - name: Run cryptographic regression tests
+      - name: Verify non-GUI regression tests on all platforms
+        if: runner.os != 'Windows'
         run: python -m pytest -q
+      - name: Verify Windows regression tests without cross-test Tcl state
+        if: runner.os == 'Windows'
+        run: python -m pytest -q --ignore=tests/test_volume_lab_gui.py --ignore=tests/test_desktop_languages.py
+      - name: Require ALL Windows native Tk assertions in isolated interpreters
+        if: runner.os == 'Windows'
+        run: python -m tools.test_windows_gui_isolated --repeat 3
       - name: Build local GUI executable
         run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name KRYPTA krypta/desktop_entry.py
       - name: Verify Windows output
