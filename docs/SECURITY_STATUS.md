@@ -1,8 +1,21 @@
-# KRYPTA Security Status — public development checkpoint (2026-10-21)
+# KRYPTA Security Status — public development checkpoint (2026-10-22)
 
 **Public source and PUBLIC development binaries (prerelease). No independent security audit. No hardware PIN anti-hammering. No system-disk or removable-volume encryption is implemented.**
 
 This page is evidence-based; a passing test is not a proof of confidentiality under every threat model.
+
+## Windows WinFsp native integration checkpoint — 2026-10-22
+
+Verified on Windows 2022 CI using a temporary ordinary encrypted `.kpv` research image, the native WinFsp driver, and Python `winfspy`:
+
+- [PR #38](https://github.com/promirmir/KRYPTA/pull/38): mandatory native binding installation and import checks, not just skipped optional tests.
+- [PR #39](https://github.com/promirmir/KRYPTA/pull/39): successful native filesystem mount and unmount on a disposable mountpoint.
+- [PR #40](https://github.com/promirmir/KRYPTA/pull/40): actual host Windows file read through the mounted path using an explicit owner/SYSTEM read-only security descriptor; clean handle cleanup/flush operations.
+- [PR #41](https://github.com/promirmir/KRYPTA/pull/41): host-OS attempts to overwrite, create, delete and rename were rejected and authenticated image state remained unchanged. [CI evidence](https://github.com/promirmir/KRYPTA/actions/runs/39693827341).
+
+**Not yet verified:** native directory enumeration and multiple-file access. [PR #42](https://github.com/promirmir/KRYPTA/pull/42) is open; its [CI workflow](https://github.com/promirmir/KRYPTA/actions/runs/39694250978) was cancelled with the native WinFsp job incomplete, and must not be described as passing.
+
+**Security boundary:** the WinFsp adapter is research-only and read-only on disposable regular files. This is not encrypted Windows physical-disk or boot-volume support. It is not a validated feature of downloadable `krypta-dev-10-1` EXE files. No independent WinFsp ACL review, write-capable mounted filesystem, multi-user security validation, crash/power-cut campaign or production certification has been completed. Do not place irreplaceable or sensitive production data on this prototype.
 
 ## Verified independent bulk recovery checkpoint — dev-10-1
 
