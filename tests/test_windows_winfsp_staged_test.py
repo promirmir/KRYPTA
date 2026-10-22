@@ -99,7 +99,7 @@ def test_buffer_protocol_payload_is_accepted_and_invalid_buffer_rejected(harness
 
     image, key, pin, result, writer, fs, bridge, root = harness
     before = image.read_bytes()
-    h = bridge.open(r"\\sample.txt", 0, 0x0002)
+    h = bridge.open(r"\sample.txt", 0, 0x0002)
     try:
         assert bridge.write(h, array("B", b"ADAPTED!"), 0, False, False) == 8
         assert bridge.read(h, 0, 8) == b"ADAPTED!"
