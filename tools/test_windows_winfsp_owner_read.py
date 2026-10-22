@@ -47,19 +47,16 @@ def main() -> None:
         assert not mountpoint.exists(), "CI drive already exists"
         # Reference control: establish whether WinFsp/Windows can enumerate
         # its own upstream memfs at the same drive letter on this runner.
-        from winfspy.memfs import InMemoryFileSystemOperations
+        from winfspy.memfs import create_memory_file_system
         baseline_file = base / "baseline.txt"
         baseline_file.write_bytes(b"WINFSP-REFERENCE")
-        baseline_ops = InMemoryFileSystemOperations("WINFSP-CONTROL", read_only=True)
-        baseline_ops._import_files(baseline_file)
-        control = winfspy.FileSystem(
-            drive, baseline_ops, read_only_volume=True,
-            sector_size=512, sectors_per_allocation_unit=1,
-            case_sensitive_search=True, case_preserved_names=True,
-            unicode_on_disk=True, persistent_acls=True,
-            um_file_context_is_user_context2=True,
-            file_system_name="WINFSP-CONTROL",
-        )
+        # Use winfspy's own reference configuration, including its native
+        # volume flags, to avoid confounding the driver baseline with KRYPTA
+        # settings. The memory-file callbacks still reject every write.
+        control = create_memory_file_system(drive, label="WINFSP-CONTROL",
+                                            verbose=False, testing=True)
+        control.operations._import_files(baseline_file)
+        control.operations.read_only = True
         control_started = False
         try:
             control.start()
