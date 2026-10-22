@@ -308,3 +308,58 @@ def review_uncertain_image(image: str | Path, envelope: str | Path,
             "Manual offline recovery and independent validation required."
         ),
     }
+
+
+def seal_existing_trusted_receipt(
+    image: str | Path, envelope: str | Path, trusted_receipt: str,
+    destination: str | Path, *, password: str | None = None,
+    recovery: str | Path | None = None,
+) -> dict:
+    """Create a write-once external pin ONLY for an already trusted receipt.
+
+    The caller must protect the returned seal out-of-band; this cannot turn
+    an unauthenticated or rolled-back candidate into a trusted baseline.
+    """
+    from research.receipt_anchor import pin_trusted_image
+
+    image = _image_path(image)
+    if recovery is not None:
+        _distinct(image, envelope, recovery, destination)
+    else:
+        _distinct(image, envelope, destination)
+    key, bound_id = _get_key(envelope, password=password, recovery=recovery)
+    result = pin_trusted_image(
+        image, key, trusted_receipt, destination, expected_image_id=bound_id
+    )
+    return {
+        "operation": "Created write-once receipt pin for pre-trusted state",
+        "receipt_changed": False,
+        **result,
+    }
+
+
+def verify_sealed_receipt_image(
+    image: str | Path, envelope: str | Path, pin_path: str | Path,
+    independently_trusted_seal: str, *, password: str | None = None,
+    recovery: str | Path | None = None,
+) -> dict:
+    """Read-only full-file check requiring an out-of-band anti-replay seal."""
+    from research.receipt_anchor import verify_image_with_sealed_pin, ReceiptPinError
+
+    image = _image_path(image)
+    if recovery is not None:
+        _distinct(image, envelope, pin_path, recovery)
+    else:
+        _distinct(image, envelope, pin_path)
+    key, bound_id = _get_key(envelope, password=password, recovery=recovery)
+    result = verify_image_with_sealed_pin(
+        image, key, pin_path, independently_trusted_seal
+    )
+    if not hmac.compare_digest(result["image_id"], bound_id.hex()):
+        raise ReceiptPinError("Credential image ID disagrees with trusted pin")
+    return {
+        "operation": "Read-only image check against externally sealed receipt pin",
+        **result,
+        "receipt_changed": False,
+        "warning": "No implicit trust update. Keep the latest seal on independent storage.",
+    }
