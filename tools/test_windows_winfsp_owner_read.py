@@ -140,11 +140,10 @@ def main() -> None:
                                         file_info_timeout=1000,
                                         post_cleanup_when_modified_only=True,
                                         reject_irp_prior_to_transact0=False,
-                                        # Diagnostic only: isolate native ReadOnlyVolume
-                                        # flag from reference memfs. All mutation
-                                        # callbacks and the owner-only DACL still
-                                        # reject Windows write/delete/rename calls.
-                                        read_only_volume=False,
+                                        # Defense in depth: in addition to owner-
+                                        # scoped read ACLs and rejecting all mutation
+                                        # callbacks, WinFsp itself must deny writes.
+                                        read_only_volume=True,
                                         # Each open returns a distinct Context object; WinFsp
                                         # must interpret it as a per-open file descriptor,
                                         # not the shared file node (its default mode).
