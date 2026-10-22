@@ -168,7 +168,9 @@ class StagedWindowsFileWrite:
                             raise PagedFS2Error("Readback plaintext mismatch")
                         return {
                             "receipt": candidate,
-                            "receipt_changed": True,
+                            "receipt_changed": not hmac.compare_digest(
+                                candidate, self._start_receipt
+                            ),
                             "sequence": report["sequence"],
                             "files_verified": report["files_verified"],
                         }
