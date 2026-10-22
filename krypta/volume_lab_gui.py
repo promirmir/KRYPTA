@@ -81,6 +81,9 @@ FORMS = [
     ("Sprawdź pin (R/O)", PIN_VERIFY, "pin_verify"),
     ("Montuj R/O WinFsp", MOUNT_READONLY, "mount_readonly"),
     ("Dodaj plik", OPEN + [("source", "Zwykły plik do zaszyfrowania (maks. 32 MiB)", False, False)], "import"),
+    ("Importuj folder ATOMOWO", OPEN + [
+        ("source_folder", "Folder 1–32 plików bez podfolderów (łącznie do 8 MiB)", False, False),
+    ], "import_folder"),
     ("Eksportuj", OPEN + [
         ("name", "Nazwa pliku WEWNĄTRZ zaszyfrowanego obrazu", False, False),
         ("output", "NOWY plik wyjściowy — JAWNY", False, True),
@@ -194,6 +197,11 @@ class VolumeLabWindow(tk.Toplevel):
             kwargs["filetypes"] = [("KRYPTA PVIMG", "*.kpv"), ("All files", "*.*")]
         if key == "pin_path":
             kwargs["filetypes"] = [("KRYPTA sealed pin", "*.kpin"), ("All files", "*.*")]
+        if key == "source_folder":
+            selected = filedialog.askdirectory(parent=self, mustexist=True)
+            if selected:
+                variable.set(selected)
+            return
         if destination:
             if key == "pin_path":
                 kwargs["defaultextension"] = ".kpin"
@@ -257,6 +265,7 @@ class VolumeLabWindow(tk.Toplevel):
             "pin_create": {"image", "envelope", "receipt", "pin_path"},
             "pin_verify": {"image", "envelope", "pin_path", "trusted_seal"},
             "import": {"image", "envelope", "receipt", "source"},
+            "import_folder": {"image", "envelope", "receipt", "source_folder"},
             "export": {"image", "envelope", "receipt", "name", "output"},
             "rotate": {"image", "envelope", "receipt", "new_image", "new_envelope",
                        "new_recovery", "new_password", "confirmation"},
@@ -270,7 +279,7 @@ class VolumeLabWindow(tk.Toplevel):
                                    "Uzupełnij wymagane pole.", parent=self)
             data.clear()
             return
-        if action in {"verify", "review", "pin_create", "pin_verify", "import", "export"}:
+        if action in {"verify", "review", "pin_create", "pin_verify", "import", "import_folder", "export"}:
             if bool(data.get("password")) == bool(data.get("recovery")):
                 messagebox.showerror("KRYPTA Volume Lab",
                                      "Podaj hasło ALBO plik odzyskiwania.", parent=self)
@@ -328,6 +337,9 @@ class VolumeLabWindow(tk.Toplevel):
                 "import": lambda: operations.import_file(
                     data["image"], data["envelope"], data["receipt"], data["source"],
                     password=data["password"] or None, recovery=data["recovery"] or None),
+                "import_folder": lambda: operations.import_folder_atomic(
+                    data["image"], data["envelope"], data["receipt"], data["source_folder"],
+                    password=data["password"] or None, recovery=data["recovery"] or None),
                 "export": lambda: operations.export_file(
                     data["image"], data["envelope"], data["receipt"], data["name"], data["output"],
                     password=data["password"] or None, recovery=data["recovery"] or None),
@@ -342,7 +354,14 @@ class VolumeLabWindow(tk.Toplevel):
         except Exception as exc:
             # Do not lose recovery metadata if the write committed before
             # an integrity check subsequently failed; never call it trusted.
-            if isinstance(exc, operations.PostCommitVerificationError):
+            if isinstance(exc, operations.AtomicBatchCommitUncertain):
+                report = {
+                    "result": "NIEPEWNY COMMIT — ZATRZYMAJ ZAPIS I ZACHOWAJ OBRAZ",
+                    "warning": "Nie wiadomo, czy nowy stan został zapisany. "
+                               "Nie ufaj automatycznie STAREMU ani nowemu receipt. "
+                               "Zachowaj obraz i niezależny receipt; wykonaj analizę R/O.",
+                }
+            elif isinstance(exc, operations.PostCommitVerificationError):
                 report = {
                     "result": "ZAPIS MÓGŁ SIĘ ZAKOŃCZYĆ, ALE WERYFIKACJA NIE PRZESZŁA",
                     "UNVERIFIED_RECEIPT_RECOVERY_ONLY": exc.unverified_receipt,
