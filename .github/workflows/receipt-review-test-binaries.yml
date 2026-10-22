@@ -1,0 +1,81 @@
+name: KRYPTA / read-only receipt review test binaries
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/**'
+      - 'krypta/volume_lab.py'
+      - 'tools/review_uncertain_kpv.py'
+      - 'tests/test_paged_receipt_reconcile.py'
+      - '.github/workflows/receipt-review-test-binaries.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'research/**'
+      - 'krypta/volume_lab.py'
+      - 'tools/review_uncertain_kpv.py'
+      - 'tests/test_paged_receipt_reconcile.py'
+      - '.github/workflows/receipt-review-test-binaries.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packaged-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            artifact: KRYPTA-Windows-Receipt-Review-TEST
+          - os: ubuntu-22.04
+            artifact: KRYPTA-Linux-Receipt-Review-TEST
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned build tool and project test requirements
+        run: python -m pip install -e '.[test]' pyinstaller==6.16.0
+      - name: Verify read-only receipt ancestry / adversarial regression
+        run: python -m pytest -q tests/test_paged_receipt_reconcile.py
+      - name: Verify source entrypoint with a disposable encrypted image
+        run: python -m tools.review_uncertain_kpv --self-test
+      - name: Package a dedicated unsigned console TEST executable
+        run: python -m PyInstaller --noconfirm --clean --onefile --console --name KRYPTA-Receipt-Review-TEST tools/review_uncertain_kpv.py
+      - name: Verify packaged Windows EXE and write its checksum
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'dist/KRYPTA-Receipt-Review-TEST.exe').Path
+          & $exe --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Windows packaged receipt-review self-test failed' }
+          $sum = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          [System.IO.File]::WriteAllText(
+            (Join-Path (Get-Location) 'dist/KRYPTA-Receipt-Review-TEST.exe.sha256'),
+            ($sum + '  KRYPTA-Receipt-Review-TEST.exe' + [char]10),
+            [System.Text.Encoding]::ASCII
+          )
+      - name: Verify packaged Linux ELF and write its checksum
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          test -s dist/KRYPTA-Receipt-Review-TEST
+          chmod +x dist/KRYPTA-Receipt-Review-TEST
+          ./dist/KRYPTA-Receipt-Review-TEST --self-test
+          (cd dist && sha256sum KRYPTA-Receipt-Review-TEST > KRYPTA-Receipt-Review-TEST.sha256 && sha256sum -c KRYPTA-Receipt-Review-TEST.sha256)
+      - name: Upload isolated, unsigned test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ runner.os == 'Windows' && 'dist/KRYPTA-Receipt-Review-TEST.exe*' || 'dist/KRYPTA-Receipt-Review-TEST*' }}
+          if-no-files-found: error
+          retention-days: 14
