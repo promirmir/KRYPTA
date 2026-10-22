@@ -39,6 +39,13 @@ ROTATE = OPEN[:3] + [
     ("new_password", "NOWE długie hasło", True, False),
     ("confirmation", "Powtórz nowe hasło", True, False),
 ]
+REVIEW = [
+    ("image", "Istniejący obraz testowy .kpv (tylko odczyt)", False, False),
+    ("envelope", "Pasujący plik kluczy .pvkey", False, False),
+    ("receipt", "WCZEŚNIEJSZY ZAUFANY receipt (64 małe znaki hex)", False, False),
+    ("password", "Hasło (ALBO klucz odzyskiwania)", True, False),
+    ("recovery", "ALBO istniejący plik klucza odzyskiwania", False, False),
+]
 MOUNT_READONLY = OPEN[:3] + [
     ("drive", "WOLNA litera dysku Windows (D: do Z:)", False, False),
     ("recovery", "Opcjonalny plik odzyskiwania; bez niego hasło w osobnej konsoli", False, False),
@@ -53,6 +60,7 @@ RECOVER = [
 FORMS = [
     ("Utwórz", CREATE, "create"),
     ("Weryfikuj", OPEN, "verify"),
+    ("Analiza awarii (R/O)", REVIEW, "review"),
     ("Montuj R/O WinFsp", MOUNT_READONLY, "mount_readonly"),
     ("Dodaj plik", OPEN + [("source", "Zwykły plik do zaszyfrowania (maks. 32 MiB)", False, False)], "import"),
     ("Eksportuj", OPEN + [
@@ -207,6 +215,7 @@ class VolumeLabWindow(tk.Toplevel):
         required = {
             "create": {"image", "envelope", "recovery", "password", "confirmation"},
             "verify": {"image", "envelope", "receipt"},
+            "review": {"image", "envelope", "receipt"},
             "import": {"image", "envelope", "receipt", "source"},
             "export": {"image", "envelope", "receipt", "name", "output"},
             "rotate": {"image", "envelope", "receipt", "new_image", "new_envelope",
@@ -221,7 +230,7 @@ class VolumeLabWindow(tk.Toplevel):
                                    "Uzupełnij wymagane pole.", parent=self)
             data.clear()
             return
-        if action in {"verify", "import", "export"}:
+        if action in {"verify", "review", "import", "export"}:
             if bool(data.get("password")) == bool(data.get("recovery")):
                 messagebox.showerror("KRYPTA Volume Lab",
                                      "Podaj hasło ALBO plik odzyskiwania.", parent=self)
@@ -254,6 +263,10 @@ class VolumeLabWindow(tk.Toplevel):
                 "verify": lambda: operations.verify_image(
                     data["image"], data["envelope"], data["receipt"],
                     password=data["password"] or None, recovery=data["recovery"] or None),
+                "review": lambda: operations.review_uncertain_image(
+                    data["image"], data["envelope"], data["receipt"],
+                    password=data["password"] or None,
+                    recovery=data["recovery"] or None),
                 "import": lambda: operations.import_file(
                     data["image"], data["envelope"], data["receipt"], data["source"],
                     password=data["password"] or None, recovery=data["recovery"] or None),
@@ -331,11 +344,24 @@ class VolumeLabWindow(tk.Toplevel):
         self.result.configure(state="disabled")
         self.latest_receipt = (
             report.get("receipt") if success and
+            report.get("review_only") is not True and
             isinstance(report.get("receipt"), str) else None
         )
         self.save_receipt_button.configure(
             state="normal" if self.latest_receipt else "disabled")
-        self.status.set("Zakończono" if success else "Odmowa / błąd — brak potwierdzenia powodzenia")
+        if success and report.get("review_only") is True:
+            self.status.set("Analiza TYLKO DO ODCZYTU — zapis nadal ZABLOKOWANY")
+            if report.get("status") == "DESCENDANT_FOUND_MANUAL_REVIEW_REQUIRED":
+                messagebox.showwarning(
+                    "KRYPTA / wymagane ręczne odzyskiwanie",
+                    "Znaleziono późniejszy uwierzytelniony stan obrazu, ale NIE "
+                    "potwierdza to jego aktualności ani autoryzacji. Nie zapisuj "
+                    "wynikowego receipt jako nowego zaufanego. Zachowaj starszy "
+                    "niezależny receipt, obraz i kopie zapasowe.",
+                    parent=self,
+                )
+        else:
+            self.status.set("Zakończono" if success else "Odmowa / błąd — brak potwierdzenia powodzenia")
         if "UNVERIFIED_RECEIPT_RECOVERY_ONLY" in report:
             messagebox.showerror(
                 "KRYPTA / UWAGA: wynik NIEZWERYFIKOWANY",
