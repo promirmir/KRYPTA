@@ -109,14 +109,39 @@ def main() -> None:
                     markers = ""
                     if _name == "open" and len(args) >= 3:
                         markers = f" access={args[2]!r}"
-                    elif _name == "write" and len(args) >= 2:
-                        markers = f" size={len(args[1])}"
+                    elif _name == "write" and len(args) >= 5:
+                        markers = (
+                            f" size={len(args[1])} offset={args[2]!r}"
+                            f" offset_type={type(args[2]).__name__}"
+                            f" append={args[3]!r} constrained={args[4]!r}"
+                            f" has_stage={getattr(args[0], 'stage', None) is not None}"
+                        )
                     print(f"WINFSP_STAGE {_name} begin{markers}", flush=True)
                     try:
                         result = _fn(*args, **kwargs)
                     except Exception as exc:
                         print(f"WINFSP_STAGE {_name} denied {type(exc).__name__}", flush=True)
                         raise
+                    if _name == "open" and getattr(result, "stage", None) is not None:
+                        stage = result.stage
+                        original_write = stage.write
+                        def trace_stage_write(offset, payload):
+                            print(
+                                f"STAGE_INPUT offset={offset!r} "
+                                f"offset_type={type(offset).__name__} "
+                                f"payload_type={type(payload).__name__} "
+                                f"payload_length={len(payload)}",
+                                flush=True,
+                            )
+                            try:
+                                return original_write(offset, payload)
+                            except Exception as error:
+                                print(
+                                    f"STAGE_FAIL {type(error).__name__}: {error}",
+                                    flush=True,
+                                )
+                                raise
+                        stage.write = trace_stage_write
                     print(f"WINFSP_STAGE {_name} success", flush=True)
                     return result
                 setattr(callbacks, method_name, trace)
