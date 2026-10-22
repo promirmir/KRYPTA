@@ -113,6 +113,18 @@ def make_readonly_winfsp_operations(ops: WindowsFileOperations, api, *, security
             return [e for e in entries if (e["file_name"].casefold(), e["file_name"]) >
                     (marker.casefold(), marker)]
 
+        def get_dir_info_by_name(self, file_context, file_name):
+            # WinFsp can use direct, authenticated name lookups rather than
+            # depending on directory enumeration for each metadata query.
+            if not file_context.directory:
+                raise api.NTStatusAccessDenied()
+            if not isinstance(file_name, str) or not file_name:
+                raise api.NTStatusObjectNameNotFound()
+            context = self._resolve("\\" + file_name)
+            if context.directory:
+                raise api.NTStatusObjectNameNotFound()
+            return {"file_name": file_name, **self._info(context)}
+
         def read(self, file_context, offset, length):
             if file_context.directory:
                 raise api.NTStatusAccessDenied()
