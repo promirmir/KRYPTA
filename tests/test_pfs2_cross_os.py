@@ -71,7 +71,10 @@ def test_cli_acknowledgement_is_required(tmp_path):
 def test_missing_or_alias_manifest_refused(tmp_path):
     create(str(tmp_path))
     before = (tmp_path / FILENAME).read_bytes()
-    (tmp_path / UPDATED).symlink_to(tmp_path / INITIAL)
+    try:
+        (tmp_path / UPDATED).symlink_to(tmp_path / INITIAL)
+    except (OSError, NotImplementedError):
+        pytest.skip("Symlinks unavailable on test runner")
     with pytest.raises(ValueError, match="invalid synthetic test manifest"):
         verify(str(tmp_path))
     assert (tmp_path / FILENAME).read_bytes() == before
