@@ -108,3 +108,34 @@ This executable does **not** mount a volume, protect physical disks,
 write trusted receipts or attempt automatic rollback recovery. Binaries
 remain research-only, unsigned, short-lived CI artifacts and must not
 be used on unique or irreplaceable user data.
+
+
+## Integrated desktop Volume Lab (Windows/Linux development build)
+
+The Volume Lab window in the regular development desktop application now has
+**Analiza awarii (R/O)** ("Crash review, read only"). Open the Volume Lab
+module, select this tab, supply the existing ordinary `.kpv` image,
+corresponding `.pvkey` file, and a **previously trusted** receipt kept
+separately from the image. Unlock with **either** the passphrase **or**
+the separately protected recovery-key file. The tab intentionally does
+not have mount-drive, output-file, candidate-promotion or write controls.
+
+The same fail-closed `review_uncertain_commit` service used by the console
+tool runs on a GUI worker. On success, the result shows an exact prior
+match or an authenticated descendant requiring **manual review**. It may
+show `observed_receipt_UNTRUSTED` for forensic diagnosis only. Neither
+this field nor any accidental generic `receipt` field in a review result
+can enable the GUI's "save trusted receipt" control. A failure stops without
+attempting to recover/truncate or write to the image.
+
+The regular application's existing file import/export workflow is unchanged,
+and the existing Windows WinFsp mount remains strictly read-only. For
+any uncertain result, retain the original image, prior separately trusted
+receipt and independent backup; do not resume writes on an unreviewed
+descendant. The packaged desktop `--paged-volume-self-test` now runs both
+the exact-prior and the descendant-review paths on synthetic encrypted
+images and asserts that review does not change their bytes.
+
+This is an application usability integration, **not** a writable mounted
+filesystem, a rollback-safe trust store, physical disk encryption or an
+independent security audit.
