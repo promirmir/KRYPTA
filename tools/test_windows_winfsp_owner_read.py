@@ -31,10 +31,20 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="krypta-winfsp-") as folder:
         base = Path(folder)
         image = base / "temporary.kpv"
-        mountpoint = base / "empty-mount"
-        # WinFsp creates the junction/mountpoint itself. An existing directory
-        # can produce STATUS_OBJECT_NAME_COLLISION on the native backend.
-        assert not mountpoint.exists()
+        # CI-only disposable drive letter. A directory reparse-point mount
+        # previously stalled in the Windows directory-query path even after
+        # the underlying WinFsp callback emitted the proper EOF sentinel.
+        used_drives = win32api.GetLogicalDrives()
+        free_letters = [
+            chr(ord("A") + idx)
+            for idx in range(ord("Z") - ord("A"), ord("P") - ord("A"), -1)
+            if not (used_drives & (1 << idx))
+        ]
+        if not free_letters:
+            raise RuntimeError("No free disposable CI drive letter")
+        drive = free_letters[0] + ":"
+        mountpoint = Path(drive + "\\")
+        assert not mountpoint.exists(), "CI drive already exists"
         with PagedResearchVolume(image, os.urandom(32), create=True) as volume:
             fs = PagedFS2.format(volume)
             ops = WindowsFileOperations(fs)
@@ -82,7 +92,7 @@ def main() -> None:
                 print(f"WINFSP_LL_DIR: status={result} bytes={args[5][0]}", flush=True)
                 return result
             callbacks.ll_read_directory = traced_ll
-            native = winfspy.FileSystem(str(mountpoint), callbacks,
+            native = winfspy.FileSystem(drive, callbacks,
                                         # Match explicit native disk geometry from
                                         # winfspy's working memory filesystem,
                                         # with 4-KiB allocation units.
@@ -102,6 +112,7 @@ def main() -> None:
             try:
                 native.start()
                 started = True
+                print(f"WINFSP_DIAG: disposable test drive {drive}", flush=True)
                 print("Native WinFsp dispatcher started on ephemeral directory")
                 actual = (mountpoint / "probe.txt").read_bytes()
                 if actual != b"KRYPTA":
