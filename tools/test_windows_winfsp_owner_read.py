@@ -45,6 +45,37 @@ def main() -> None:
         drive = free_letters[0] + ":"
         mountpoint = Path(drive + "\\")
         assert not mountpoint.exists(), "CI drive already exists"
+        # Reference control: establish whether WinFsp/Windows can enumerate
+        # its own upstream memfs at the same drive letter on this runner.
+        from winfspy.memfs import InMemoryFileSystemOperations
+        baseline_file = base / "baseline.txt"
+        baseline_file.write_bytes(b"WINFSP-REFERENCE")
+        baseline_ops = InMemoryFileSystemOperations("WINFSP-CONTROL", read_only=True)
+        baseline_ops._import_files(baseline_file)
+        control = winfspy.FileSystem(
+            drive, baseline_ops, read_only_volume=True,
+            sector_size=512, sectors_per_allocation_unit=1,
+            case_sensitive_search=True, case_preserved_names=True,
+            unicode_on_disk=True, persistent_acls=True,
+            um_file_context_is_user_context2=True,
+            file_system_name="WINFSP-CONTROL",
+        )
+        control_started = False
+        try:
+            control.start()
+            control_started = True
+            print("WINFSP_CONTROL: enumerating upstream memory filesystem", flush=True)
+            faulthandler.dump_traceback_later(12, file=sys.stderr)
+            try:
+                baseline_names = list(os.listdir(mountpoint))
+            finally:
+                faulthandler.cancel_dump_traceback_later()
+            if baseline_names != ["baseline.txt"]:
+                raise AssertionError(f"Upstream control listing incorrect: {baseline_names!r}")
+            print("PASS: upstream WinFsp memfs native directory enumeration", flush=True)
+        finally:
+            if control_started or control.started:
+                control.stop()
         with PagedResearchVolume(image, os.urandom(32), create=True) as volume:
             fs = PagedFS2.format(volume)
             ops = WindowsFileOperations(fs)
