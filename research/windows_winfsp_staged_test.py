@@ -211,9 +211,16 @@ def make_one_shot_test_winfsp_operations(
         def cleanup(self, file_context, file_name, flags):
             with self._txn_guard:
                 self._active(file_context)
-                # Never convert delete/disposition/attribute changes to
-                # successful no-ops that could mislead native Windows callers.
-                if not isinstance(flags, int) or flags & ~0:
+                # Native WinFsp sends normal cleanup with metadata hints
+                # (0x10 archive; 0x20 last-access; 0x40 last-write;
+                # 0x80 change-time), even after a successful explicit flush.
+                # Cleanup is a VOID callback: Windows cannot observe errors.
+                # Ignore ONLY these optional timestamp/archive hints in this
+                # synthetic, non-production filesystem, never invent
+                # persisted NTFS metadata or mutate authenticated ciphertext.
+                # Deletion (0x01), allocation-size (0x02) and unknown flags
+                # remain forbidden. CanDelete/SetDelete are denied separately.
+                if type(flags) is not int or flags & ~0xF0:
                     raise api.NTStatusMediaWriteProtected()
                 return None
 
