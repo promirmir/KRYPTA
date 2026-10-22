@@ -21,6 +21,7 @@ def main(argv=None):
     p.add_argument('source', type=Path)
     sub.add_parser('gui', help='Offline desktop UI (Tkinter)')
     sub.add_parser('volume-status', help='Read-only OS transparent encryption inventory; no disk changes')
+    sub.add_parser('physical-disks', help='List real physical disks, read-only (never writes/formats)')
     args = parser.parse_args(argv)
     try:
         if args.cmd == 'gui':
@@ -32,6 +33,9 @@ def main(argv=None):
         elif args.cmd == 'volume-status':
             from .volume_status import inspect_volumes
             print(json.dumps(inspect_volumes(), indent=2, ensure_ascii=False))
+        elif args.cmd == 'physical-disks':
+            from .physical_devices import inspect_physical_disks
+            print(json.dumps(inspect_physical_disks(), indent=2, ensure_ascii=False))
         elif args.cmd == 'info':
             print(json.dumps(file_info(args.source), indent=2, ensure_ascii=False))
         else:

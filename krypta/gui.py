@@ -16,6 +16,7 @@ from pathlib import Path
 from .core import CryptoError, decrypt_file, encrypt_file, file_info, generate_keyfile
 from .i18n import LANGUAGES, normalize_language, translate
 from .volume_status import inspect_volumes
+from .physical_devices import inspect_physical_disks
 
 INK = '#080F0C'
 PANEL = '#0D1812'
@@ -221,6 +222,10 @@ class KryptaApp(tk.Tk):
         self.volume_scan_button = ttk.Button(
             self.future_panel, text='SCAN SYSTEM / USB ENCRYPTION (READ-ONLY)',
             command=self._scan_volumes, style='KV.TButton')
+        self.physical_scan_button = ttk.Button(
+            self.future_panel,
+            text='IDENTYFIKUJ FIZYCZNE DYSKI USB/SSD/HDD (TYLKO ODCZYT)',
+            command=self._scan_physical_devices, style='KV.TButton')
         self.volume_scan_results = tk.Text(
             self.future_panel, height=9, bg=PANEL_ALT, fg=TEXT,
             font=(self._font_family(), 9), wrap='word', relief='flat',
@@ -306,6 +311,7 @@ class KryptaApp(tk.Tk):
                      self._t('future_password'), self._t('future_android'))
         self.active_module = index
         self.volume_scan_button.pack_forget()
+        self.physical_scan_button.pack_forget()
         self.volume_scan_results.pack_forget()
         self.volume_scan_note.pack_forget()
         for i, btn in enumerate(self.module_buttons):
@@ -330,8 +336,34 @@ class KryptaApp(tk.Tk):
             self.future_panel.pack(fill='both', expand=True)
             if index in (1, 2):
                 self.volume_scan_button.pack(anchor='w', padx=25, pady=(0, 12))
+                if index == 1:
+                    self.physical_scan_button.pack(anchor='w', padx=25, pady=(0, 12))
                 self.volume_scan_results.pack(fill='x', padx=25)
                 self.volume_scan_note.pack(fill='x', padx=25, pady=(10, 20))
+
+
+    def _scan_physical_devices(self):
+        """Show physical hardware identity without any raw-device write path."""
+        if self.busy:
+            return
+        self.physical_scan_button.configure(state='disabled')
+
+        def work():
+            try:
+                report = inspect_physical_disks()
+                presentation = json.dumps(report, ensure_ascii=False, indent=2)
+            except Exception:
+                presentation = "UNKNOWN: nie mozna odczytac listy dyskow; brak zmian."
+            def done():
+                if not self.winfo_exists():
+                    return
+                self.volume_scan_results.configure(state='normal')
+                self.volume_scan_results.delete('1.0', 'end')
+                self.volume_scan_results.insert('end', presentation)
+                self.volume_scan_results.configure(state='disabled')
+                self.physical_scan_button.configure(state='normal')
+            self.after(0, done)
+        threading.Thread(target=work, daemon=True).start()
 
     def _scan_volumes(self):
         """Run strictly read-only operating-system checks off the UI thread."""

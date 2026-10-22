@@ -43,3 +43,7 @@
 - **GitHub Releases** to miejsce udostępniania EXE, ELF i APK. Dev/debug buildy są rzeczywistymi aplikacjami, ale nadają się jedynie do testowania na kopiach danych.
 - Same kompilacje, funkcjonalne GUI, syntetyczne awarie i zielone CI nie zamykają kryteriów [1.0](PRODUCT_ACCEPTANCE.md). Nie usuwamy brakujących funkcji z listy przez zmianę nazwy lub zakresu projektu.
 - W tym samym momencie zawsze utrzymywać aktualne README (pobieranie), ten rejestr (zakres), PRODUCT_ACCEPTANCE (kryteria) oraz SECURITY_STATUS (szczegółowe dowody).
+
+## Physical disks: first read-only integration gate
+
+The KRYPTA CLI now includes `python -m krypta physical-disks` for Windows and Linux. It lists physical disk identities, sizes, basic boot/mount indicators and candidate status using OS inventory commands only. Every disk is **write_authorized: false**: this stage deliberately performs no raw-device open, partitioning or encryption. Linux nested mounted partitions are flagged; Windows volume dependency data is incomplete and is always treated as UNKNOWN for raw-write approval. This is a necessary but **not sufficient** foundation for the requested real USB/SSD/HDD whole-volume encryption. The original P0 device goal remains **NOT IMPLEMENTED** until actual native mount/write, recovery, hot-unplug and hardware tests pass.
