@@ -83,6 +83,11 @@ def main() -> None:
                 return result
             callbacks.ll_read_directory = traced_ll
             native = winfspy.FileSystem(str(mountpoint), callbacks,
+                                        # Match explicit native disk geometry from
+                                        # winfspy's working memory filesystem,
+                                        # with 4-KiB allocation units.
+                                        sector_size=512,
+                                        sectors_per_allocation_unit=8,
                                         read_only_volume=True,
                                         # Each open returns a distinct Context object; WinFsp
                                         # must interpret it as a per-open file descriptor,
