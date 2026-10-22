@@ -272,3 +272,39 @@ def rotate_image(image: str | Path, envelope: str | Path, receipt: str,
         "warning": "Old snapshots remain readable with OLD credentials. "
                    "Securely back up NEW recovery secret and NEW trusted receipt.",
     }
+
+
+def review_uncertain_image(image: str | Path, envelope: str | Path,
+                           receipt: str, *, password: str | None = None,
+                           recovery: str | Path | None = None) -> dict:
+    """Forensic read-only history check against a PRIOR independently trusted receipt.
+
+    Unlike verify_image(), the prior receipt need not equal the newest commit.
+    A descendant is not a trusted new receipt: this function never makes
+    another write safe, modifies the image, or authorizes receipt promotion.
+    """
+    from research.paged_receipt_reconcile import review_uncertain_commit
+
+    image = _image_path(image)
+    if recovery is not None:
+        _distinct(image, envelope, recovery)
+    else:
+        _distinct(image, envelope)
+    key, bound_id = _get_key(envelope, password=password, recovery=recovery)
+    result = review_uncertain_commit(
+        image, key, receipt, expected_image_id=bound_id
+    )
+    if result["review_only"] is not True:
+        raise PagedKeyError("Expected read-only forensic review")
+    # Deliberately do not add the generic 'receipt' field: the GUI's
+    # receipt-export control must NEVER enable for forensic candidates.
+    return {
+        "operation": "Read-only forensic history analysis (TEST IMAGE)",
+        **result,
+        "receipt_changed": False,
+        "operator_action": (
+            "NO WRITES. Preserve the image and independent old receipt; "
+            "a later authenticated commit is not authorization or freshness. "
+            "Manual offline recovery and independent validation required."
+        ),
+    }

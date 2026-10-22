@@ -40,8 +40,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install native Tk and virtual desktop
-        run: sudo apt-get update && sudo apt-get install -y python3-tk xvfb fonts-noto-core fonts-noto-cjk
+      - name: Install native Tk, Xvfb and full Noto fonts without slow Azure mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Azure archive throughput was insufficient for the 61 MB Noto CJK
+          # package and timed out before ANY GUI tests could run (PR #54).
+          # Keep the exact dependency list and all graphical assertions.
+          for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list; do
+            if [ -f "$source" ]; then
+              sudo sed -i 's#azure.archive.ubuntu.com#archive.ubuntu.com#g' "$source"
+            fi
+          done
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=60 update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get \
+            -o Acquire::Retries=3 -o Acquire::http::Timeout=60 \
+            install -y --no-install-recommends python3-tk xvfb fonts-noto-core fonts-noto-cjk
+          command -v Xvfb
+          fc-match -f '%{family}\n' 'Noto Sans CJK JP' | grep -q 'Noto'
+          fc-match -f '%{family}\n' 'Noto Sans Arabic' | grep -q 'Noto'
       - name: Install project and test tools
         run: python -m pip install -e '.[test]'
       - name: Check Android resource generation

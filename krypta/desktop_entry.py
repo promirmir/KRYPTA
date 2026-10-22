@@ -140,6 +140,7 @@ def run_paged_volume_lab_self_test() -> int:
     """
     from krypta.volume_lab import (
         create_image, verify_image, import_file, export_file, rotate_image,
+        review_uncertain_image,
     )
     with tempfile.TemporaryDirectory(prefix="krypta-pfs2-gui-smoke-") as directory:
         root = Path(directory)
@@ -160,6 +161,25 @@ def run_paged_volume_lab_self_test() -> int:
         )
         if addition["receipt"] == created["receipt"]:
             raise RuntimeError("Encrypted import failed to advance external receipt")
+        image_before_review = image.read_bytes()
+        review = review_uncertain_image(
+            image, envelope, created["receipt"], recovery=recovery
+        )
+        if (review["status"] != "DESCENDANT_FOUND_MANUAL_REVIEW_REQUIRED"
+                or review["commits_since_prior"] != 1
+                or review["observed_receipt_UNTRUSTED"] != addition["receipt"]
+                or "receipt" in review
+                or review["review_only"] is not True
+                or image.read_bytes() != image_before_review):
+            raise RuntimeError("Packaged GUI forensic receipt review did not fail closed")
+        exact = review_uncertain_image(
+            image, envelope, addition["receipt"], password=password
+        )
+        if (exact["status"] != "CURRENT_RECEIPT_MATCHES_PRIOR"
+                or exact["review_only"] is not True
+                or "receipt" in exact
+                or image.read_bytes() != image_before_review):
+            raise RuntimeError("Packaged forensic review of current image failed")
         plaintext = root / "exported.bin"
         export_file(image, envelope, addition["receipt"], src.name, plaintext,
                     password=password)

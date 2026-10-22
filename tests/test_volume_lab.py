@@ -10,7 +10,7 @@ import pytest
 
 from krypta.volume_lab import (
     create_image, verify_image, import_file, export_file, rotate_image,
-    recover_password,
+    recover_password, review_uncertain_image,
 )
 from research.paged_keys import PagedKeyError
 from research.paged_fs2 import MAX_FILE_BYTES
@@ -71,6 +71,74 @@ def test_add_and_export_authenticated_file_with_updated_external_receipt(lab):
             "message.bin", target, password=PASSWORD,
         )
     assert target.read_bytes() == payload
+
+
+def test_forensic_review_current_prior_and_descendant_never_modify_or_promote(lab):
+    image, envelope, recovery = lab["image"], lab["envelope"], lab["recovery"]
+    previous = lab["receipt"]
+    bytes_before = image.read_bytes()
+    current = review_uncertain_image(
+        image, envelope, previous, password=PASSWORD
+    )
+    assert current["review_only"] is True
+    assert current["status"] == "CURRENT_RECEIPT_MATCHES_PRIOR"
+    assert current["receipt_changed"] is False
+    assert "receipt" not in current
+    assert image.read_bytes() == bytes_before
+
+    sample = lab["tmp"] / "later.bin"
+    sample.write_bytes(b"another authenticated state")
+    added = import_file(image, envelope, previous, sample, recovery=recovery)
+    advanced = image.read_bytes()
+    descendant = review_uncertain_image(
+        image, envelope, previous, recovery=recovery
+    )
+    assert descendant["status"] == "DESCENDANT_FOUND_MANUAL_REVIEW_REQUIRED"
+    assert descendant["commits_since_prior"] == 1
+    assert descendant["observed_receipt_UNTRUSTED"] == added["receipt"]
+    assert descendant["receipt_changed"] is False
+    assert "receipt" not in descendant
+    assert "NO WRITES" in descendant["operator_action"]
+    assert image.read_bytes() == advanced
+    assert review_uncertain_image(
+        image, envelope, added["receipt"], password=PASSWORD
+    )["status"] == "CURRENT_RECEIPT_MATCHES_PRIOR"
+    assert image.read_bytes() == advanced
+
+
+def test_forensic_review_rejects_rollback_wrong_secret_and_foreign_anchor(lab):
+    image, envelope = lab["image"], lab["envelope"]
+    receipt = lab["receipt"]
+    prior_image_bytes = image.read_bytes()
+    for rejected in ("", "b" * 63, "B" * 64, "f" * 64):
+        with pytest.raises(Exception):
+            review_uncertain_image(image, envelope, rejected,
+                                   password=PASSWORD)
+        assert image.read_bytes() == prior_image_bytes
+
+    with pytest.raises(PagedKeyError):
+        review_uncertain_image(
+            image, envelope, receipt,
+            password="incorrect and still over 12 chars"
+        )
+    with pytest.raises(PagedKeyError, match="exactly one"):
+        review_uncertain_image(image, envelope, receipt)
+    with pytest.raises(PagedKeyError, match="exactly one"):
+        review_uncertain_image(
+            image, envelope, receipt,
+            password=PASSWORD, recovery=lab["recovery"]
+        )
+
+    later = lab["tmp"] / "advanced.bin"
+    later.write_bytes(b"future content")
+    advanced_receipt = import_file(
+        image, envelope, receipt, later, password=PASSWORD
+    )["receipt"]
+    image.write_bytes(prior_image_bytes)  # Disposable test image only.
+    with pytest.raises(Exception, match="not in authenticated chain"):
+        review_uncertain_image(image, envelope, advanced_receipt,
+                               recovery=lab["recovery"])
+    assert image.read_bytes() == prior_image_bytes
 
 
 def test_never_auto_accept_receipt_or_wrong_password(lab):
@@ -199,7 +267,7 @@ def test_gui_forms_have_separate_required_secret_fields():
     from krypta.volume_lab_gui import FORMS
     assert {command for _, _, command in FORMS} == {
         "create", "verify", "import", "export", "rotate", "recover",
-        "mount_readonly",
+        "mount_readonly", "review",
     }
     for _, fields, _ in FORMS:
         assert len([key for key, *_ in fields]) == len(set(key for key, *_ in fields))
@@ -208,6 +276,11 @@ def test_gui_forms_have_separate_required_secret_fields():
     mount_names = {key for key, *_ in mount_fields}
     assert mount_names == {"image", "envelope", "receipt", "drive", "recovery"}
     assert "password" not in mount_names  # Password belongs only in the child console.
+    review_fields = next(fields for _, fields, action in FORMS
+                         if action == "review")
+    assert {key for key, *_ in review_fields} == {
+        "image", "envelope", "receipt", "password", "recovery",
+    }
 
 
 
