@@ -20,7 +20,7 @@
 | WinFsp: montowanie, odczyt, odmowa zapisu | Test na natywnym Windows CI / osobny R/O helper | — | — | Wydanie użytkowe nie montuje woluminu do zapisu |
 | WinFsp: buforowany zapis i commit na polecenie flush | Etap testowy na tymczasowym .kpv; wymaga walidacji | — | — | **Nie jest zintegrowane z wydanym EXE; nie wolno podłączać rzeczywistych dysków** |
 | Linux/Windows — wymiana tego samego zaszyfrowanego obrazu PFS/2 | Test CI PASS | Test CI PASS | Brak | Integracja z GUI nie oznacza przenoszenia zaufanego stanu i kluczy |
-| Szyfrowanie całego dysku, partycji, nośnika USB/SSD/HDD | Brak | Brak | Brak | Główny cel nadal nieukończony |
+| Rozpoznawanie rzeczywistych fizycznych dysków i ich metadanych | Get-Disk R/O (nowy kod i GUI, wymaga walidacji CI) | lsblk R/O (nowy kod i GUI, wymaga walidacji CI) | Brak | Sama inwentaryzacja; brak otwierania i szyfrowania urządzeń, zawsze write_authorized=false |\n| Szyfrowanie całego dysku, partycji, nośnika USB/SSD/HDD | Brak | Brak | Brak | Główny cel nadal nieukończony; potrzebne bezpieczne backendy urządzeń, mount, recovery, testy power-loss |
 | Szyfrowanie dysku systemowego i rozruchu | Brak | Brak | Zwykły APK nie ma uprawnień do podmiany systemowego FBE | Nie wolno reklamować jako istniejącej funkcji |
 | Password Shield — osobny sejf haseł | Brak potwierdzonego kompletnego modułu | Brak potwierdzonego kompletnego modułu | Brak potwierdzonego kompletnego modułu | Wymagany przez Project Charter |
 | Krótki PIN wsparty nieeksportowalnym sekretem sprzętowym | Brak | Brak | Brak rozwiązania międzyplatformowego | Krótki PIN bez silnego sprzętowego czynnika jest podatny na zgadywanie offline |
