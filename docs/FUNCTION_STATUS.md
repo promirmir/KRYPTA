@@ -15,7 +15,7 @@
 | Rotacja klucza danych przez nowy zaszyfrowany obraz | Działa w Volume Lab | Działa w Volume Lab | Brak | Stare kopie i stare klucze nie są automatycznie unieważniane |
 | Ratunkowy pełny eksport aktualnych plików PFS/2 bez GUI | Działa w Rescue EXE (dev) | Działa w Rescue ELF (dev) | Brak | Źródłowy obraz tylko do odczytu; wynik jest jawny |
 | Analiza dziennika, historii receipt i symulacji przerwań | Działa w Volume Lab (R/O) / testach | Działa w Volume Lab (R/O) / testach | Brak | Historia nie potwierdza automatycznie świeżości nowszego stanu |
-| Zewnętrznie zapieczętowany punkt zaufania receipt | Dostępne w kodzie i testach / PR #55 | Dostępne w kodzie i testach / PR #55 | Brak | Odcisk kontrolny musi być chroniony osobno; bez TPM i automatycznego przejścia między punktami zaufania |
+| Zewnętrznie zapieczętowany punkt zaufania receipt | Volume Lab GUI (od kolejnego wydania) + testy | Volume Lab GUI (od kolejnego wydania) + testy | Brak | Użytkownik ręcznie dostarcza wcześniejszy zaufany receipt / niezależny SHA-256 seal; bez TPM, automatycznej aktualizacji ani odporności na rollback całego magazynu |
 | Montowanie FUSE dla zaszyfrowanego obrazu | — | Test CI / osobny program | — | Niepełna zgodność POSIX, nieobsługiwane realne partycje |
 | WinFsp: montowanie, odczyt, odmowa zapisu | Test na natywnym Windows CI / osobny R/O helper | — | — | Wydanie użytkowe nie montuje woluminu do zapisu |
 | WinFsp: buforowany zapis i commit na polecenie flush | Etap testowy na tymczasowym .kpv; wymaga walidacji | — | — | **Nie jest zintegrowane z wydanym EXE; nie wolno podłączać rzeczywistych dysków** |
