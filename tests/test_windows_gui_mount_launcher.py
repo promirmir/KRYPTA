@@ -60,7 +60,10 @@ def test_gui_requires_separate_existing_helper(inputs, tmp_path):
     command(inputs, tmp_path)
     (tmp_path / mount.HELPER_NAME).unlink()
     with pytest.raises(RuntimeError, match="next to"):
-        command(inputs, tmp_path)
+        mount.build_mount_command(
+            str(inputs[0]), str(inputs[1]), "a" * 64, "Z:",
+            packaged=True, app_executable=str(tmp_path / "KRYPTA.exe"),
+        )
 
 
 def test_gui_rejects_image_key_hardlink_and_symlink(inputs, tmp_path):
