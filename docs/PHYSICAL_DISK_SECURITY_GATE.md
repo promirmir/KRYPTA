@@ -60,6 +60,25 @@ fizycznego USB, SSD ani HDD**. Kod nie jest udostępniony jako komenda
 formatowania, nie jest jeszcze produkcyjny. Ostateczny format, sterowniki,
 współbieżność i realne awarie zasilania pozostają niewdrożone.
 
+## Wdrożenie interfejsu użytkownika i testów gotowego programu
+
+Desktop Linux: dedykowane okno w **Drive Shield**, wybór urządzenia z listy
+niemontowanych źródeł USB, pliku `.krypta`, oddzielnego keyfile i hasła
+z potwierdzeniem. Operacja wymaga świadomej zgody i jest wykonywana poza
+wątkiem Tk; nie ma żadnego wywołania zapisu na urządzeniu źródłowym.
+Próba zamknięcia okna/programu podczas pracy jest odrzucana. Windows EXE
+**nie** pokazuje tej operacji — nadal tylko identyfikuje dyski.
+Android APK działa wyłącznie na wybranych plikach.
+
+Ważne dowody: test gotowego **Windows EXE i Linux ELF**
+`--usb-backup-self-test` tworzy *prawdziwy zaszyfrowany archiwum* z
+syntetycznego adaptera i weryfikuje pełne odtworzenie do pliku. Test nie
+korzysta z urządzenia fizycznego. Oddzielne CI
+`kernel-loop-real.yml` rzeczywiście przyłącza prywatny plik .kdevtest do
+`/dev/loopN`, wykonuje zaszyfrowany zapis 4 KiB i odczyt przez jądro.
+Jeśli runner nie obsługuje loop, test kończy się **niepowodzeniem**,
+nie jest zaliczany przez symulację. Nie oznacza to testu na fizycznym USB.
+
 ## Blokery pełnego wsparcia fizycznych dysków
 
 1. Nowy on-disk layout i niezawodny backend urządzeń, niezależny od

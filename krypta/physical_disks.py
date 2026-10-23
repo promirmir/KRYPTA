@@ -187,7 +187,11 @@ def inspect_physical_disks(*, system: str | None = None, runner=None) -> dict:
         raise DeviceInspectionError("Only Windows/Linux drive inventory is supported")
     runner = subprocess.run if runner is None else runner
     try:
-        result = runner(argv, capture_output=True, text=True, timeout=18,
+        # Native Windows Get-Disk / Get-Partition starts slowly on some hosts
+        # and GitHub Windows runners. Bound the wait, but do not interpret
+        # timeout/failure as "safe" or authorize any disk writes.
+        deadline = 60 if system == "Windows" else 18
+        result = runner(argv, capture_output=True, text=True, timeout=deadline,
                         check=False)
     except (OSError, UnicodeError, subprocess.TimeoutExpired) as exc:
         raise DeviceInspectionError("OS device query failed") from exc

@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import locale
+import platform
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -61,7 +62,8 @@ class KryptaApp(tk.Tk):
     def _close_workstation(self):
         """Never kill a running encrypted-image write by closing the root UI."""
         from .volume_lab_gui import VolumeLabWindow
-        if any(isinstance(window, VolumeLabWindow) and window.busy
+        from .usb_backup_gui import LinuxUSBBackupWindow
+        if any(isinstance(window, (VolumeLabWindow, LinuxUSBBackupWindow)) and window.busy
                for window in self.winfo_children()):
             messagebox.showwarning(
                 'KRYPTA', 'Trwa zapis zaszyfrowanego obrazu. Poczekaj na wynik.',
@@ -226,6 +228,12 @@ class KryptaApp(tk.Tk):
             self.future_panel,
             text='IDENTYFIKUJ FIZYCZNE DYSKI USB/SSD/HDD (TYLKO ODCZYT)',
             command=self._scan_physical_devices, style='KV.TButton')
+        self.linux_usb_backup_button = ttk.Button(
+            self.future_panel,
+            text=('LINUX: ZASZYFROWANA KOPIA USB (ŹRÓDŁO TYLKO DO ODCZYTU)'
+                  if self.language_code == 'pl'
+                  else 'LINUX: ENCRYPTED USB COPY (SOURCE READ ONLY)'),
+            command=self._open_linux_usb_backup, style='KV.TButton')
         self.volume_scan_results = tk.Text(
             self.future_panel, height=9, bg=PANEL_ALT, fg=TEXT,
             font=(self._font_family(), 9), wrap='word', relief='flat',
@@ -312,6 +320,7 @@ class KryptaApp(tk.Tk):
         self.active_module = index
         self.volume_scan_button.pack_forget()
         self.physical_scan_button.pack_forget()
+        self.linux_usb_backup_button.pack_forget()
         self.volume_scan_results.pack_forget()
         self.volume_scan_note.pack_forget()
         for i, btn in enumerate(self.module_buttons):
@@ -338,9 +347,18 @@ class KryptaApp(tk.Tk):
                 self.volume_scan_button.pack(anchor='w', padx=25, pady=(0, 12))
                 if index == 1:
                     self.physical_scan_button.pack(anchor='w', padx=25, pady=(0, 12))
+                    if platform.system() == 'Linux':
+                        self.linux_usb_backup_button.pack(anchor='w', padx=25, pady=(0, 12))
                 self.volume_scan_results.pack(fill='x', padx=25)
                 self.volume_scan_note.pack(fill='x', padx=25, pady=(10, 20))
 
+
+    def _open_linux_usb_backup(self):
+        """Only an opt-in new encrypted COPY; physical disk writes remain disabled."""
+        if self.busy or platform.system() != 'Linux':
+            return
+        from .usb_backup_gui import open_usb_backup_dialog
+        open_usb_backup_dialog(self)
 
     def _scan_physical_devices(self):
         """Show physical hardware identity without any raw-device write path."""

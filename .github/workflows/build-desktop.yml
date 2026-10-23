@@ -41,7 +41,7 @@ jobs:
           cache: pip
       - name: Linux GUI runtime dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y python3-tk libtk8.6 libtcl8.6
+        run: sudo apt-get update && sudo apt-get install -y python3-tk libtk8.6 libtcl8.6 xvfb xauth
       - name: Install dependencies and PyInstaller
         run: python -m pip install -e '.[test]' pyinstaller==6.16.0
       - name: Verify non-GUI regression tests on all platforms
@@ -53,6 +53,9 @@ jobs:
       - name: Require ALL Windows native Tk assertions in isolated interpreters
         if: runner.os == 'Windows'
         run: python -m tools.test_windows_gui_isolated --repeat 3
+      - name: Require native Linux Tk USB backup window before packaging
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m pytest -q tests/test_volume_lab_gui.py -k linux_
       - name: Build local GUI executable
         run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name KRYPTA krypta/desktop_entry.py
       - name: Verify Windows output
@@ -65,6 +68,8 @@ jobs:
           if (!(Test-Path 'dist/KRYPTA.exe.sha256')) { throw 'Checksum manifest missing' }
           $probe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--self-test' -Wait -PassThru
           if ($probe.ExitCode -ne 0) { throw "Packaged Windows EXE self-test failed: $($probe.ExitCode)" }
+          $usbProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--usb-backup-self-test' -Wait -PassThru
+          if ($usbProbe.ExitCode -ne 0) { throw "Packaged USB backup roundtrip self-test failed: $($usbProbe.ExitCode)" }
           $volumeProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--volume-self-test' -Wait -PassThru
           if ($volumeProbe.ExitCode -ne 0) { throw "Packaged Windows independent volume smoke test failed: $($volumeProbe.ExitCode)" }
           $filesystemProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--filesystem-self-test' -Wait -PassThru
@@ -78,6 +83,7 @@ jobs:
           chmod +x dist/KRYPTA
           (cd dist && sha256sum KRYPTA > KRYPTA.sha256 && sha256sum -c KRYPTA.sha256)
           ./dist/KRYPTA --self-test
+          ./dist/KRYPTA --usb-backup-self-test
           ./dist/KRYPTA --volume-self-test
           ./dist/KRYPTA --filesystem-self-test
           ./dist/KRYPTA --fuse-self-test

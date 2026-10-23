@@ -12,24 +12,18 @@ KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Lin
 
 **[ZOBACZ WSZYSTKIE PLIKI DO POBRANIA — GitHub Releases](https://github.com/promirmir/KRYPTA/releases)**
 
-**Bezpośrednie pliki ze sprawdzonego wydania rozwojowego [krypta-dev-34-1](https://github.com/promirmir/KRYPTA/releases/tag/krypta-dev-34-1) (22.10.2026):**
+**Aktualne pliki pobieraj z [GitHub Releases](https://github.com/promirmir/KRYPTA/releases)** — każde scalone wdrożenie uruchamia osobną kompilację i tworzy nową wersję `krypta-dev-…`. Nie używaj starszych, zapisanych na stałe odnośników.
 
-| System | Plik do pobrania | Główna funkcja |
+| System | Szukaj pliku | Rzeczywisty zakres |
 |---|---|---|
-| 🪟 **Windows 10/11 x64** | **[KRYPTA-Windows-x64.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-34-1/KRYPTA-Windows-x64.exe)** | Graficzny File Vault oraz Volume Lab (testowe zaszyfrowane obrazy) |
-| 🐧 **Linux x64** | **[KRYPTA-Linux-x64](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-34-1/KRYPTA-Linux-x64)** | Graficzny File Vault i Volume Lab; oddzielne narzędzie Linux FUSE |
-| 🤖 **Android** | **[KRYPTA-Android-debug.apk](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-34-1/KRYPTA-Android-debug.apk)** | Szyfrowanie wybranych dokumentów z kluczem chronionym przez Android Keystore |
+| Windows 10/11 x64 | `KRYPTA-Windows-x64.exe` | File Vault i Volume Lab na obrazach testowych, diagnostyka fizycznych dysków tylko do odczytu |
+| Linux x64 | `KRYPTA-Linux-x64` | File Vault, Volume Lab, diagnostyka oraz **osobne okno tworzenia zaszyfrowanej kopii niemontowanego USB**; źródło tylko do odczytu |
+| Android | `KRYPTA-Android-debug.apk` | Szyfrowanie wskazanych dokumentów przy użyciu Android Keystore; **nie ma silnika całych woluminów** |
+| Windows / Linux ratunkowy | `KRYPTA-Windows-x64-Rescue.exe`, `KRYPTA-Linux-x64-Rescue` | Oddzielne narzędzia do kontrolowanego odczytu/testowego eksportu PFS/2 |
 
-**Osobne narzędzia ratunkowe (bez GUI):**
+W Linuksie nowa kopia USB to operacja `Drive Shield → ENCRYPTED USB COPY (READ ONLY)` z osobnym plikiem klucza i hasłem. Zapisuje nowe `.krypta` na dysku docelowym, **nie szyfruje źródłowego urządzenia w miejscu**. Nie jest migawką atomową; nie należy usuwać źródła bez niezależnego testu pełnego odzyskania danych. Program musi mieć uprawnienia do odczytu wybranego urządzenia i nie powinien pracować na jedynych kopiach danych.
 
-| System | Program odzyskiwania |
-|---|---|
-| Windows x64 | [KRYPTA-Windows-x64-Rescue.exe](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-34-1/KRYPTA-Windows-x64-Rescue.exe) |
-| Linux x64 | [KRYPTA-Linux-x64-Rescue](https://github.com/promirmir/KRYPTA/releases/download/krypta-dev-34-1/KRYPTA-Linux-x64-Rescue) |
-
-Programy wymagają pasującego pliku `.pvkey`, oddzielnego 32-bajtowego klucza odzyskiwania oraz niezależnie przechowanego aktualnego `receipt`. Po uwierzytelnieniu całego obrazu PFS/2 tworzą **nowy folder z odszyfrowanymi, JAWNYMI plikami**. Źródłowy obraz pozostaje bez zmian. Nie jest to odzyskiwanie pełnego dysku ani niezależnie audytowane rozwiązanie produkcyjne. [Instrukcja](docs/OFFLINE_RESCUE_ALL.md).
-
-Powyższe linki pobierają bezpośrednio pliki z wydania rozwojowego **dev-34-1**, odpowiadającego scalonemu [PR #56](https://github.com/promirmir/KRYPTA/pull/56). Najnowsze wersje, w tym kolejne funkcje Volume Lab, znajdziesz na [stronie wszystkich wydań](https://github.com/promirmir/KRYPTA/releases). Załączone pliki z rozszerzeniem .sha256 pozwalają sprawdzić integralność pobranych plików. **Repozytorium jest publiczne.** Każdy może czytać kod i pobrać udostępnione wydania rozwojowe. Kod otwarty nie oznacza zakończonego audytu ani gotowości produktu.
+**Zewnętrzne narzędzia Rescue** wymagają pasującego `.pvkey`, oddzielnego 32-bajtowego klucza odzyskiwania i niezależnie przechowanego zaufanego `receipt`. Tworzą jawne pliki w nowym folderze; [instrukcja](docs/OFFLINE_RESCUE_ALL.md). Pliki kontrolne `.sha256` służą do sprawdzenia integralności pobrania.
 
 **Status: kompilacje rozwojowe, a nie certyfikowane wydania produkcyjne.** Korzystaj wyłącznie z kopii danych testowych. Aplikacje nie szyfrują jeszcze całego dysku systemowego ani całego telefonu.
 
@@ -37,7 +31,7 @@ Powyższe linki pobierają bezpośrednio pliki z wydania rozwojowego **dev-34-1*
 
 ## Zewnętrzny pin zaufanego stanu obrazu (Volume Lab)
 
-W aktualizowanym Volume Lab istnieją osobne działania **Utwórz pin .kpin** oraz **Sprawdź pin (R/O)**: pierwsze wymaga wcześniej niezależnie znanego `receipt`, zapisuje nowy plik `.kpin` bez nadpisywania i wyświetla SHA-256 jego pieczęci. Drugie wymaga ponownego dostarczenia **wcześniej niezależnie zapamiętanej** pieczęci i wykonuje pełną weryfikację tylko do odczytu. Żaden wynik nie zatwierdza automatycznie nowszej wersji obrazu ani nie zastępuje zaufania zapewnionego osobnym nośnikiem. **Funkcje te pojawią się w wydaniu z PR integrującym GUI; `dev-34-1` zawiera jedynie API i testy silnika.** [Zasady i ograniczenia](docs/RECEIPT_PIN_TRUST.md).
+W aktualizowanym Volume Lab istnieją osobne działania **Utwórz pin .kpin** oraz **Sprawdź pin (R/O)**: pierwsze wymaga wcześniej niezależnie znanego `receipt`, zapisuje nowy plik `.kpin` bez nadpisywania i wyświetla SHA-256 jego pieczęci. Drugie wymaga ponownego dostarczenia **wcześniej niezależnie zapamiętanej** pieczęci i wykonuje pełną weryfikację tylko do odczytu. Żaden wynik nie zatwierdza automatycznie nowszej wersji obrazu ani nie zastępuje zaufania zapewnionego osobnym nośnikiem. **Zawsze sprawdzaj zgodność konkretnego wydania i jego listy funkcji; wcześniejsze kompilacje mogą nie mieć tych operacji w GUI.** [Zasady i ograniczenia](docs/RECEIPT_PIN_TRUST.md).
 
 ## Aktualny postęp Windows WinFsp — 22.10.2026
 

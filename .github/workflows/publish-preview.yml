@@ -53,9 +53,12 @@ jobs:
           python-version: '3.11'
       - name: Linux GUI dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y python3-tk libtk8.6 libtcl8.6
+        run: sudo apt-get update && sudo apt-get install -y python3-tk libtk8.6 libtcl8.6 xvfb xauth
       - name: Install build dependencies
         run: python -m pip install -e '.[test]' pyinstaller==6.16.0
+      - name: Require native Linux Tk USB backup window before packaging
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m pytest -q tests/test_volume_lab_gui.py -k linux_
       - name: Build standalone desktop executable
         run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name KRYPTA krypta/desktop_entry.py
       - name: Build independent offline rescue console executable
@@ -65,7 +68,7 @@ jobs:
         shell: pwsh
         run: |
           $exe = (Resolve-Path 'dist/KRYPTA.exe').Path
-          foreach ($arg in @('--self-test', '--volume-self-test', '--filesystem-self-test', '--fuse-self-test', '--paged-volume-self-test')) {
+          foreach ($arg in @('--self-test', '--volume-self-test', '--filesystem-self-test', '--fuse-self-test', '--paged-volume-self-test', '--usb-backup-self-test')) {
             $proc = Start-Process -FilePath $exe -ArgumentList $arg -Wait -PassThru
             if ($proc.ExitCode -ne 0) { throw "Windows packaged test failed: $arg" }
           }
@@ -90,6 +93,7 @@ jobs:
           ./dist/KRYPTA --filesystem-self-test
           ./dist/KRYPTA --fuse-self-test
           ./dist/KRYPTA --paged-volume-self-test
+          ./dist/KRYPTA --usb-backup-self-test
           cp dist/KRYPTA dist/KRYPTA-Linux-x64
           (cd dist && sha256sum KRYPTA-Linux-x64 > KRYPTA-Linux-x64.sha256)
           test -s dist/KRYPTA-Rescue
@@ -200,6 +204,11 @@ jobs:
           read-only verification; the prior receipt and SHA-256 seal MUST be
           trusted and stored independently, and newer states are NOT accepted
           automatically. This is NOT automatic/system-disk encryption.
+          Linux GUI has an explicit, opt-in READ-ONLY USB encrypted backup
+          dialog for an unmounted removable USB source, creating a new .krypta
+          file with an independent keyfile and passphrase. It NEVER encrypts
+          source disks in-place. The Linux kernel-loop COW research backend is
+          NOT a user-facing mounted disk function and remains lab-only.
           Linux kernel FUSE still requires the separate development entrypoint.
 
           Android debug APK: encrypts/decrypts selected local documents using
