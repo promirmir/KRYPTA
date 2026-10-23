@@ -408,7 +408,10 @@ def mount_paged_image(volume: PagedResearchVolume, mountpoint: str,
     # PFS/1 stays fully backward compatible; PFS/2 uses an independent marker.
     header = volume.read(0)
     fs = PagedFS2(volume) if header.startswith(PFS2_MAGIC) else PagedFileSystem(volume)
+    # Do not forward ro=False as a kernel mount option: retain exact legacy
+    # writable FUSE behavior, while adding the explicit ro flag ONLY for R/O.
+    readonly_options = {"ro": True} if read_only else {}
     return FUSE(KryptaFuseOps(fs, read_only=read_only), folder,
-                foreground=True, nothreads=True, ro=read_only,
+                foreground=True, nothreads=True,
                 allow_other=False, default_permissions=True,
-                fsname="KRYPTA-PVIMG-DEVELOPMENT")
+                fsname="KRYPTA-PVIMG-DEVELOPMENT", **readonly_options)
