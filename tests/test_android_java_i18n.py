@@ -53,7 +53,8 @@ def test_android_all_locales_warn_about_scope_and_lost_keystore_key():
                "values-fr", "values-de", "values-in")
     required = {"vault_warning", "vault_body", "vault_encrypt", "vault_decrypt",
                 "vault_failed", "vault_need_lock", "vault_auth_body",
-                "vault_recovery_title", "vault_recovery_warning", "vault_recovery_failed"}
+                "vault_recovery_title", "vault_recovery_warning", "vault_recovery_failed",
+                "vault_recover_external", "vault_recovery_import_warning"}
     for folder in folders:
         root = ET.parse(base / folder / "vault.xml").getroot()
         items = {node.attrib["name"]: node.text for node in root.findall("string")}
@@ -69,7 +70,10 @@ def test_new_mobile_recovery_format_keeps_legacy_compatible_and_secrets_separate
     assert '"KRYPTA-MOBILE/2' in RECOVERY_FORMAT
     assert "RECOVERY/2" in RECOVERY_FORMAT
     assert "Android Keystore" in RECOVERY_FORMAT
-    assert "MobileRecoveryFormat.recover(" not in JAVA  # Keystore path stays default
+    assert "MobileRecoveryFormat.recover(imported, inspected, tempOut)" in JAVA
+    assert "recover ? null : AndroidVaultKey.getOrCreate(this)" in JAVA
+    assert "else if (java.util.Arrays.equals(magic, MobileRecoveryFormat.MAGIC))" in JAVA
+    assert "MobileRecoveryFormat.decrypt(wrapping, inspected, tempOut)" in JAVA
     assert "VaultFormat.decrypt(" in JAVA  # legacy v1 survives
     assert "MessageDigest.isEqual" in JAVA  # exported 32-byte recovery key read-back
     assert "exportedRecoveryUri.equals(destinationUri)" in JAVA
