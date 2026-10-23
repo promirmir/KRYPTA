@@ -16,6 +16,26 @@ nie odmontowuje, nie formatuje, nie zapisuje. Każda pozycja raportuje
 `write_authorized: false`. Przy niepełnych informacjach status pozostaje
 niepewny, nie „bezpieczny”.
 
+## Etap read-only: pełna zaszyfrowana kopia USB (development)
+
+Polecenie Linux: `python -m krypta physical-backup /dev/sdX /sciezka/backup.krypta --keyfile /osobny/sekret`.
+Przed użyciem utwórz osobny klucz `python -m krypta gen-keyfile /osobny/sekret`;
+CLI prosi o hasło bez umieszczania go w historii powłoki. Urządzenie musi
+być całym, niemontowanym, niesystemowym dyskiem USB. Odczyt korzysta wyłącznie
+z `O_RDONLY`; żaden sektor źródłowy nie jest zapisywany. Program zapisuje
+**nowy plik** `.krypta` na innym dysku za pomocą istniejącego
+KRYPTA-FILE/2 (Argon2id + AES-256-GCM, uwierzytelniony znacznik końca);
+wymaga dodatkowego pliku klucza. Awaria odczytu, zmiana urządzenia albo
+montowanie przed zakończeniem powoduje odmowę opublikowania backupu.
+
+Przywrócenie do **zwykłego pliku** `.img` można testować przez
+`python -m krypta decrypt backup.krypta restored.img --keyfile /osobny/sekret`.
+Nie ma i nie wolno używać komendy przywracania na dysk fizyczny.
+**Wynik to nie migawka atomowa**: inny proces może zmienić urządzenie podczas
+odczytu mimo braku mountpointu. Weryfikacja i niezależne odtworzenie są
+obowiązkowe; nie usuwać oryginału. Nie testowano na fizycznym USB ani
+nie przeprowadzono niezależnego audytu. To nie jest szyfrowanie dysku w locie.
+
 ## Blokery pełnego wsparcia fizycznych dysków
 
 1. Nowy on-disk layout i niezawodny backend urządzeń, niezależny od
