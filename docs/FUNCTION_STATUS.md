@@ -4,6 +4,10 @@
 
 **Znaczenie statusów:** "Działa w dev" = dostępne w uruchamialnym wydaniu rozwojowym, nie oznacza gotowości produkcyjnej. "Test CI" = istnieje kod i kontrolowane testy, ale funkcja nie jest jeszcze użyteczna dla ogólnego użytkownika. "Brak" = wymaganie pierwotnego produktu nie zostało spełnione.
 
+## Etap P0: brak publikacji niezweryfikowanej kopii USB
+
+- `krypta.physical_backup`: publikacja nowej archiwalnej kopii `.krypta` dopiero po pełnej weryfikacji AES-GCM, zgodności długości i SHA-256 z odczytanym strumieniem fizycznego USB. Brak finalnej ścieżki po nieudanej weryfikacji, brak nadpisania istniejącej ścieżki, kontrola tożsamości pliku staging i synchronizacja katalogu (POSIX). Testy awarii i wyścigu przy publikacji. **Nie oznacza szyfrowania USB na miejscu ani spójnej migawki.** Nowy kod w bieżącym PR wymaga CI i scalenia.
+
 ## Kamień milowy w realizacji: weryfikacja kopii bez eksportu jawnych danych
 
 - Gałąź `feat/verified-usb-backup-20261023`: pełna weryfikacja autentyczności KRYPTA-FILE/2 w strumieniu bez utworzenia pliku plaintext, porównanie odszyfrowanego SHA-256 i liczby bajtów z rzeczywiście odczytanym strumieniem USB, tryb `python -m krypta verify ARCHIWUM --keyfile KLUCZ` oraz wybór `Verify` w Windows/Linux GUI. Wynik **wymaga CI i scalenia PR**; nie jest potwierdzeniem spójnej migawki ani gotowości pełnodyskowej.
