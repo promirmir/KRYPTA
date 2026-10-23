@@ -16,4 +16,6 @@
     <string name="vault_recovery_title">Clé de récupération indépendante</string>
     <string name="vault_recovery_warning">Enregistrez la NOUVELLE clé de récupération de 32 octets sur un autre appareil de confiance. Toute personne ayant cette clé peut déchiffrer le fichier. Si le téléphone et la clé sont perdus, la récupération est impossible. Utilisez des données de test uniquement.</string>
     <string name="vault_recovery_failed">Impossible de vérifier la clé de récupération exportée. Chiffrement annulé.</string>
+    <string name="vault_recover_external">RÉCUPÉRER MOBILE/2 AVEC CLÉ HORS LIGNE</string>
+    <string name="vault_recovery_import_warning">Sélectionnez votre clé de récupération indépendante de 32 octets. Toute personne disposant de la clé peut lire le fichier chiffré. Seul KRYPTA-MOBILE/2 est accepté. Vérifiez la source et la destination.</string>
 </resources>
