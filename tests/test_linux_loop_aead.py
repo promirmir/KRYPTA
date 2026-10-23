@@ -39,7 +39,7 @@ class FakeKernelLoop:
         return SimpleNamespace(
             st_mode=stat.S_IFREG | 0o600, st_uid=getattr(info, "st_uid", 0),
             st_nlink=info.st_nlink, st_dev=info.st_dev, st_ino=info.st_ino,
-            st_rdev=info.st_rdev, st_size=info.st_size,
+            st_rdev=getattr(info, "st_rdev", 0), st_size=info.st_size,
         )
 
     def _block_meta(self):
