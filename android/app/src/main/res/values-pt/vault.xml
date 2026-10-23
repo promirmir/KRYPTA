@@ -13,4 +13,7 @@
     <string name="vault_auth_title">Autorizar KRYPTA</string>
     <string name="vault_auth_body">Confirme o bloqueio para usar a chave local. Não cifra todo o telefone.</string>
     <string name="vault_same_file">Origem e destino devem diferir.</string>
+    <string name="vault_recovery_title">Chave de recuperação independente</string>
+    <string name="vault_recovery_warning">Guarde a NOVA chave de recuperação de 32 bytes noutro dispositivo de confiança. Quem possuir a chave pode desencriptar o ficheiro. Se perder o telefone e a chave, a recuperação será impossível. Use apenas dados de teste.</string>
+    <string name="vault_recovery_failed">Não foi possível verificar a chave de recuperação exportada. Encriptação cancelada.</string>
 </resources>
