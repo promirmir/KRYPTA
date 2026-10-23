@@ -143,5 +143,6 @@ def test_tamper_envelope_and_different_volume_identity_rejected(provisioned, tmp
     doc = json.loads(bundle.read_text())
     doc["kdf"]["memory_kib"] = 2**30
     altered.write_text(json.dumps(doc))
+    altered.chmod(0o600)  # test parser rejection, not POSIX permissions
     with pytest.raises(V2CredentialsError):
         unlock_v2_password(altered, password)
