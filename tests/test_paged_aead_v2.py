@@ -129,3 +129,46 @@ def test_post_root_ack_loss_requires_independent_review(tmp_path, monkeypatch):
     with pytest.raises(PagedAEADError, match="receipt"):
         PagedAEADImage.open(path, key, physical_sectors=64,
                            expected_receipt=old)
+
+
+def test_unaligned_byte_io_crosses_authenticated_leaf_boundary(tmp_path):
+    path, key = tmp_path / "random-access.kdevtest", os.urandom(32)
+    offset = 32 * SECTOR_BYTES - 3  # sector 31 -> sector 32 (next metadata leaf)
+    with PagedAEADImage.create(path, key, physical_sectors=64,
+                               logical_sectors=1024) as image:
+        initial = image.receipt
+        assert image.write_at(offset, b"KRYPTA byte-range") == 17
+        assert image.sequence == 1  # Exactly ONE authenticated root commit.
+        assert image.read_at(offset, 17) == b"KRYPTA byte-range"
+        assert image.read_at(offset - 10, 10) == bytes(10)
+        assert image.read_at(offset + 17, 10) == bytes(10)
+        assert image.read_sector(30) == bytes(SECTOR_BYTES)
+        assert image.verify_all()["verified_sectors"] == 2
+        receipt = image.receipt
+        assert receipt != initial
+    with PagedAEADImage.open(path, key, physical_sectors=64,
+                             expected_receipt=receipt) as reopened:
+        assert reopened.read_at(offset, 17) == b"KRYPTA byte-range"
+        assert reopened.read_at(0, 0) == b""
+        assert reopened.read_at(reopened.capacity_bytes, 0) == b""
+
+
+def test_random_access_bounded_atomicity_and_input_validation(tmp_path):
+    path, key = tmp_path / "byte-bounds.kdevtest", os.urandom(32)
+    with PagedAEADImage.create(path, key, physical_sectors=64,
+                               logical_sectors=64) as image:
+        anchor = image.receipt
+        for offset, payload in [(-1, b"A"), (image.capacity_bytes, b"A"),
+                                (0, b"A" * (9 * SECTOR_BYTES)),
+                                (0, "not bytes"), (True, b"A")]:
+            with pytest.raises(PagedAEADError):
+                image.write_at(offset, payload)
+            assert image.receipt == anchor
+        assert image.write_at(image.capacity_bytes, b"") == 0
+        with pytest.raises(PagedAEADError):
+            image.read_at(image.capacity_bytes, 1)
+        with pytest.raises(PagedAEADError):
+            image.read_at(-1, 5)
+        with pytest.raises(PagedAEADError):
+            image.read_at(True, 1)
+        assert image.sequence == 0
