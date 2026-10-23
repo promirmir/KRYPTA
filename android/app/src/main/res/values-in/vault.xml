@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">ALFA RISET / BERKAS TERPILIH</string>
-    <string name="vault_warning">KRYPTA tidak mengenkripsi seluruh ponsel. Hanya uji coba; tidak ada pemulihan jika kunci Android Keystore hilang.</string>
-    <string name="vault_body">AES-256-GCM dan Android Keystore. KRYPTA-MOBILE/1 tidak kompatibel dengan .kry desktop.</string>
+    <string name="vault_warning">KRYPTA tidak mengenkripsi seluruh ponsel. File MOBILE/2 baru hanya dapat dipulihkan dengan kunci 32-byte yang disimpan terpisah. File MOBILE/1 lama tetap terikat perangkat.</string>
+    <string name="vault_body">AES-256-GCM dan Android Keystore. MOBILE/2 baru mendukung pemulihan independen; file MOBILE/1 lama tetap dapat dibaca. Ini bukan format .kry desktop.</string>
     <string name="vault_encrypt">ENKRIPSI BERKAS UJI</string>
     <string name="vault_decrypt">DEKRIPSI BERKAS UJI</string>
     <string name="vault_idle">Pilih berkas sumber.</string>
