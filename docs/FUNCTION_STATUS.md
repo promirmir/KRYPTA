@@ -24,6 +24,10 @@
 - Windows i Linux: implementacja źródłowa `python -m krypta mobile-verify` i `mobile-recover` do niezależnej weryfikacji, odzysku bez Android Keystore, z pełną autentykacją przed publikacją jawnych danych i zakazem nadpisywania. Wektor testowy jest wspólny dla Java i Python. To nie jest format desktopowego `.kry`. W gałęzi PR dodano też tryb **Android recovery** do GUI EXE/ELF oraz obowiązkowy test odtworzenia w spakowanym programie; wymaga potwierdzenia CI.
 - **Status bezpieczeństwa:** funkcja wymaga zaliczenia Android Gradle/JUnit/Lint, pytest Windows/Linux, testów SAF/Keystore na fizycznym telefonie, sprawdzonej kopii klucza na innym urządzeniu i audytu. Brak szyfrowania całego Androida i brak migracji starych plików MOBILE/1 po utracie telefonu.
 
+## Nowy etap: odzyskiwanie MOBILE/2 bez starego telefonu (PR weryfikacyjny)
+
+- Android APK otrzymuje osobną funkcję odzyskiwania `KRYPTA-MOBILE/2` na nowym telefonie przez import **dokładnie 32 bajtów** zapisanego wcześniej niezależnego klucza recovery. Nie korzysta z Android Keystore starego urządzenia, ale wymaga blokady ekranu i potwierdzenia poświadczeń na aktualnym urządzeniu. Cały AES-GCM jest weryfikowany w prywatnym pliku przed eksportem jawnych danych; starsze `MOBILE/1` pozostają powiązane ze starym urządzeniem. Kod wymaga testów CI i scalenia PR. Pełne szyfrowanie Androida nadal **nie jest zaimplementowane**.
+
 ## Co działa obecnie
 
 | Obszar | Windows | Linux | Android | Ważne ograniczenie |
