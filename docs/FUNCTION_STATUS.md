@@ -14,6 +14,12 @@
 - Nowa opcja `--read-only` dla Linux PFS/2: istniejący obraz z wymaganym niezależnym `expected-receipt`, wyłącznie odczytowy deskryptor, jądrowa flaga `ro`, odmowa zapisów i zmian nazw, brak publikacji nowego receipt. Kod i testy w PR; gotowość dopiero po jego zielonym CI i scaleniu. Praca na zwykłym testowym `.kpv`, **nie na fizycznym dysku ani systemowej partycji**.
 - Wszystkie pozostałe funkcje, w szczególności poprzedni zapisowy eksperymentalny FUSE, pozostają zachowane. Windows i Android nie uzyskują w tym PR nowych możliwości systemowego szyfrowania.
 
+## Android: przenośne odzyskiwanie pojedynczych plików — PR #76 (wymaga zielonego CI)
+
+- Nowe szyfrowanie **wybranych plików** Androidem: `KRYPTA-MOBILE/2` z dwoma niezależnymi kopertami AES-256-GCM dla losowego 256-bitowego klucza danych (Android Keystore oraz oddzielny losowy 32-bajtowy sekret recovery). Przed zaszyfrowaniem APK żąda eksportu klucza przez SAF i sprawdza odczyt 32 bajtów. Klucz trzeba skopiować poza telefon. Stare MOBILE/1 pozostają obsługiwane do odszyfrowania na pierwotnym urządzeniu, lecz nie mają odzyskiwania poza Android Keystore.
+- Windows i Linux: implementacja źródłowa `python -m krypta mobile-verify` i `mobile-recover` do niezależnej weryfikacji, odzysku bez Android Keystore, z pełną autentykacją przed publikacją jawnych danych i zakazem nadpisywania. Wektor testowy jest wspólny dla Java i Python. To nie jest format desktopowego `.kry`, a CLI nie jest jeszcze w pakietowanym EXE.
+- **Status bezpieczeństwa:** funkcja wymaga zaliczenia Android Gradle/JUnit/Lint, pytest Windows/Linux, testów SAF/Keystore na fizycznym telefonie, sprawdzonej kopii klucza na innym urządzeniu i audytu. Brak szyfrowania całego Androida i brak migracji starych plików MOBILE/1 po utracie telefonu.
+
 ## Co działa obecnie
 
 | Obszar | Windows | Linux | Android | Ważne ograniczenie |
