@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">ИССЛЕДОВАТЕЛЬСКАЯ АЛЬФА / ФАЙЛЫ</string>
-    <string name="vault_warning">KRYPTA не шифрует весь телефон. Только тестовые файлы; потерянный ключ Android Keystore не восстановить.</string>
-    <string name="vault_body">AES-256-GCM и Android Keystore. Формат KRYPTA-MOBILE/1 несовместим с настольным .kry.</string>
+    <string name="vault_warning">KRYPTA не шифрует весь телефон. Новые файлы MOBILE/2 можно восстановить только при наличии отдельно сохранённого 32-байтового ключа. Старые MOBILE/1 привязаны к устройству.</string>
+    <string name="vault_body">AES-256-GCM и Android Keystore. Новый MOBILE/2 поддерживает независимое восстановление; старые файлы MOBILE/1 по-прежнему читаются. Это не формат .kry для ПК.</string>
     <string name="vault_encrypt">ЗАШИФРОВАТЬ ТЕСТОВЫЙ ФАЙЛ</string>
     <string name="vault_decrypt">РАСШИФРОВАТЬ ТЕСТОВЫЙ ФАЙЛ</string>
     <string name="vault_idle">Выберите исходный файл.</string>
