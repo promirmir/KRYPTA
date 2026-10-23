@@ -16,4 +16,6 @@
     <string name="vault_recovery_title">مفتاح استرداد مستقل</string>
     <string name="vault_recovery_warning">احفظ مفتاح الاسترداد الجديد المكوّن من 32 بايت على جهاز موثوق منفصل. يمكن لأي شخص يملك المفتاح فك تشفير الملف. إذا فقدت الهاتف والمفتاح معًا فلن يمكن استرداد البيانات. استخدم بيانات اختبار فقط.</string>
     <string name="vault_recovery_failed">تعذّر التحقق من مفتاح الاسترداد المُصدَّر. تم إلغاء التشفير.</string>
+    <string name="vault_recover_external">استعادة MOBILE/2 بمفتاح مستقل</string>
+    <string name="vault_recovery_import_warning">اختر ملف مفتاح الاسترداد المستقل المكوّن من 32 بايت. يمكن لأي شخص لديه المفتاح قراءة الملف المشفر. يدعم هذا الوضع KRYPTA-MOBILE/2 فقط. تحقق من ملف المصدر وموقع الحفظ.</string>
 </resources>
