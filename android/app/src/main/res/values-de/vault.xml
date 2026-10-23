@@ -13,4 +13,7 @@
     <string name="vault_auth_title">KRYPTA autorisieren</string>
     <string name="vault_auth_body">Gerätesperre bestätigen, um lokalen Schlüssel zu nutzen. Keine vollständige Telefonverschlüsselung.</string>
     <string name="vault_same_file">Quelle und Ziel müssen verschieden sein.</string>
+    <string name="vault_recovery_title">Unabhängiger Wiederherstellungsschlüssel</string>
+    <string name="vault_recovery_warning">Speichern Sie den NEUEN 32-Byte-Wiederherstellungsschlüssel auf einem anderen vertrauenswürdigen Gerät. Jeder mit diesem Schlüssel kann die Datei entschlüsseln. Verlieren Sie Telefon und Schlüssel, ist keine Wiederherstellung möglich. Nur Testdaten verwenden.</string>
+    <string name="vault_recovery_failed">Der exportierte Wiederherstellungsschlüssel konnte nicht geprüft werden. Verschlüsselung abgebrochen.</string>
 </resources>
