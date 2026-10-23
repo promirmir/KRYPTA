@@ -13,4 +13,7 @@
     <string name="vault_auth_title">Autoryzuj sejf plików KRYPTA</string>
     <string name="vault_auth_body">Potwierdź blokadę urządzenia, aby użyć powiązanego klucza. Telefon nie jest szyfrowany w całości.</string>
     <string name="vault_same_file">Źródło i cel muszą być różne.</string>
+    <string name="vault_recovery_title">Niezależny klucz odzyskiwania</string>
+    <string name="vault_recovery_warning">Zapisz NOWY 32-bajtowy klucz odzyskiwania na osobnym, zaufanym urządzeniu. Posiadacz tego klucza może odszyfrować plik. Utrata telefonu i klucza uniemożliwi odzyskanie. Używaj tylko danych testowych.</string>
+    <string name="vault_recovery_failed">Nie udało się sprawdzić zapisanego klucza odzyskiwania. Szyfrowanie anulowano.</string>
 </resources>
