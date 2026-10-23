@@ -13,4 +13,7 @@
     <string name="vault_auth_title">تفويض KRYPTA</string>
     <string name="vault_auth_body">أكد قفل الجهاز لاستخدام المفتاح المحلي. لا يشفر هذا الهاتف بالكامل.</string>
     <string name="vault_same_file">يجب أن يختلف المصدر عن الوجهة.</string>
+    <string name="vault_recovery_title">مفتاح استرداد مستقل</string>
+    <string name="vault_recovery_warning">احفظ مفتاح الاسترداد الجديد المكوّن من 32 بايت على جهاز موثوق منفصل. يمكن لأي شخص يملك المفتاح فك تشفير الملف. إذا فقدت الهاتف والمفتاح معًا فلن يمكن استرداد البيانات. استخدم بيانات اختبار فقط.</string>
+    <string name="vault_recovery_failed">تعذّر التحقق من مفتاح الاسترداد المُصدَّر. تم إلغاء التشفير.</string>
 </resources>
