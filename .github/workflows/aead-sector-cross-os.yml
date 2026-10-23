@@ -1,0 +1,125 @@
+name: KRYPTA / native Windows-Linux sealed sector interchange
+
+on:
+  pull_request:
+    paths: ['research/sealed_sector_image.py', 'research/test_sector_transport.py', 'tools/test_sealed_sector_interchange.py', '.github/workflows/aead-sector-cross-os.yml']
+  push:
+    branches: [main]
+    paths: ['research/sealed_sector_image.py', 'research/test_sector_transport.py', 'tools/test_sealed_sector_interchange.py', '.github/workflows/aead-sector-cross-os.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }-${{ github.event.pull_request.number || github.ref }
+  cancel-in-progress: true
+
+jobs:
+  linux-create:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: python -m pip install -e '.[test]'
+      - run: |
+          mkdir "$RUNNER_TEMP/krypta-aead"
+          python -m tools.test_sealed_sector_interchange --phase create --root "$RUNNER_TEMP/krypta-aead" --public-synthetic-ci-key
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aead-linux-first
+          path: ${{ runner.temp }/krypta-aead/
+          retention-days: 2
+          if-no-files-found: error
+
+  windows-update:
+    needs: linux-create
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - run: python -m pip install -e '.[test]'
+      - uses: actions/download-artifact@v4
+        with: { name: aead-linux-first, path: '${{ runner.temp }/krypta-aead' }
+      - shell: pwsh
+        run: |
+          python -m tools.test_sealed_sector_interchange --phase update --root "$env:RUNNER_TEMP/krypta-aead" --public-synthetic-ci-key
+          if ($LASTEXITCODE -ne 0) { throw 'Cross OS update failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aead-linux-windows
+          path: ${{ runner.temp }/krypta-aead/
+          retention-days: 2
+          if-no-files-found: error
+
+  linux-verify:
+    needs: windows-update
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - run: python -m pip install -e '.[test]'
+      - uses: actions/download-artifact@v4
+        with: { name: aead-linux-windows, path: '${{ runner.temp }/krypta-aead' }
+      - run: python -m tools.test_sealed_sector_interchange --phase verify --root "$RUNNER_TEMP/krypta-aead" --public-synthetic-ci-key
+
+  windows-create:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: python -m pip install -e '.[test]'
+      - shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/krypta-aead" -ErrorAction Stop | Out-Null
+          python -m tools.test_sealed_sector_interchange --phase create --root "$env:RUNNER_TEMP/krypta-aead" --public-synthetic-ci-key
+          if ($LASTEXITCODE -ne 0) { throw 'Windows create failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aead-windows-first
+          path: ${{ runner.temp }/krypta-aead/
+          retention-days: 2
+          if-no-files-found: error
+
+  linux-update:
+    needs: windows-create
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - run: python -m pip install -e '.[test]'
+      - uses: actions/download-artifact@v4
+        with: { name: aead-windows-first, path: '${{ runner.temp }/krypta-aead' }
+      - run: python -m tools.test_sealed_sector_interchange --phase update --root "$RUNNER_TEMP/krypta-aead" --public-synthetic-ci-key
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aead-windows-linux
+          path: ${{ runner.temp }/krypta-aead/
+          retention-days: 2
+          if-no-files-found: error
+
+  windows-verify:
+    needs: linux-update
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - run: python -m pip install -e '.[test]'
+      - uses: actions/download-artifact@v4
+        with: { name: aead-windows-linux, path: '${{ runner.temp }/krypta-aead' }
+      - shell: pwsh
+        run: |
+          python -m tools.test_sealed_sector_interchange --phase verify --root "$env:RUNNER_TEMP/krypta-aead" --public-synthetic-ci-key
+          if ($LASTEXITCODE -ne 0) { throw 'Windows final verify failed' }
