@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">ALFA BADAWCZA / TYLKO WYBRANE PLIKI</string>
-    <string name="vault_warning">KRYPTA nie szyfruje całego telefonu. Tylko pliki testowe; brak odzyskiwania po utracie klucza Android Keystore.</string>
-    <string name="vault_body">AES-256-GCM i Android Keystore. Własny format KRYPTA-MOBILE/1, niezgodny z plikami .kry na komputerze.</string>
+    <string name="vault_warning">KRYPTA nie szyfruje całego telefonu. Nowe pliki MOBILE/2 odzyskasz za pomocą osobno przechowanego klucza 32-bajtowego. Stare pliki MOBILE/1 pozostają powiązane z telefonem.</string>
+    <string name="vault_body">AES-256-GCM i Android Keystore. Nowy format KRYPTA-MOBILE/2 ma niezależny klucz odzyskiwania; stare MOBILE/1 nadal można odczytać. To nie jest format .kry na komputerze.</string>
     <string name="vault_encrypt">SZYFRUJ WYBRANY PLIK TESTOWY</string>
     <string name="vault_decrypt">ODSZYFRUJ WYBRANY PLIK TESTOWY</string>
     <string name="vault_idle">Wybierz plik źródłowy.</string>
