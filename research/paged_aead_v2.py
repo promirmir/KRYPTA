@@ -291,6 +291,64 @@ class PagedAEADImage:
         return {"verified_sectors": checked, "receipt": self.receipt,
                 "sequence": self.sequence}
 
+    @property
+    def capacity_bytes(self):
+        """Logical address space; physical allocation remains sparse."""
+        return self.logical_sectors * SECTOR_BYTES
+
+    def _byte_range(self, offset, length):
+        if (type(offset) is not int or type(length) is not int or
+                offset < 0 or length < 0 or
+                offset > self.capacity_bytes or
+                length > self.capacity_bytes - offset):
+            raise PagedAEADError("Byte range outside bounded encrypted image")
+
+    def read_at(self, offset: int, length: int) -> bytes:
+        """Authenticated random-access byte reads over encrypted sectors."""
+        self._check()
+        self._byte_range(offset, length)
+        if length == 0:
+            return b""
+        first = offset // SECTOR_BYTES
+        last = (offset + length - 1) // SECTOR_BYTES
+        result = bytearray()
+        for index in range(first, last + 1):
+            result.extend(self.read_sector(index))
+        start = offset % SECTOR_BYTES
+        return bytes(result[start:start + length])
+
+    def write_at(self, offset: int, payload: bytes) -> int:
+        """Commit a bounded unaligned byte range in exactly one COW root.
+
+        A write spanning more than MAX_BATCH_SECTORS is refused instead of
+        silently splitting the operation into non-atomic subtransactions.
+        Read/modify/write authenticates the original sectors before staging.
+        """
+        self._check()
+        if self._io.read_only:
+            raise PagedAEADError("Scratch image is read-only")
+        if type(payload) is not bytes:
+            raise PagedAEADError("Byte-range write requires immutable bytes")
+        self._byte_range(offset, len(payload))
+        if not payload:
+            return 0
+        first = offset // SECTOR_BYTES
+        last = (offset + len(payload) - 1) // SECTOR_BYTES
+        if last - first + 1 > MAX_BATCH_SECTORS:
+            raise PagedAEADError("Unaligned write exceeds atomic batch limit")
+        result = {}
+        for index in range(first, last + 1):
+            original = bytearray(self.read_sector(index))
+            segment_start = max(offset, index * SECTOR_BYTES)
+            segment_end = min(offset + len(payload), (index + 1) * SECTOR_BYTES)
+            destination = segment_start - index * SECTOR_BYTES
+            source = segment_start - offset
+            original[destination:destination + segment_end - segment_start] = (
+                payload[source:source + segment_end - segment_start])
+            result[index] = bytes(original)
+        self.write_many(result)
+        return len(payload)
+
     def write_sector(self, index, data):
         return self.write_many({index: data})
 
