@@ -194,7 +194,10 @@ def provision_v2_credentials(
     """
     _volume_key(volume_key)
     _check_paths(image_path, envelope_path, recovery_path)
-    _derive_password(password, b"\x01" * SALT_BYTES, b"\x02" * 16)
+    try:
+        _password_bytes(password)  # validate without a wasted Argon2 invocation
+    except PagedKeyError as exc:
+        raise V2CredentialsError(str(exc)) from exc
     with PagedAEADImage.open(
         image_path, volume_key, physical_sectors=physical_sectors,
         expected_receipt=expected_receipt, read_only=True,

@@ -78,6 +78,7 @@ def test_wrong_password_or_recovery_rejected(provisioned, tmp_path):
                               physical_sectors=128, expected_receipt=receipt)
     forged = tmp_path / "incorrect-recovery.bin"
     forged.write_bytes(os.urandom(32))
+    forged.chmod(0o600)  # POSIX private-key permission contract
     with pytest.raises(V2CredentialsError, match="authentication"):
         open_v2_with_recovery(image, bundle, forged,
                               physical_sectors=128, expected_receipt=receipt)
