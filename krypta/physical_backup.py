@@ -8,12 +8,13 @@ encryption or a crash-consistent filesystem snapshot.
 from __future__ import annotations
 
 from contextlib import contextmanager
+import hashlib
 import os
 from pathlib import Path
 import platform
 import stat
 
-from .core import _encrypt_reader
+from .core import _encrypt_reader, verify_file
 from .physical_disks import inspect_physical_disks
 from .physical_read_probe import (
     _allowed, _DEVICE, _identity, LinuxReadOnlyBlockIO, PhysicalProbeError,
@@ -29,6 +30,7 @@ class _VerifiedUSBStream:
         self.capacity = capacity
         self.identity = identity
         self.position = 0
+        self.sha256 = hashlib.sha256()
 
     def read(self, count: int) -> bytes:
         if type(count) is not int or not 0 < count <= 1024 * 1024:
@@ -42,6 +44,7 @@ class _VerifiedUSBStream:
             chunk = self.backend.pread(self.fd, size, self.position)
             if type(chunk) is not bytes or len(chunk) != size:
                 raise PhysicalProbeError("Short/invalid USB backup read")
+            self.sha256.update(chunk)
             self.position += size
             return chunk
         except OSError as exc:
@@ -112,16 +115,42 @@ def backup_linux_usb_encrypted(device: str, output: str | Path, password: str,
         raise PhysicalProbeError("Output on a kernel virtual filesystem is forbidden")
     scan = inspect_physical_disks if scanner is None else scanner
     io = LinuxReadOnlyBlockIO() if backend is None else backend
-    _encrypt_reader(
-        lambda: _verified_usb_reader(device, scanner=scan, backend=io),
-        target, password, keyfile,
-    )
+    expected = {}
+
+    @contextmanager
+    def source_reader():
+        with _verified_usb_reader(device, scanner=scan, backend=io) as reader:
+            yield reader
+            # Only recorded after descriptor, capacity and final inventory
+            # validation in the underlying context manager have succeeded.
+        expected["bytes"] = reader.position
+        expected["sha256"] = reader.sha256.hexdigest()
+
+    _encrypt_reader(source_reader, target, password, keyfile)
+    # Full post-publication authenticated re-read. This has no plaintext
+    # output and proves the new archive roundtrips to precisely the bytes
+    # streamed from the source (not that the source was a stable snapshot).
+    try:
+        checked = verify_file(target, password, keyfile)
+        if (not checked["authenticated"] or
+                checked["plaintext_bytes"] != expected["bytes"] or
+                checked["plaintext_sha256"] != expected["sha256"]):
+            raise PhysicalProbeError("Encrypted backup differs from USB source bytes")
+    except Exception as exc:
+        # Fail closed and preserve the suspect archive for investigation.
+        # Do not auto-delete a pathname that another process could replace.
+        raise PhysicalProbeError(
+            "USB backup archive verification failed; do not rely on output"
+        ) from exc
     return {
         "operation": "LINUX USB READ-ONLY ENCRYPTED BACKUP",
         "source_device": device,
         "encrypted_archive": str(target),
         "format": "KRYPTA-FILE/2",
+        "backup_verified": True,
+        "verified_plaintext_bytes": checked["plaintext_bytes"],
+        "verification_plaintext_written": False,
         "source_write_authorized": False,
         "physical_disk_encrypted": False,
-        "warning": "Not a consistent snapshot of a changing disk. Verify recovery before relying on this archive.",
+        "warning": "Authenticated bytes match USB read stream; NOT a crash-consistent snapshot. Test independent recovery.",
     }
