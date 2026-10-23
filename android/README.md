@@ -39,8 +39,10 @@ python -m krypta mobile-recover encrypted.km2 restored-test.bin --recovery-keyfi
 The recovery tool validates the whole archive before creating plaintext and
 authenticates again while writing a new no-overwrite output. A successful
 verification does not prove crash consistency, device-wide encryption, safe
-deletion, or independent security certification. CLI recovery currently requires
-a Python source installation; it is not yet exposed inside the desktop EXE.
+deletion, or independent security certification. The same independent recovery service is exposed as **Android recovery** in the
+Windows/Linux desktop File Vault GUI (packaged EXE/ELF). The packaged `--self-test`
+performs an authenticated MOBILE/2 verification and recovery on disposable data.
+The new packaged feature requires CI validation before release.
 A malicious or failed Android document provider can still leave an incomplete
 keyfile or ciphertext. Do not use irreplaceable data. CI checks JVM and Python
 against a common pinned AES-GCM vector; physical Android device/SAF export
