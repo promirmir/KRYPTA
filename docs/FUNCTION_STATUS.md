@@ -21,6 +21,7 @@
 | WinFsp: buforowany zapis i commit na polecenie flush | Etap testowy na tymczasowym .kpv; wymaga walidacji | — | — | **Nie jest zintegrowane z wydanym EXE; nie wolno podłączać rzeczywistych dysków** |
 | Linux/Windows — wymiana tego samego zaszyfrowanego obrazu PFS/2 | Test CI PASS | Test CI PASS | Brak | Integracja z GUI nie oznacza przenoszenia zaufanego stanu i kluczy |
 | Rozpoznawanie rzeczywistych fizycznych dysków i ich metadanych | Kod + CI PASS | Kod + CI PASS | Brak | Tylko odczyt metadanych; brak otwierania i szyfrowania urządzeń, zawsze write_authorized=false |
+| Linux USB: bezpośredni odczyt 4 KiB z rzeczywistego urządzenia (jawny opt-in) | — | Kod źródłowy / CI syntetyczne | — | `python -m krypta physical-probe /dev/sdX`, Linux; odrzuca systemowe/montowane/nie-USB, sprawdza tożsamość i rozmiar, tylko O_RDONLY; **brak testu na sprzęcie, brak zapisu lub szyfrowania dysku** |
 | Testowy zaszyfrowany silnik sektorowy AES-256-GCM, COW, weryfikacja receipt | Test CI PASS (PR #64) | Test CI PASS (PR #64) | Brak | Tylko zwykły obraz .kdevtest, do 32 sektorów logicznych, bez sterownika fizycznego dysku i zabezpieczenia klucza |
 | Stronicowany silnik AEAD v2: adresowanie 1024 sektorów, zapis bajtowy i transakcje COW | Test CI PASS (PR #67) | Test CI PASS (PR #67) | Brak | Wyłącznie zaszyfrowany obraz testowy .kdevtest; 4 MiB przestrzeni logicznej, brak sterownika nośnika fizycznego |
 | Kompakcja i odzyskiwanie przestrzeni po zapisach v2 | Test CI PASS (PR #68) | Test CI PASS (PR #68) | Brak | Zweryfikowane kopiowanie do NOWEGO obrazu, bez nadpisania źródła; brak garbage collection na stałym fizycznym dysku |
@@ -48,6 +49,7 @@
 - [PR #67](https://github.com/promirmir/KRYPTA/pull/67): stronicowane uwierzytelnione metadane oraz częściowe zapisy bajtowe dla izolowanego formatu v2; CI PASS.
 - [PR #68](https://github.com/promirmir/KRYPTA/pull/68): weryfikowana kompakcja poza oryginalnym nośnikiem; CI PASS.
 - [PR #69](https://github.com/promirmir/KRYPTA/pull/69): koperta hasła Argon2id i niezależny sekret odzyskiwania v2; wyniki CI tego PR stanowią oddzielną bramkę.
+- Nowy etap P0: opcjonalny natywny odczyt diagnostyczny Linux USB, bez funkcji zapisu; na etapie PR wymaga zielonego CI i testów na izolowanym nośniku. Dowód odczytu sprzętowego pozostaje **niepotwierdzony**.
 - **Bez zmian w statusie głównego celu:** szyfrowanie rzeczywistych fizycznych dysków, partycji i dysków systemowych nie jest wdrożone.
 
 ## Aktualne dowody kamieni milowych P0 (23.10.2026)
