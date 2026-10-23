@@ -16,4 +16,6 @@
     <string name="vault_recovery_title">独立恢复密钥</string>
     <string name="vault_recovery_warning">请将新的32字节恢复密钥保存在另一台可信设备上。任何持有密钥的人都可以解密文件。如果手机和密钥同时丢失，将无法恢复。请仅使用测试数据。</string>
     <string name="vault_recovery_failed">无法验证导出的恢复密钥。加密已取消。</string>
+    <string name="vault_recover_external">使用离线密钥恢复 MOBILE/2</string>
+    <string name="vault_recovery_import_warning">请选择单独保存的32字节恢复密钥文件。任何持有此密钥的人都能读取加密文件。此模式仅支持 KRYPTA-MOBILE/2。请检查源文件和输出位置。</string>
 </resources>
