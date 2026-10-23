@@ -53,6 +53,7 @@ public final class MainActivity extends Activity {
     private static final int PICK_OUTPUT = 103;
     private static final int PICK_RECOVERY_EXPORT = 104;
     private byte[] pendingRecoveryKey;
+    private Uri exportedRecoveryUri;
     private Uri sourceUri;
     private Uri destinationUri;
     private boolean decryptMode;
@@ -128,6 +129,7 @@ public final class MainActivity extends Activity {
     }
 
     private void clearPendingRecoveryKey() {
+        exportedRecoveryUri = null;
         if (pendingRecoveryKey != null) {
             java.util.Arrays.fill(pendingRecoveryKey, (byte) 0);
             pendingRecoveryKey = null;
@@ -224,6 +226,7 @@ public final class MainActivity extends Activity {
                     throw new java.io.IOException("Recovery keyfile read-back mismatch");
                 clearPendingRecoveryKey();
                 pendingRecoveryKey = freshKey;
+                exportedRecoveryUri = uri;
                 java.util.Arrays.fill(check, (byte) 0);
                 requestEncryptedOutput();
             } catch (Exception exc) {
@@ -233,7 +236,9 @@ public final class MainActivity extends Activity {
         } else if (requestCode == PICK_OUTPUT) {
             if (data == null || data.getData() == null || sourceUri == null) return;
             destinationUri = data.getData();
-            if (sourceUri.equals(destinationUri)) {
+            if (sourceUri.equals(destinationUri) ||
+                    (exportedRecoveryUri != null && exportedRecoveryUri.equals(destinationUri))) {
+                clearPendingRecoveryKey();
                 showError(getString(R.string.vault_same_file));
                 return;
             }
@@ -259,6 +264,7 @@ public final class MainActivity extends Activity {
         final boolean decrypt = decryptMode;
         final byte[] recoveryKey = pendingRecoveryKey;
         pendingRecoveryKey = null;
+        exportedRecoveryUri = null;
         if (!decrypt && (recoveryKey == null || recoveryKey.length != 32)) {
             busy = false;
             showError(getString(R.string.vault_recovery_failed));
@@ -332,6 +338,12 @@ public final class MainActivity extends Activity {
                         .setMessage(message).setPositiveButton(android.R.string.ok, null).show();
             });
         }, "KRYPTA-Mobile-Vault").start();
+    }
+
+    @Override
+    protected void onDestroy() {
+        clearPendingRecoveryKey();
+        super.onDestroy();
     }
 
     private void showError(String text) {
