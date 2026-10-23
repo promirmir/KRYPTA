@@ -13,4 +13,7 @@
     <string name="vault_auth_title">Authorize KRYPTA file vault</string>
     <string name="vault_auth_body">Confirm device credential to access this device-bound key. No whole-phone encryption.</string>
     <string name="vault_same_file">Source and destination must differ.</string>
+    <string name="vault_recovery_title">Portable recovery key</string>
+    <string name="vault_recovery_warning">Save the NEW 32-byte recovery key on a separate trusted device before relying on this archive. Whoever has this key can decrypt the file. If both phone and key are lost, recovery is impossible. Use only test data.</string>
+    <string name="vault_recovery_failed">Could not verify the exported recovery key. Encryption has been cancelled.</string>
 </resources>
