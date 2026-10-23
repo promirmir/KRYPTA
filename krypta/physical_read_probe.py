@@ -18,7 +18,7 @@ from .physical_disks import inspect_physical_disks
 
 BLKGETSIZE64 = 0x80081272  # Linux <linux/fs.h>; unsigned 64-bit capacity
 SAMPLE_BYTES = 4096
-_DEVICE = re.compile(r"/dev/[A-Za-z0-9._+\\-]+")
+_DEVICE = re.compile(r"/dev/[A-Za-z0-9._+-]+")
 
 
 class PhysicalProbeError(RuntimeError):
@@ -65,7 +65,7 @@ def _allowed(device, report):
         raise PhysicalProbeError("Exactly one listed whole disk must match")
     d = matches[0]
     if (d.get("write_authorized") is not False or
-            d.get("bus", "").lower() != "usb" or
+            type(d.get("bus")) is not str or d["bus"].lower() != "usb" or
             d.get("inspection_complete") is not True or
             d.get("system_or_boot") is not False or
             d.get("mounted") is not False or
