@@ -27,6 +27,7 @@ def test_encrypted_reopen_with_required_external_receipt(opened):
     assert image.read_sector(15) == second
     receipt = image.receipt
     assert old != receipt
+    image.close()  # Windows writer holds an exclusive byte-range lock.
     raw = p.read_bytes()
     assert first not in raw and second not in raw
     image.close()
@@ -59,10 +60,10 @@ def test_cow_updates_leave_original_ciphertext_untouched(opened):
     p, key, image = opened
     image.write_sector(3, b"a" * SECTOR_BYTES)
     anchor = image.receipt
-    before = p.read_bytes()[3 * SECTOR_BYTES:4 * SECTOR_BYTES]
+    before = image._io.read_sector(3)  # same locked writer handle
     assert image.write_sector(3, b"b" * SECTOR_BYTES) == 2
     assert image.read_sector(3) == b"b" * SECTOR_BYTES
-    assert p.read_bytes()[3 * SECTOR_BYTES:4 * SECTOR_BYTES] == before
+    assert image._io.read_sector(3) == before
     receipt = image.receipt
     image.close()
     with SealedSectorImage.open(p, key, physical_sectors=128,
@@ -164,6 +165,7 @@ def test_reject_bad_names_physical_disks_and_missing_receipt(opened):
         image.write_many({})
     with pytest.raises(SealedSectorError):
         image.write_many({index: bytes(SECTOR_BYTES) for index in range(9)})
+    image.close()  # Allow Windows reader to inspect first sector without writer lock.
     with pytest.raises(SealedSectorError):
         SealedSectorImage.open(p, key, physical_sectors=128,
                                expected_receipt="not a receipt")
