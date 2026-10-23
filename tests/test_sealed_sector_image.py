@@ -172,7 +172,7 @@ def test_reject_bad_names_physical_disks_and_missing_receipt(opened):
 
 
 def test_multiple_batches_and_disk_full_no_partial_commit(tmp_path):
-    p, key = tmp_path / "tiny.kdevtest"
+    p, key = tmp_path / "tiny.kdevtest", os.urandom(32)
     with SealedSectorImage.create(p, key, physical_sectors=19, logical_sectors=16) as image:
         image.write_many({i: bytes([i + 1]) * SECTOR_BYTES for i in range(8)})
         image.write_many({i: bytes([i + 1]) * SECTOR_BYTES for i in range(8, 16)})
