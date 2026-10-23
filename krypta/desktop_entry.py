@@ -231,6 +231,78 @@ def run_paged_volume_lab_self_test() -> int:
     return 0
 
 
+
+def run_usb_backup_self_test() -> int:
+    """Exercise the packaged USB backup service without touching hardware.
+
+    Real encrypted archive + keyfile + decrypt roundtrip; the block descriptor
+    is an explicitly synthetic, read-only adapter over a temporary plain file.
+    """
+    import os
+    import stat
+    from types import SimpleNamespace
+    from krypta.core import decrypt_file, generate_keyfile
+    from krypta.physical_backup import backup_linux_usb_encrypted
+
+    device = "/dev/sdz"
+    size = 2 * 1024 * 1024
+    def identity():
+        return SimpleNamespace(st_mode=stat.S_IFBLK, st_dev=23, st_ino=45,
+                               st_rdev=67)
+
+    class SyntheticReadOnlyUSB:
+        def stat(self, path):
+            if path != device:
+                raise RuntimeError("Unexpected synthetic source")
+            return identity()
+
+        def fstat(self, fd):
+            return identity()
+
+        def open(self, path):
+            if path != device:
+                raise RuntimeError("Unexpected synthetic source")
+            return os.open(str(source), os.O_RDONLY)
+
+        def capacity(self, fd):
+            return os.fstat(fd).st_size
+
+        def pread(self, fd, count, offset):
+            os.lseek(fd, offset, os.SEEK_SET)
+            return os.read(fd, count)
+
+        def close(self, fd):
+            os.close(fd)
+
+    def scan():
+        return {
+            "platform": "Linux", "physical_disk_encryption_enabled": False,
+            "devices": [{"device": device, "bytes": size, "bus": "usb",
+                         "mounted": False, "system_or_boot": False,
+                         "inspection_complete": True, "write_authorized": False}],
+        }
+
+    with tempfile.TemporaryDirectory(prefix="krypta-usb-packaged-") as tmp:
+        root = Path(tmp)
+        source = root / "fake-usb-image.bin"
+        sample = bytes(range(256)) * (size // 256)
+        source.write_bytes(sample)
+        key = root / "offline.secret"
+        generate_keyfile(key)
+        backup = root / "encrypted-usb.krypta"
+        recovered = root / "recovered-test.img"
+        info = backup_linux_usb_encrypted(
+            device, backup, "Disposable packaged test password!", key,
+            scanner=scan, backend=SyntheticReadOnlyUSB(), system="Linux"
+        )
+        if info.get("source_write_authorized") is not False or not backup.exists():
+            raise RuntimeError("Packaged USB safety/creation check failed")
+        decrypt_file(backup, recovered, "Disposable packaged test password!", key)
+        if recovered.read_bytes() != sample or source.read_bytes() != sample:
+            raise RuntimeError("Packaged USB full-size authenticated roundtrip failed")
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
         return run_self_test()
@@ -242,6 +314,8 @@ def main() -> int:
         return run_fuse_adapter_self_test()
     if len(sys.argv) == 2 and sys.argv[1] == "--paged-volume-self-test":
         return run_paged_volume_lab_self_test()
+    if len(sys.argv) == 2 and sys.argv[1] == "--usb-backup-self-test":
+        return run_usb_backup_self_test()
     if len(sys.argv) != 1:
         return 2
     from krypta.gui import main as gui_main
