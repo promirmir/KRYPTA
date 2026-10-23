@@ -262,7 +262,10 @@ def run_usb_backup_self_test() -> int:
         def open(self, path):
             if path != device:
                 raise RuntimeError("Unexpected synthetic source")
-            return os.open(str(source), os.O_RDONLY)
+            # Windows CRT defaults to text translation (CRLF), which would
+            # corrupt the 2 MiB byte-exact fixture and produce short reads.
+            return os.open(str(source), os.O_RDONLY |
+                           getattr(os, "O_BINARY", 0))
 
         def capacity(self, fd):
             return os.fstat(fd).st_size
