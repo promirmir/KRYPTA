@@ -89,16 +89,27 @@ def test_trim_missing_does_not_consume_quota_or_change_receipt(tmp_path):
 @pytest.mark.parametrize("bad", [
     [], [0] * 2, [-1], [64], [True], [1.0], ["0"], [0] * 9,
 ])
-def test_invalid_trim_batches_cannot_touch_disk(tmp_path, bad):
+def test_invalid_trim_batches_cannot_touch_disk(tmp_path, bad, monkeypatch):
     path, key = tmp_path / "invalid-trim.kdevtest", os.urandom(32)
     with PagedAEADImage.create(path, key, physical_sectors=32,
                                logical_sectors=64) as img:
         anchor = img.receipt
-        source = path.read_bytes()
+        initial_sequence = img.sequence
+        initial_next = img._root["next"]
+        def forbidden_io(*_args, **_kwargs):
+            raise AssertionError("Invalid input attempted physical sector write")
+        monkeypatch.setattr(img._io, "write_sector", forbidden_io)
         with pytest.raises(PagedAEADError):
             img.trim_many(bad)
         assert img.receipt == anchor
-        assert path.read_bytes() == source
+        assert img.sequence == initial_sequence
+        assert img._root["next"] == initial_next
+    # Reopen independently, rather than reading from offset zero while a
+    # Windows byte-range writer lock is still held on the open image.
+    with PagedAEADImage.open(path, key, physical_sectors=32,
+                             expected_receipt=anchor) as reopened:
+        assert reopened.sequence == 0
+        assert reopened.verify_all()["verified_sectors"] == 0
 
 
 def test_legacy_write_api_must_not_accept_none(tmp_path):
