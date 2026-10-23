@@ -195,8 +195,9 @@ public final class MainActivity extends Activity {
             }
         } else if (requestCode == PICK_RECOVERY_EXPORT) {
             if (data == null || data.getData() == null) return;
+            byte[] freshKey = new byte[32];
+            boolean handedOff = false;
             try {
-                byte[] freshKey = new byte[32];
                 new SecureRandom().nextBytes(freshKey);
                 Uri uri = data.getData();
                 if (uri.equals(sourceUri)) throw new java.io.IOException("Recovery destination equals source");
@@ -226,12 +227,15 @@ public final class MainActivity extends Activity {
                     throw new java.io.IOException("Recovery keyfile read-back mismatch");
                 clearPendingRecoveryKey();
                 pendingRecoveryKey = freshKey;
+                handedOff = true;
                 exportedRecoveryUri = uri;
                 java.util.Arrays.fill(check, (byte) 0);
                 requestEncryptedOutput();
             } catch (Exception exc) {
                 clearPendingRecoveryKey();
                 showError(getString(R.string.vault_recovery_failed));
+            } finally {
+                if (!handedOff) java.util.Arrays.fill(freshKey, (byte) 0);
             }
         } else if (requestCode == PICK_OUTPUT) {
             if (data == null || data.getData() == null || sourceUri == null) return;
