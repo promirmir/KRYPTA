@@ -15,6 +15,7 @@ from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 
 from .core import CryptoError, decrypt_file, encrypt_file, file_info, generate_keyfile, verify_file
+from .mobile_recovery import recover_mobile_file
 from .i18n import LANGUAGES, normalize_language, translate
 from .volume_status import inspect_volumes
 from .physical_devices import inspect_physical_disks
@@ -253,6 +254,7 @@ class KryptaApp(tk.Tk):
         self._label(modebar, self._t('operation'), GREEN_DIM, 9, True).pack(side='left', padx=(0, 15))
         for value, label in [('encrypt', self._t('encrypt')), ('decrypt', self._t('decrypt')),
                              ('verify', 'Weryfikuj' if self.language_code == 'pl' else 'Verify'),
+                             ('mobile-recover', 'Android odzysk' if self.language_code == 'pl' else 'Android recovery'),
                              ('info', self._t('inspect'))]:
             ttk.Radiobutton(modebar, text=label, variable=self.mode, value=value,
                             style='KRadio.TRadiobutton').pack(side='left', padx=2)
@@ -462,12 +464,25 @@ class KryptaApp(tk.Tk):
                 self.confirm_row.pack(fill='x', pady=(8, 0), before=self.action.master)
             else:
                 self.confirm_row.pack_forget()
-            self.pwd_entry.configure(state='normal')
-            self.action.configure(text=self._t('encrypt_action') if mode == 'encrypt'
-                                  else 'DECRYPT TEST FILE  →')
+            self.pwd_entry.configure(state='disabled' if mode == 'mobile-recover' else 'normal')
+            self.action.configure(text=(
+                ('ODZYSKAJ ANDROID / MOBILE-2  →' if self.language_code == 'pl'
+                 else 'RECOVER ANDROID / MOBILE-2  →')
+                if mode == 'mobile-recover' else (
+                    self._t('encrypt_action') if mode == 'encrypt'
+                    else 'DECRYPT TEST FILE  →')))
         self._update_advisory()
 
     def _update_advisory(self):
+        if self.mode.get() == 'mobile-recover':
+            self.risk.configure(
+                text=('▸  Klucz odzyskiwania MOBILE/2 musi mieć dokładnie 32 bajty; '
+                      'plik jawny powstaje tylko po weryfikacji całego archiwum.'
+                      if self.language_code == 'pl' else
+                      '▸  Independent MOBILE/2 recovery keyfile must contain exactly 32 bytes. '
+                      'Full authentication precedes plaintext recovery.'),
+                fg=AMBER)
+            return
         if self.mode.get() == 'info':
             key = 'advice_header'
         elif not self.password.get():
@@ -504,10 +519,10 @@ class KryptaApp(tk.Tk):
         dst = self.destination.get().strip()
         key = self.keyfile.get().strip() or None
         pw = self.password.get()
-        if not src or (mode in ('encrypt', 'decrypt') and not dst):
+        if not src or (mode in ('encrypt', 'decrypt', 'mobile-recover') and not dst):
             messagebox.showwarning('KRYPTA', self._t('missing_path'))
             return
-        if mode != 'info' and not pw:
+        if mode not in ('info', 'mobile-recover') and not pw:
             messagebox.showwarning('KRYPTA', self._t('empty_password'))
             return
         if mode == 'encrypt' and pw != self.confirm.get():
@@ -517,7 +532,10 @@ class KryptaApp(tk.Tk):
             if not messagebox.askyesno('KRYPTA / ' + self._t('risk_title'),
                     self._t('risk_confirm')):
                 return
-        if mode in ('encrypt', 'decrypt') and Path(dst).exists():
+        if mode == 'mobile-recover' and not key:
+            messagebox.showwarning('KRYPTA', 'Select independent Android MOBILE/2 recovery keyfile.')
+            return
+        if mode in ('encrypt', 'decrypt', 'mobile-recover') and Path(dst).exists():
             messagebox.showerror('KRYPTA', self._t('exists'))
             return
         self._set_busy(True, self._t('processing'))
@@ -533,6 +551,12 @@ class KryptaApp(tk.Tk):
                 elif mode == 'encrypt':
                     encrypt_file(src, dst, pw, key)
                     msg = self._t('encrypt_ok')
+                elif mode == 'mobile-recover':
+                    result = recover_mobile_file(src, dst, key)
+                    msg = (('Odzyskano {} bajtów z MOBILE/2; nie zmieniono źródła.'
+                            if self.language_code == 'pl'
+                            else 'Recovered {} bytes from MOBILE/2; source unchanged.')
+                           .format(result['plaintext_bytes']))
                 elif mode == 'verify':
                     result = verify_file(src, pw, key)
                     msg = (('WERYFIKACJA OK: {} bajtów; bez zapisu danych jawnych.'
