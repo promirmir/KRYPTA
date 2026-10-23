@@ -146,3 +146,24 @@ Roadmap next: verify real disposable VM mounting; introduce scalable
 hierarchical catalogue, POSIX semantics, authenticated copy-on-write index,
 mount recovery, bounded per-write costs, mount-point isolation and complete
 error injection, then separately develop Windows and system-boot integration.
+
+
+## Explicit read-only PVIMG-PFS/2 mount (development)
+
+For authenticated inspection of an existing ordinary `.kpv` image, the Linux
+mount CLI accepts `--read-only` together with the existing independently
+trusted `--expected-receipt`, credential source, private mountpoint and
+`--accept-development-risk`. The FUSE mount uses a read-only encrypted file
+descriptor and the kernel `ro` option. Create, write, truncate, rename,
+unlink and write-style opens are independently refused by the Python callbacks
+with `EROFS`; the exposed free-space count is zero. A read-only mount never
+advances or publishes a new receipt; combining `--read-only` with
+`--final-receipt-out` is rejected. Existing writable research mounts preserve
+their previous behavior and mount arguments.
+
+For example, the existing `research.linux_mount_paged` invocation may be used
+with an additional `--read-only` flag; do not supply passwords in argv or env
+variables: use `--password-fd` or `--recovery` as before. This does **not**
+implement system boot encryption, physical disk encryption, Android FBE, a
+production mount driver, or hardware-backed anti-rollback. Use disposable
+noncritical encrypted file images only; independently test recovery.
