@@ -353,33 +353,88 @@ class PagedAEADImage:
         return self.write_many({index: data})
 
     def write_many(self, updates: Mapping[int, bytes]):
+        """Preserve legacy write-only API: None is never an implicit delete."""
+        if not isinstance(updates, Mapping) or any(
+                type(value) is not bytes for value in updates.values()):
+            raise PagedAEADError("Exactly 4096-byte immutable sector data required")
+        return self.apply_many(updates)
+
+    def trim_many(self, indexes):
+        """Atomically unmap existing logical sectors; NEVER physically erase.
+
+        Missing sectors remain zero without an unnecessary root commit.
+        The append-only underlying ciphertext (including older snapshots)
+        is still present and may be recoverable with prior keys/receipts.
+        """
+        if type(indexes) not in (list, tuple):
+            raise PagedAEADError("Trim requires a bounded list or tuple of sectors")
+        if not 1 <= len(indexes) <= MAX_BATCH_SECTORS:
+            raise PagedAEADError("Invalid atomic trim batch")
+        if any(type(index) is not int for index in indexes):
+            raise PagedAEADError("Invalid logical trim sector")
+        if len(indexes) != len(set(indexes)):
+            raise PagedAEADError("Duplicate sector in atomic trim batch")
+        return self.apply_many({index: None for index in indexes})
+
+    def apply_many(self, changes: Mapping[int, bytes | None]):
+        """ONE authenticated COW transaction mixing sector writes and trims.
+
+        `None` explicitly removes a logical sector reference, yielding an
+        authenticated ZERO on subsequent reads. Empty leaves are pruned.
+        All impacted original ciphertext is authenticated before any writes.
+        This is NOT an SSD discard/TRIM, secure wipe, compaction or release of
+        old physical log capacity. A failure after root publication poisons
+        the handle; only the independent latest receipt may be trusted.
+        """
         self._check()
         if self._io.read_only:
             raise PagedAEADError("Scratch image is read-only")
-        if (not isinstance(updates, Mapping) or
-                not 1 <= len(updates) <= MAX_BATCH_SECTORS):
-            raise PagedAEADError("Invalid atomic write batch")
-        for index, payload in updates.items():
+        if not isinstance(changes, Mapping) or not 1 <= len(changes) <= MAX_BATCH_SECTORS:
+            raise PagedAEADError("Invalid atomic update/trim batch")
+        for index, payload in changes.items():
             if type(index) is not int or not 0 <= index < self.logical_sectors:
                 raise PagedAEADError("Invalid logical index")
-            if type(payload) is not bytes or len(payload) != SECTOR_BYTES:
-                raise PagedAEADError("Exact 4096-byte sectors required")
-        pages = sorted(set(index // LEAF_ENTRIES for index in updates))
-        required = len(updates) + len(pages)
+            if payload is not None and (
+                    type(payload) is not bytes or len(payload) != SECTOR_BYTES):
+                raise PagedAEADError("Exact 4096-byte data or explicit None required")
+        pages = sorted(set(index // LEAF_ENTRIES for index in changes))
         if self._root["sequence"] == 2**64 - 1:
             raise PagedAEADError("Commit sequence exhausted")
-        if self._root["next"] + required > self._io.sectors:
-            raise PagedAEADError("COW append-only scratch capacity exhausted")
-        # Verify the entire affected leaves before a write, not just updates.
-        leaves = {page: dict(self._leaf(page)) for page in pages}
-        for page, leaf in leaves.items():
+        # Authenticate ALL existing sectors in affected leaves, including
+        # sectors being removed, to avoid hiding corrupted storage by trim.
+        originals = {page: dict(self._leaf(page)) for page in pages}
+        for page, leaf in originals.items():
             for offset in leaf:
                 self.read_sector(page * LEAF_ENTRIES + int(offset))
+        leaves = {page: dict(leaf) for page, leaf in originals.items()}
+        for index, payload in changes.items():
+            page, offset = divmod(index, LEAF_ENTRIES)
+            if payload is None:
+                leaves[page].pop(str(offset), None)
+        to_update = sorted(page for page in pages
+                           if leaves[page] != originals[page] or
+                           any(changes.get(page * LEAF_ENTRIES + i, None) is not None
+                               for i in range(LEAF_ENTRIES)
+                               if page * LEAF_ENTRIES + i in changes))
+        if not to_update:
+            # Trimming never-allocated sectors does not spend sequence/quota.
+            return self.sequence
+        writes = sorted((index, payload) for index, payload in changes.items()
+                        if payload is not None)
+        # Leaves containing only trims may disappear entirely and require
+        # ZERO extra data/leaf sectors. Other touched leaves need new copies.
+        nonempty_pages = {page for page in to_update
+                          if leaves[page] or any(index // LEAF_ENTRIES == page
+                                                 for index, _ in writes)}
+        required = len(writes) + len(nonempty_pages)
+        if self._root["next"] + required > self._io.sectors:
+            raise PagedAEADError("COW append-only scratch capacity exhausted")
+
         allocated = []
         staged_leaves = {}
         newroot = dict(self._root["leaves"])
         address = self._root["next"]
-        for index, plain in sorted(updates.items()):
+        for index, plain in writes:
             nonce = secrets.token_bytes(12)
             aad = (b"KRYPTA-PAGED-DATA/2" + self._vid +
                    struct.pack(">II", index, address))
@@ -388,17 +443,18 @@ class PagedAEADImage:
                 [address, nonce.hex(), cipher[-16:].hex()])
             allocated.append((address, cipher[:-16]))
             address += 1
-        for page in pages:
+        for page in to_update:
+            if not leaves[page]:
+                newroot.pop(str(page), None)
+                continue
             nonce = secrets.token_bytes(12)
             aad = (b"KRYPTA-PAGED-LEAF/2" + self._vid +
                    struct.pack(">II", page, address))
             plain = _canonical(leaves[page])
             if len(plain) > SECTOR_BYTES:
                 raise PagedAEADError("Leaf map exceeds sector bound")
-            # Test transport only permits 4096-byte physical sector writes.
-            # Zero padding is part of the AEAD-authenticated plaintext.
             cipher = AESGCM(self._leaf_key).encrypt(
-                nonce, plain.ljust(SECTOR_BYTES, b"\x00"), aad)
+                nonce, plain.ljust(SECTOR_BYTES, b"\\x00"), aad)
             newroot[str(page)] = [address, nonce.hex(), cipher[-16:].hex()]
             staged_leaves[page] = (address, cipher[:-16])
             address += 1
@@ -410,17 +466,18 @@ class PagedAEADImage:
                     hashlib.sha256(self._header).digest() + bytes([slot]))
         raw = self._seal(self._root_key, root_aad, state, ROOT_MAGIC)
         try:
-            for address, cipher in allocated:
-                self._io.write_sector(address, cipher)
-            for address, cipher in staged_leaves.values():
-                self._io.write_sector(address, cipher)
+            for sector_address, cipher in allocated:
+                self._io.write_sector(sector_address, cipher)
+            for sector_address, cipher in staged_leaves.values():
+                self._io.write_sector(sector_address, cipher)
             self._io.flush()
             self._io.write_sector(slot, raw)
             self._io.flush()
             self._slot, self._root, self._rootraw = slot, state, raw
-            for index, expected in updates.items():
-                if not hmac.compare_digest(self.read_sector(index), expected):
-                    raise PagedAEADError("Post-commit data verification failed")
+            for index, expected in changes.items():
+                actual = self.read_sector(index)
+                if not hmac.compare_digest(actual, ZERO if expected is None else expected):
+                    raise PagedAEADError("Post-commit sector/trim verification failed")
         except BaseException:
             self._poisoned = True
             raise
