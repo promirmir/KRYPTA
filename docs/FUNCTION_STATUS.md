@@ -1,6 +1,6 @@
 # KRYPTA — stan funkcji i droga do wersji 1.0
 
-**Stan na 22.10.2026.** Ten plik jest aktualną tabelą postępu. Pierwotne wymagania pozostają w [PROJECT_CHARTER.md](PROJECT_CHARTER.md). Obowiązkowe kryteria ukończenia znajdują się w [PRODUCT_ACCEPTANCE.md](PRODUCT_ACCEPTANCE.md). Aktualne pliki dla użytkowników: [GitHub Releases](https://github.com/promirmir/KRYPTA/releases).
+**Stan na 23.10.2026.** Ten plik jest aktualną tabelą postępu. Pierwotne wymagania pozostają w [PROJECT_CHARTER.md](PROJECT_CHARTER.md). Obowiązkowe kryteria ukończenia znajdują się w [PRODUCT_ACCEPTANCE.md](PRODUCT_ACCEPTANCE.md). Aktualne pliki dla użytkowników: [GitHub Releases](https://github.com/promirmir/KRYPTA/releases).
 
 **Znaczenie statusów:** "Działa w dev" = dostępne w uruchamialnym wydaniu rozwojowym, nie oznacza gotowości produkcyjnej. "Test CI" = istnieje kod i kontrolowane testy, ale funkcja nie jest jeszcze użyteczna dla ogólnego użytkownika. "Brak" = wymaganie pierwotnego produktu nie zostało spełnione.
 
@@ -20,7 +20,10 @@
 | WinFsp: montowanie, odczyt, odmowa zapisu | Test na natywnym Windows CI / osobny R/O helper | — | — | Wydanie użytkowe nie montuje woluminu do zapisu |
 | WinFsp: buforowany zapis i commit na polecenie flush | Etap testowy na tymczasowym .kpv; wymaga walidacji | — | — | **Nie jest zintegrowane z wydanym EXE; nie wolno podłączać rzeczywistych dysków** |
 | Linux/Windows — wymiana tego samego zaszyfrowanego obrazu PFS/2 | Test CI PASS | Test CI PASS | Brak | Integracja z GUI nie oznacza przenoszenia zaufanego stanu i kluczy |
-| Rozpoznawanie rzeczywistych fizycznych dysków i ich metadanych | Get-Disk R/O (nowy kod i GUI, wymaga walidacji CI) | lsblk R/O (nowy kod i GUI, wymaga walidacji CI) | Brak | Sama inwentaryzacja; brak otwierania i szyfrowania urządzeń, zawsze write_authorized=false |\n| Szyfrowanie całego dysku, partycji, nośnika USB/SSD/HDD | Brak | Brak | Brak | Główny cel nadal nieukończony; potrzebne bezpieczne backendy urządzeń, mount, recovery, testy power-loss |
+| Rozpoznawanie rzeczywistych fizycznych dysków i ich metadanych | Kod + CI PASS | Kod + CI PASS | Brak | Tylko odczyt metadanych; brak otwierania i szyfrowania urządzeń, zawsze write_authorized=false |
+| Testowy zaszyfrowany silnik sektorowy AES-256-GCM, COW, weryfikacja receipt | Test CI PASS (PR #64) | Test CI PASS (PR #64) | Brak | Tylko zwykły obraz .kdevtest, do 32 sektorów logicznych, bez sterownika fizycznego dysku i zabezpieczenia klucza |
+| Diagnostyka kandydatów do odzyskania sektora po awarii | W kodzie PR #65, CI do weryfikacji | W kodzie PR #65, CI do weryfikacji | Brak | Tylko odczyt, bez wydawania zaufanego receipt i bez automatycznej zgody na dalszy zapis |
+| Szyfrowanie całego dysku, partycji, nośnika USB/SSD/HDD | Brak | Brak | Brak | Niezbędne bezpieczne sterowniki/adaptery urządzeń, przywracanie po awarii, klucze i testy rzeczywistych nośników |
 | Szyfrowanie dysku systemowego i rozruchu | Brak | Brak | Zwykły APK nie ma uprawnień do podmiany systemowego FBE | Nie wolno reklamować jako istniejącej funkcji |
 | Password Shield — osobny sejf haseł | Brak potwierdzonego kompletnego modułu | Brak potwierdzonego kompletnego modułu | Brak potwierdzonego kompletnego modułu | Wymagany przez Project Charter |
 | Krótki PIN wsparty nieeksportowalnym sekretem sprzętowym | Brak | Brak | Brak rozwiązania międzyplatformowego | Krótki PIN bez silnego sprzętowego czynnika jest podatny na zgadywanie offline |
@@ -36,6 +39,13 @@
 6. **Android:** opracować przenośny format plików i interoperacyjność z desktopem, pełny test odzyskania kluczy na innym telefonie i podpisane APK. Ochrona całego urządzenia wymaga osobnej, uprzywilejowanej integracji z OS.
 7. **Sejf haseł i krótki PIN:** bezpieczny osobny Password Shield, weryfikowane odblokowanie i rzeczywisty sprzętowy limit prób; brak deklarowania bezpieczeństwa krótkiego PIN-u bez takiego mechanizmu.
 8. **Dystrybucja:** instalatory i podpisy, aktualizacje, testy różnych wersji OS, kontrola zależności, fuzzing, benchmarking, audyt niezależny, plan migracji/odtwarzania i dopiero potem wersja 1.0.
+
+## Aktualne dowody kamieni milowych P0 (23.10.2026)
+
+- [PR #63](https://github.com/promirmir/KRYPTA/pull/63): sektorowy transport wyłącznie na zwykłym pliku testowym, nie fizycznym nośniku.
+- [PR #64](https://github.com/promirmir/KRYPTA/pull/64): AES-256-GCM dla sektorów, dwa uwierzytelnione sloty root, zapis COW i testy przerwania operacji; CI Windows/Linux PASS. Szczegóły: [SEALED_SECTOR_IMAGE.md](SEALED_SECTOR_IMAGE.md).
+- [PR #65](https://github.com/promirmir/KRYPTA/pull/65): osobna read-only analiza kandydatów do odzyskania, bez automatycznego zaufania. Szczegóły: [SEALED_SECTOR_FORENSIC_REVIEW.md](SEALED_SECTOR_FORENSIC_REVIEW.md). Status CI jest niezależny od wyniku PR #64.
+- Wymaganie końcowe pozostaje bez zmian: **szyfrowanie rzeczywistego fizycznego dysku nie jest gotowe**. Nowe moduły tylko redukują ryzyko przed etapem sprzętowym.
 
 ## Dyscyplina wydań
 
