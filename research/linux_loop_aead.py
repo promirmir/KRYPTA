@@ -93,8 +93,8 @@ def _identity(meta):
 
 def _scratch(meta, *, length):
     return (stat.S_ISREG(meta.st_mode) and meta.st_nlink == 1 and
-            meta.st_uid == os.getuid() and meta.st_mode & 0o077 == 0 and
-            meta.st_size == length)
+            (not hasattr(os, "getuid") or meta.st_uid == os.getuid()) and
+            meta.st_mode & 0o077 == 0 and meta.st_size == length)
 
 
 class LabLoopSectorTransport:
