@@ -16,4 +16,6 @@
     <string name="vault_recovery_title">Chave de recuperação independente</string>
     <string name="vault_recovery_warning">Guarde a NOVA chave de recuperação de 32 bytes noutro dispositivo de confiança. Quem possuir a chave pode desencriptar o ficheiro. Se perder o telefone e a chave, a recuperação será impossível. Use apenas dados de teste.</string>
     <string name="vault_recovery_failed">Não foi possível verificar a chave de recuperação exportada. Encriptação cancelada.</string>
+    <string name="vault_recover_external">RECUPERAR MOBILE/2 COM CHAVE EXTERNA</string>
+    <string name="vault_recovery_import_warning">Selecione o ficheiro de chave de recuperação independente de 32 bytes. Quem tiver a chave pode ler o ficheiro cifrado. Este modo aceita apenas KRYPTA-MOBILE/2. Verifique a origem e o destino.</string>
 </resources>
