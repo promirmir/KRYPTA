@@ -65,6 +65,8 @@ jobs:
           if (!(Test-Path 'dist/KRYPTA.exe.sha256')) { throw 'Checksum manifest missing' }
           $probe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--self-test' -Wait -PassThru
           if ($probe.ExitCode -ne 0) { throw "Packaged Windows EXE self-test failed: $($probe.ExitCode)" }
+          $usbProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--usb-backup-self-test' -Wait -PassThru
+          if ($usbProbe.ExitCode -ne 0) { throw "Packaged USB backup roundtrip self-test failed: $($usbProbe.ExitCode)" }
           $volumeProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--volume-self-test' -Wait -PassThru
           if ($volumeProbe.ExitCode -ne 0) { throw "Packaged Windows independent volume smoke test failed: $($volumeProbe.ExitCode)" }
           $filesystemProbe = Start-Process -FilePath (Resolve-Path 'dist/KRYPTA.exe').Path -ArgumentList '--filesystem-self-test' -Wait -PassThru
@@ -78,6 +80,7 @@ jobs:
           chmod +x dist/KRYPTA
           (cd dist && sha256sum KRYPTA > KRYPTA.sha256 && sha256sum -c KRYPTA.sha256)
           ./dist/KRYPTA --self-test
+          ./dist/KRYPTA --usb-backup-self-test
           ./dist/KRYPTA --volume-self-test
           ./dist/KRYPTA --filesystem-self-test
           ./dist/KRYPTA --fuse-self-test
