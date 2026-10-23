@@ -54,22 +54,32 @@ def run() -> int:
                     raise RuntimeError("Initial logical sector is not zero")
                 disk.write_sector(9, b"K" * 4096)
                 disk.write_at(4096 * 31 + 4094, b"cross-sector write")
-                latest = disk.receipt
-                if latest == first or disk.sequence != 2:
+                after_writes = disk.receipt
+                if after_writes == first or disk.sequence != 2:
                     raise RuntimeError("COW commit/receipt not advanced")
                 if disk.read_at(4096 * 31 + 4094, 18) != b"cross-sector write":
                     raise RuntimeError("Authenticated unaligned write failed")
+                # Exercise BOTH a logical discard and a new encrypted data
+                # sector in ONE native /dev/loopN root commit. No kernel
+                # BLKDISCARD is used; old physical ciphertext remains.
+                if disk.apply_many({9: None, 31: b"R" * 4096}) != 3:
+                    raise RuntimeError("Mixed atomic trim/write did not commit once")
+                latest = disk.receipt
+                if latest == after_writes or disk.read_sector(9) != bytes(4096):
+                    raise RuntimeError("Logical trim did not authenticate and commit")
             with open_lab_loop_v2(loop, path, key, latest) as reopened:
-                if reopened.read_sector(9) != b"K" * 4096:
-                    raise RuntimeError("Read-only reopen lost committed data")
-                if reopened.verify_all()["verified_sectors"] != 3:
-                    raise RuntimeError("Incomplete authenticated sector catalogue")
+                if reopened.read_sector(9) != bytes(4096):
+                    raise RuntimeError("Read-only reopen lost committed trim")
+                if reopened.read_sector(31) != b"R" * 4096:
+                    raise RuntimeError("Read-only reopen lost mixed encrypted write")
+                if reopened.verify_all()["verified_sectors"] != 2:
+                    raise RuntimeError("Incomplete authenticated sector catalogue after trim")
             try:
                 with open_lab_loop_v2(loop, path, key, first):
                     raise RuntimeError("Stale trusted receipt was accepted")
             except PagedAEADError:
                 pass
-            print("REAL_KERNEL_LOOP_AEAD=PASS", loop, "receipts=verified", flush=True)
+            print("REAL_KERNEL_LOOP_AEAD=PASS", loop, "mixed_trim=verified", "receipts=verified", flush=True)
         finally:
             if loop and LOOP_PATTERN.fullmatch(loop):
                 _cmd("losetup", "--detach", loop)
