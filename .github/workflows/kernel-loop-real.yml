@@ -1,0 +1,46 @@
+name: KRYPTA / real isolated Linux kernel loop AEAD
+
+on:
+  pull_request:
+    paths:
+      - 'research/linux_loop_aead.py'
+      - 'research/paged_aead_v2.py'
+      - 'tools/test_kernel_loop_integration.py'
+      - '.github/workflows/kernel-loop-real.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  actual-kernel-loop:
+    name: actual Linux /dev/loop image-only I/O (no physical disks)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install crypto test dependencies
+        run: python -m pip install -e '.[test]'
+      - name: Prepare kernel loop nodes in disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo modprobe loop || true
+          if [ ! -e /dev/loop-control ]; then
+            sudo mknod /dev/loop-control c 10 237
+          fi
+          for n in $(seq 0 15); do
+            if [ ! -e "/dev/loop$n" ]; then
+              sudo mknod "/dev/loop$n" b 7 "$n"
+            fi
+          done
+          command -v losetup
+          sudo losetup --list
+      - name: Require ACTUAL kernel-loop encrypted write and receipt recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PYTHONPATH="$GITHUB_WORKSPACE" "$(command -v python)" -m tools.test_kernel_loop_integration
