@@ -188,5 +188,85 @@ def test_postwrite_archive_verification_failure_never_claims_success(tmp_path, m
     with pytest.raises(PhysicalProbeError, match="verification failed"):
         run(tmp_path, device)
     assert device.closes == 1
-    # Preserve a suspect archive for inspection, never claim it is valid.
-    assert output(tmp_path).exists()
+    # No unverified file may exist at the ordinary backup destination.
+    assert not output(tmp_path).exists()
+    assert not list(tmp_path.glob(".krypta-pending-*"))
+
+
+
+def test_visible_name_is_absent_during_post_write_authentication(tmp_path, monkeypatch):
+    """A normal file name only appears after source bytes and AEAD are verified."""
+    from krypta import physical_backup
+    original_verify = physical_backup.verify_file
+    target = output(tmp_path)
+    observed = []
+
+    def observe_pending(pending, password, key):
+        assert not target.exists()
+        assert pending.exists() and pending.name.startswith(".krypta-pending-")
+        assert pending.parent == target.parent
+        observed.append(pending.name)
+        return original_verify(pending, password, key)
+
+    monkeypatch.setattr(physical_backup, "verify_file", observe_pending)
+    result = run(tmp_path, FakeReadOnlyDevice())
+    assert result["backup_verified"] is True
+    assert len(observed) == 1
+    assert target.is_file()
+    assert not list(tmp_path.glob(".krypta-pending-*"))
+
+
+def test_wrong_decrypted_digest_cannot_publish_misleading_backup(tmp_path, monkeypatch):
+    """A valid AEAD archive containing unexpected source bytes is not a success."""
+    from krypta import physical_backup
+    real_verify = physical_backup.verify_file
+
+    def lie_about_size(pending, password, key):
+        valid = real_verify(pending, password, key)
+        return {**valid, "plaintext_bytes": valid["plaintext_bytes"] + 1}
+
+    monkeypatch.setattr(physical_backup, "verify_file", lie_about_size)
+    with pytest.raises(PhysicalProbeError, match="verification failed"):
+        run(tmp_path, FakeReadOnlyDevice())
+    assert not output(tmp_path).exists()
+    assert not list(tmp_path.glob(".krypta-pending-*"))
+
+
+def test_no_clobber_if_output_appears_during_publication(tmp_path, monkeypatch):
+    """Attack/race simulation: another process creates target after preflight."""
+    from krypta import physical_backup
+    native_link = physical_backup.os.link
+    target = output(tmp_path)
+    seen = []
+
+    def conflicting_link(src, dst, **kwargs):
+        if Path(dst) == target:
+            assert not target.exists()
+            seen.append(True)
+            target.write_bytes(b"EXISTING DATA MUST SURVIVE")
+        return native_link(src, dst, **kwargs)
+
+    monkeypatch.setattr(physical_backup.os, "link", conflicting_link)
+    with pytest.raises(PhysicalProbeError, match="already exists"):
+        run(tmp_path, FakeReadOnlyDevice())
+    assert seen == [True]
+    assert target.read_bytes() == b"EXISTING DATA MUST SURVIVE"
+    assert not list(tmp_path.glob(".krypta-pending-*"))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Directory fsync is POSIX-specific")
+def test_directory_fsync_failure_reports_uncertain_publication(tmp_path, monkeypatch):
+    """Never claim backup durability if the filesystem rejects directory sync."""
+    from krypta import physical_backup
+    native_fsync = physical_backup.os.fsync
+
+    def deny_directory_sync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError("Injected directory sync failure")
+        return native_fsync(fd)
+
+    monkeypatch.setattr(physical_backup.os, "fsync", deny_directory_sync)
+    with pytest.raises(PhysicalProbeError, match="persistence is uncertain"):
+        run(tmp_path, FakeReadOnlyDevice())
+    assert output(tmp_path).is_file()
+    assert not list(tmp_path.glob(".krypta-pending-*"))
