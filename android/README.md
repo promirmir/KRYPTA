@@ -48,9 +48,31 @@ keyfile or ciphertext. Do not use irreplaceable data. CI checks JVM and Python
 against a common pinned AES-GCM vector; physical Android device/SAF export
 tests remain required.
 
+## Recover directly on a replacement Android phone (new development workflow)
+
+The Android APK now includes **RECOVER MOBILE/2 WITH OFFLINE KEY**. This flow
+requires the destination phone's secure screen lock and credential confirmation,
+but does **not** request or recreate the original phone's Android Keystore key.
+Using the Storage Access Framework (SAF), choose the encrypted `.km2` source,
+then the independently backed-up **exact 32-byte raw recovery keyfile**,
+and finally a **different new** plaintext destination. Same-URI source,
+key and output combinations are rejected.
+
+The keyfile parser refuses short, long and malformed raw keys, and the selected
+archive must begin with `KRYPTA-MOBILE/2`. The entire ciphertext is
+authenticated into an app-private temporary file before any bytes are exported
+to SAF; the recovery key is wiped from temporary Java byte arrays on
+completion. Failed authentication never exports plaintext. Flash secure
+deletion is not guaranteed; a malicious SAF provider or Android with
+compromised permissions is outside this guarantee. The new workflow cannot
+recover old `KRYPTA-MOBILE/1` files (device-bound by design).
+
+CI covers portable AES-GCM vectors and exact-keyfile parsing; it does **not**
+constitute physical-Android or independent security audit verification.
+
 ## Fundamental restrictions
 
-- **Legacy v1:** no recovery after loss of Android Keystore. **New v2:** 32-byte independent key can recover the file on desktop; if that key is lost together with Android Keystore, recovery is still impossible. Android Keystore itself remains nonexportable.
+- **Legacy v1:** no recovery after loss of Android Keystore. **New v2:** 32-byte independent key can recover the file on desktop or a different Android phone; if that key is lost together with Android Keystore, recovery is still impossible. Android Keystore itself remains nonexportable.
 - The user-selected output can remain incomplete after a failed copy/operation. Delete the failed new output and keep the original. Never operate on your only copy.
 - The fixed Android device-credential authorization period is **NOT a proven KRYPTA 1-digit/4-digit anti-brute-force protocol**. The Android Keystore API may be hardware-backed or software-enforced depending on the device, and **hardware properties were not verified**.
 - Normal APKs cannot transparently replace Android's existing File-Based Encryption for the entire OS or other applications. This is a **selected-file vault only**, with manual import/export.

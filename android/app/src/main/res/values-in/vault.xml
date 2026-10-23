@@ -16,4 +16,6 @@
     <string name="vault_recovery_title">Kunci pemulihan independen</string>
     <string name="vault_recovery_warning">Simpan kunci pemulihan BARU 32-byte di perangkat tepercaya yang terpisah. Siapa pun yang memegang kunci dapat mendekripsi file. Jika ponsel dan kunci hilang, pemulihan tidak mungkin. Gunakan hanya data uji.</string>
     <string name="vault_recovery_failed">Kunci pemulihan yang diekspor tidak dapat diverifikasi. Enkripsi dibatalkan.</string>
+    <string name="vault_recover_external">PULIHKAN MOBILE/2 DENGAN KUNCI OFFLINE</string>
+    <string name="vault_recovery_import_warning">Pilih berkas kunci pemulihan 32-byte yang disimpan terpisah. Siapa pun yang memiliki kunci dapat membaca berkas terenkripsi. Mode ini hanya mendukung KRYPTA-MOBILE/2. Periksa sumber dan tujuan.</string>
 </resources>
