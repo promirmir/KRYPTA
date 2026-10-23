@@ -36,6 +36,30 @@ odczytu mimo braku mountpointu. Weryfikacja i niezależne odtworzenie są
 obowiązkowe; nie usuwać oryginału. Nie testowano na fizycznym USB ani
 nie przeprowadzono niezależnego audytu. To nie jest szyfrowanie dysku w locie.
 
+## Linux: zapisy blokowe przez wyłącznie testowy /dev/loopN (P0)
+
+Moduł `research/linux_loop_aead.py` umożliwia otwarcie **już istniejącego**
+zaszyfrowanego obrazu `.kdevtest` przez urządzenie `/dev/loopN` połączone
+przez jądro Linuksa dokładnie z tym plikiem. Wykorzystuje rzeczywiste
+`pread/pwrite` w sektorach 4 KiB, `fsync`, istniejące COW AES-256-GCM v2
+i obowiązkowy zewnętrzny **aktualny** receipt. Nie tworzy dysku, nie montuje,
+nie partycjonuje ani nie inicjalizuje żadnego urządzenia.
+
+Backend weryfikuje przez `LOOP_GET_STATUS64` numer pętli, inode i urządzenie
+pliku backing, zero offsetu i brak obcięcia, spójność `BLKGETSIZE64`,
+uprawnienia i własność pliku (Linux), brak hardlinków, niezmienność tożsamości
+przed każdym I/O. Otwiera /dev/loopN z `O_EXCL|O_NOFOLLOW`, odmawia wszystkich
+`/dev/sd*`, `/dev/nvme*`, partycji i innych ścieżek. Błędy lub krótkie
+transfery blokują dalsze operacje do niezależnej analizy receipt.
+
+Do zademonstrowania na prawdziwym kernel-loop potrzebne są osobne testy na
+izolowanej maszynie (wymaga losetup i stosownych uprawnień); CI obecnie
+używa symulacji urządzenia blokowego i rzeczywistych zaszyfrowanych plików.
+`/dev/loopN` odwołuje się do pliku dyskowego i **nie oznacza obsługi
+fizycznego USB, SSD ani HDD**. Kod nie jest udostępniony jako komenda
+formatowania, nie jest jeszcze produkcyjny. Ostateczny format, sterowniki,
+współbieżność i realne awarie zasilania pozostają niewdrożone.
+
 ## Blokery pełnego wsparcia fizycznych dysków
 
 1. Nowy on-disk layout i niezawodny backend urządzeń, niezależny od
