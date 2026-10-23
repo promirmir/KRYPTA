@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">ALFA DE INVESTIGACIÓN / ARCHIVOS</string>
-    <string name="vault_warning">KRYPTA no cifra todo el teléfono. Solo pruebas; sin recuperación si se pierde Android Keystore.</string>
-    <string name="vault_body">AES-256-GCM y Android Keystore. KRYPTA-MOBILE/1 no es compatible con .kry de escritorio.</string>
+    <string name="vault_warning">KRYPTA no cifra todo el teléfono. Los archivos MOBILE/2 nuevos solo se recuperan con la clave independiente de 32 bytes guardada aparte. Los archivos MOBILE/1 antiguos siguen ligados al dispositivo.</string>
+    <string name="vault_body">AES-256-GCM y Android Keystore. MOBILE/2 tiene recuperación mediante una clave independiente; MOBILE/1 antiguo sigue siendo legible. No es el formato .kry de escritorio.</string>
     <string name="vault_encrypt">CIFRAR ARCHIVO DE PRUEBA</string>
     <string name="vault_decrypt">DESCIFRAR ARCHIVO DE PRUEBA</string>
     <string name="vault_idle">Seleccione el archivo de origen.</string>
