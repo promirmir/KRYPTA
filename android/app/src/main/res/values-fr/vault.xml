@@ -13,4 +13,7 @@
     <string name="vault_auth_title">Autoriser KRYPTA</string>
     <string name="vault_auth_body">Confirmez le verrouillage pour utiliser la clé locale. Pas de chiffrement intégral du téléphone.</string>
     <string name="vault_same_file">Source et destination doivent différer.</string>
+    <string name="vault_recovery_title">Clé de récupération indépendante</string>
+    <string name="vault_recovery_warning">Enregistrez la NOUVELLE clé de récupération de 32 octets sur un autre appareil de confiance. Toute personne ayant cette clé peut déchiffrer le fichier. Si le téléphone et la clé sont perdus, la récupération est impossible. Utilisez des données de test uniquement.</string>
+    <string name="vault_recovery_failed">Impossible de vérifier la clé de récupération exportée. Chiffrement annulé.</string>
 </resources>
