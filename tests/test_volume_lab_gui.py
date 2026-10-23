@@ -274,3 +274,66 @@ def test_linux_backup_is_real_window_and_root_refuses_to_close_active_copy(monke
         win.destroy()
     finally:
         app.destroy()
+
+
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get("DISPLAY"),
+                    reason="Tk requires graphical display")
+def test_linux_usb_gui_executes_only_explicit_selected_encrypted_copy(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from krypta.gui import KryptaApp
+    from krypta.usb_backup_gui import LinuxUSBBackupWindow
+    import krypta.gui as parent_ui
+    import krypta.usb_backup_gui as usb_ui
+
+    monkeypatch.setattr(parent_ui.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(LinuxUSBBackupWindow, "_scan", lambda self: None)
+    monkeypatch.setattr(usb_ui.messagebox, "askyesno", lambda *a, **k: True)
+    monkeypatch.setattr(usb_ui.messagebox, "showinfo", lambda *a, **k: None)
+    errors = []
+    monkeypatch.setattr(usb_ui.messagebox, "showerror",
+                        lambda *a, **k: errors.append(True))
+    # Run in the GUI main thread for deterministic routing assertions.
+    monkeypatch.setattr(usb_ui.threading, "Thread",
+                        lambda *, target, daemon: SimpleNamespace(start=target))
+    calls = []
+
+    def actual_service(device, output, password, keyfile):
+        calls.append((device, output, password, keyfile))
+        with open(output, "xb") as file:
+            file.write(b"TEST-ONLY-ARCHIVE")
+        return {"operation": "test-only; real engine has separate roundtrip",
+                "source_write_authorized": False}
+    monkeypatch.setattr(usb_ui, "backup_linux_usb_encrypted", actual_service)
+    app = KryptaApp()
+    try:
+        app._show_module(1)
+        app._open_linux_usb_backup()
+        win = next(w for w in app.winfo_children()
+                   if isinstance(w, LinuxUSBBackupWindow))
+        source = "/dev/sdz"
+        output = tmp_path / "new-archive.krypta"
+        keyfile = tmp_path / "separate-keyfile.key"
+        keyfile.write_bytes(b"K" * 32)
+        win._candidates = [source]
+        win.pick_device.configure(values=[source])
+        win.device.set(source)
+        win.destination.set(str(output))
+        win.keyfile.set(str(keyfile))
+        win.password.set("not the same!")
+        win.confirm.set("wrong password")
+        win._start()
+        assert errors and not calls and not output.exists()
+        win.password.set("long synthetic test password")
+        win.confirm.set("long synthetic test password")
+        win._start()
+        app.update()
+        assert len(calls) == 1
+        assert calls[0] == (source, str(output), "long synthetic test password",
+                            str(keyfile))
+        assert output.read_bytes() == b"TEST-ONLY-ARCHIVE"
+        assert win.password.get() == "" and win.confirm.get() == ""
+        assert not win.busy
+        win.destroy()
+    finally:
+        if app.winfo_exists():
+            app.destroy()
