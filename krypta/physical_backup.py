@@ -12,6 +12,7 @@ import hashlib
 import os
 from pathlib import Path
 import platform
+import secrets
 import stat
 
 from .core import _encrypt_reader, verify_file
@@ -126,22 +127,78 @@ def backup_linux_usb_encrypted(device: str, output: str | Path, password: str,
         expected["bytes"] = reader.position
         expected["sha256"] = reader.sha256.hexdigest()
 
-    _encrypt_reader(source_reader, target, password, keyfile)
-    # Full post-publication authenticated re-read. This has no plaintext
-    # output and proves the new archive roundtrips to precisely the bytes
-    # streamed from the source (not that the source was a stable snapshot).
+    # Keep the public destination ABSENT until a separate full authenticated
+    # re-read has proved that the encrypted archive matches the USB read
+    # stream. The staging name is random and is never returned as a backup.
+    # Only the containing ordinary filesystem is written; the USB is O_RDONLY.
+    pending = target.with_name(".krypta-pending-" + secrets.token_hex(16) + ".krypta")
+    pending_identity = None
+    published = False
     try:
-        checked = verify_file(target, password, keyfile)
-        if (not checked["authenticated"] or
-                checked["plaintext_bytes"] != expected["bytes"] or
-                checked["plaintext_sha256"] != expected["sha256"]):
-            raise PhysicalProbeError("Encrypted backup differs from USB source bytes")
-    except Exception as exc:
-        # Fail closed and preserve the suspect archive for investigation.
-        # Do not auto-delete a pathname that another process could replace.
-        raise PhysicalProbeError(
-            "USB backup archive verification failed; do not rely on output"
-        ) from exc
+        _encrypt_reader(source_reader, pending, password, keyfile)
+        info = pending.stat(follow_symlinks=False)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise PhysicalProbeError("Temporary encrypted archive is not a private regular file")
+        pending_identity = (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
+
+        # Verify every authenticated data chunk and the final EOF tag before
+        # linking the archive into the user-visible destination. No plaintext
+        # is ever written to a temporary or final file during this check.
+        try:
+            checked = verify_file(pending, password, keyfile)
+            if (not checked["authenticated"]
+                    or checked["plaintext_bytes"] != expected["bytes"]
+                    or checked["plaintext_sha256"] != expected["sha256"]):
+                raise PhysicalProbeError("Encrypted archive does not match the USB read stream")
+        except Exception as exc:
+            raise PhysicalProbeError(
+                "USB backup archive verification failed; no backup was published"
+            ) from exc
+
+        current = pending.stat(follow_symlinks=False)
+        if ((current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns)
+                != pending_identity or not stat.S_ISREG(current.st_mode)
+                or current.st_nlink != 1):
+            raise PhysicalProbeError("Temporary archive changed after verification")
+        # os.link is a no-clobber, same-filesystem atomic publication on
+        # supported filesystems. Never substitute os.replace/os.rename.
+        # An unexpected existing target MUST stay byte-for-byte unchanged.
+        os.link(pending, target, follow_symlinks=False)
+        published = True
+        # The link itself must refer to the validated inode, not a swapped
+        # stage path. Hostile same-user races are NOT fully preventable here.
+        output_info = target.stat(follow_symlinks=False)
+        if ((output_info.st_dev, output_info.st_ino) != pending_identity[:2]
+                or not stat.S_ISREG(output_info.st_mode)):
+            raise PhysicalProbeError("Published archive identity mismatch")
+        if os.name == "posix":
+            # Crash durability of the directory entry is separate from the
+            # already fsynced encrypted ciphertext. No power-loss guarantee.
+            folder = os.open(target.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(folder)
+            finally:
+                os.close(folder)
+    except FileExistsError as exc:
+        raise PhysicalProbeError("Backup destination already exists; no overwrite permitted") from exc
+    except OSError as exc:
+        if published:
+            raise PhysicalProbeError(
+                "Encrypted backup was published but persistence is uncertain; "
+                "verify archive and destination independently"
+            ) from exc
+        raise PhysicalProbeError("USB backup could not be safely published") from exc
+    finally:
+        # Remove only the very staging inode that was created by this call.
+        # Never follow a substituted symlink or unlink another user's path.
+        if pending_identity is not None:
+            try:
+                current = pending.stat(follow_symlinks=False)
+                if (current.st_dev, current.st_ino) == pending_identity[:2]:
+                    pending.unlink()
+            except FileNotFoundError:
+                pass
+
     return {
         "operation": "LINUX USB READ-ONLY ENCRYPTED BACKUP",
         "source_device": device,
