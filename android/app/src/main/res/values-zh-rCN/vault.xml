@@ -13,4 +13,7 @@
     <string name="vault_auth_title">授权 KRYPTA</string>
     <string name="vault_auth_body">确认设备锁屏以使用本机密钥。本功能不加密整个手机。</string>
     <string name="vault_same_file">源文件和目标文件必须不同。</string>
+    <string name="vault_recovery_title">独立恢复密钥</string>
+    <string name="vault_recovery_warning">请将新的32字节恢复密钥保存在另一台可信设备上。任何持有密钥的人都可以解密文件。如果手机和密钥同时丢失，将无法恢复。请仅使用测试数据。</string>
+    <string name="vault_recovery_failed">无法验证导出的恢复密钥。加密已取消。</string>
 </resources>
