@@ -8,6 +8,11 @@
 
 - `krypta.physical_backup`: publikacja nowej archiwalnej kopii `.krypta` dopiero po pełnej weryfikacji AES-GCM, zgodności długości i SHA-256 z odczytanym strumieniem fizycznego USB. Brak finalnej ścieżki po nieudanej weryfikacji, brak nadpisania istniejącej ścieżki, kontrola tożsamości pliku staging i synchronizacja katalogu (POSIX). Testy awarii i wyścigu przy publikacji. **Nie oznacza szyfrowania USB na miejscu ani spójnej migawki.** Nowy kod w bieżącym PR wymaga CI i scalenia.
 
+## KRYPTA-PAGED-AEAD/2: atomowe zwalnianie logicznych sektorów (PR — wymaga CI)
+
+- Rozwojowy silnik testowych obrazów `.kdevtest`: metoda `trim_many([sektory])` zwalnia logiczne mapowanie sektora; odczyt zwraca uwierzytelnione zero. `apply_many({sektor: 4096_bajtow_lub_None})` zatwierdza **w jednej transakcji copy-on-write** jednoczesne szyfrowane zapisy i zwolnienia; puste liście indeksu są usuwane, odczyt przed modyfikacją uwierzytelnia stare dane. Operacja nie nadpisuje starych sektorów, nie wywołuje sprzętowego `TRIM` ani `BLKDISCARD`, nie zmniejsza append-only quota i **nie stanowi bezpiecznego kasowania**.
+- Testy: niezmienność starego `receipt` po przerwaniu transakcji przed root commit, blokowanie starego `receipt` po utracie potwierdzenia nowego commita, odmowa pominięcia uszkodzonych sektorów, zgodność po ponownym otwarciu i rzeczywiste I/O przez prywatny Linux `/dev/loopN` w CI. **Brak wsparcia fizycznych dysków i systemowego FDE.**
+
 ## Kamień milowy w realizacji: weryfikacja kopii bez eksportu jawnych danych
 
 - Gałąź `feat/verified-usb-backup-20261023`: pełna weryfikacja autentyczności KRYPTA-FILE/2 w strumieniu bez utworzenia pliku plaintext, porównanie odszyfrowanego SHA-256 i liczby bajtów z rzeczywiście odczytanym strumieniem USB, tryb `python -m krypta verify ARCHIWUM --keyfile KLUCZ` oraz wybór `Verify` w Windows/Linux GUI. Wynik **wymaga CI i scalenia PR**; nie jest potwierdzeniem spójnej migawki ani gotowości pełnodyskowej.
