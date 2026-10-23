@@ -26,7 +26,7 @@ def usb_backup_candidates(report: dict) -> list[str]:
     for dev in report["devices"]:
         if (type(dev) is dict and type(dev.get("device")) is str and
                 dev["device"].startswith("/dev/") and
-                dev.get("bus", "").lower() == "usb" and
+                type(dev.get("bus")) is str and dev["bus"].lower() == "usb" and
                 dev.get("inspection_complete") is True and
                 dev.get("system_or_boot") is False and
                 dev.get("mounted") is False and
