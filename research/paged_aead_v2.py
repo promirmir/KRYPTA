@@ -411,11 +411,10 @@ class PagedAEADImage:
             page, offset = divmod(index, LEAF_ENTRIES)
             if payload is None:
                 leaves[page].pop(str(offset), None)
+        written_pages = {index // LEAF_ENTRIES
+                         for index, payload in changes.items() if payload is not None}
         to_update = sorted(page for page in pages
-                           if leaves[page] != originals[page] or
-                           any(changes.get(page * LEAF_ENTRIES + i, None) is not None
-                               for i in range(LEAF_ENTRIES)
-                               if page * LEAF_ENTRIES + i in changes))
+                           if leaves[page] != originals[page] or page in written_pages)
         if not to_update:
             # Trimming never-allocated sectors does not spend sequence/quota.
             return self.sequence
@@ -424,8 +423,7 @@ class PagedAEADImage:
         # Leaves containing only trims may disappear entirely and require
         # ZERO extra data/leaf sectors. Other touched leaves need new copies.
         nonempty_pages = {page for page in to_update
-                          if leaves[page] or any(index // LEAF_ENTRIES == page
-                                                 for index, _ in writes)}
+                          if leaves[page] or page in written_pages}
         required = len(writes) + len(nonempty_pages)
         if self._root["next"] + required > self._io.sectors:
             raise PagedAEADError("COW append-only scratch capacity exhausted")
@@ -454,7 +452,7 @@ class PagedAEADImage:
             if len(plain) > SECTOR_BYTES:
                 raise PagedAEADError("Leaf map exceeds sector bound")
             cipher = AESGCM(self._leaf_key).encrypt(
-                nonce, plain.ljust(SECTOR_BYTES, b"\\x00"), aad)
+                nonce, plain.ljust(SECTOR_BYTES, b"\x00"), aad)
             newroot[str(page)] = [address, nonce.hex(), cipher[-16:].hex()]
             staged_leaves[page] = (address, cipher[:-16])
             address += 1
