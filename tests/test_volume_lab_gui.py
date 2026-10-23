@@ -250,6 +250,8 @@ def test_linux_backup_is_real_window_and_root_refuses_to_close_active_copy(monke
                         lambda: {"platform": "Linux",
                                  "physical_disk_encryption_enabled": False,
                                  "devices": []})
+    # No Tk cross-thread scan during a standalone isolated interpreter test.
+    monkeypatch.setattr(LinuxUSBBackupWindow, "_scan", lambda self: None)
     warnings = []
     monkeypatch.setattr(parent_ui.messagebox, "showwarning",
                         lambda *a, **k: warnings.append(True))
