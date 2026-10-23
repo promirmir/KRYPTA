@@ -1,5 +1,4 @@
 """Synthetic tests of the hardware read-only boundary (no real disks opened)."""
-import copy
 import hashlib
 import stat
 from types import SimpleNamespace
@@ -139,3 +138,20 @@ def test_refuses_unlisted_device_before_open():
     with pytest.raises(PhysicalProbeError):
         probe_linux_usb_readonly("/dev/sdc", system="Linux", scanner=inventory, backend=io)
     assert not io.flags
+
+def test_linux_swap_is_treated_as_busy_not_safe():
+    import json
+    from krypta.physical_disks import parse_linux_inventory
+    item = {
+        "type": "disk", "path": DEVICE, "size": CAPACITY,
+        "tran": "usb", "rm": False, "ro": False, "mountpoints": [None],
+        "children": [{"type": "part", "fstype": "swap", "mountpoints": [None]}],
+    }
+    disks = parse_linux_inventory(json.dumps({"blockdevices": [item]}))
+    assert disks[0]["mounted"] is True
+    with pytest.raises(PhysicalProbeError):
+        probe_linux_usb_readonly(
+            DEVICE, system="Linux",
+            scanner=lambda: {"platform": "Linux",
+                "physical_disk_encryption_enabled": False, "devices": disks},
+            backend=FakeBlockIO())
