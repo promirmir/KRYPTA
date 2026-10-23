@@ -16,4 +16,6 @@
     <string name="vault_recovery_title">Portable recovery key</string>
     <string name="vault_recovery_warning">Save the NEW 32-byte recovery key on a separate trusted device before relying on this archive. Whoever has this key can decrypt the file. If both phone and key are lost, recovery is impossible. Use only test data.</string>
     <string name="vault_recovery_failed">Could not verify the exported recovery key. Encryption has been cancelled.</string>
+    <string name="vault_recover_external">RECOVER MOBILE/2 WITH OFFLINE KEY</string>
+    <string name="vault_recovery_import_warning">Select your separate 32-byte recovery keyfile. Anyone with this key can read the encrypted file. Only KRYPTA-MOBILE/2 supports this mode. Verify the source and export destination before continuing.</string>
 </resources>
