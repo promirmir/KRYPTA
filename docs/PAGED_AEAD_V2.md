@@ -7,6 +7,10 @@ never real physical disk handles.
 
 - Increases logical-sector addressability from 32 to 1,024 authenticated
   4096-byte sectors (4 MiB logical range) with sparse first-write allocation.
+- `read_at(offset, length)` and `write_at(offset, bytes)` provide
+  authenticated unaligned byte-range I/O across sector and metadata-page
+  boundaries. Writes spanning more than eight sectors are rejected, not
+  silently broken into non-atomic transactions.
 - Each 32-sector index group has its own AEAD-authenticated COW metadata leaf.
   The two alternate 4096-byte root slots authenticate all leaf references.
   A modified group writes new ciphertext sectors and a new metadata leaf, then
