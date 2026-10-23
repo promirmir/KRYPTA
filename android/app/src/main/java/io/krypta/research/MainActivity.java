@@ -143,6 +143,10 @@ public final class MainActivity extends Activity {
     }
 
     private void startVaultOperation(boolean decrypt) {
+        startVaultOperation(decrypt, false);
+    }
+
+    private void startVaultOperation(boolean decrypt, boolean recovery) {
         if (busy) return;
         clearPendingRecoveryKey();
         recoveryInputUri = null;
@@ -153,6 +157,7 @@ public final class MainActivity extends Activity {
             return;
         }
         decryptMode = decrypt;
+        independentRecoveryMode = recovery;
         sourceUri = null;
         destinationUri = null;
         Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -162,10 +167,9 @@ public final class MainActivity extends Activity {
     }
 
     private void startIndependentRecovery() {
-        startVaultOperation(true);
-        // startVaultOperation rejects insecure devices and then launches SAF.
-        // No AndroidKeyStore wrapping secret is required for the offline key.
-        if (sourceUri == null) independentRecoveryMode = true;
+        // Screen lock + explicit credential confirmation remain required,
+        // but old AndroidKeystore key is never needed on a replacement phone.
+        startVaultOperation(true, true);
     }
 
     private void requestRecoveryKeyInput() {
