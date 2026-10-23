@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">FORSCHUNGS-ALPHA / AUSGEWÄHLTE DATEIEN</string>
-    <string name="vault_warning">KRYPTA verschlüsselt nicht das ganze Telefon. Nur Tests; kein Zugriff nach Verlust des Android-Keystore-Schlüssels.</string>
-    <string name="vault_body">AES-256-GCM und Android Keystore. KRYPTA-MOBILE/1 ist inkompatibel mit Desktop-.kry.</string>
+    <string name="vault_warning">KRYPTA verschlüsselt nicht das ganze Telefon. Neue MOBILE/2-Dateien sind nur mit separat gesichertem 32-Byte-Schlüssel wiederherstellbar. Alte MOBILE/1-Dateien bleiben gerätegebunden.</string>
+    <string name="vault_body">AES-256-GCM und Android Keystore. Neues MOBILE/2 mit unabhängigem Wiederherstellungsschlüssel; ältere MOBILE/1-Dateien bleiben lesbar. Nicht das Desktop-.kry-Format.</string>
     <string name="vault_encrypt">TESTDATEI VERSCHLÜSSELN</string>
     <string name="vault_decrypt">TESTDATEI ENTSCHLÜSSELN</string>
     <string name="vault_idle">Quelldatei auswählen.</string>
