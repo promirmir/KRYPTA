@@ -284,9 +284,13 @@ def _atomic_write(output: Path, write_callback) -> None:
             temp.unlink()
 
 
-def encrypt_file(source: str | Path, output: str | Path, password: str,
-                 keyfile: str | Path | None = None) -> None:
-    source, output = _prepare_paths(source, output)
+def _encrypt_reader(reader_factory, output: Path, password: str,
+                    keyfile: str | Path | None = None) -> None:
+    """Reuse the verified KRYPTA-FILE/2 stream for a context-managed input.
+
+    Caller must validate input and destination BEFORE invoking this internal
+    helper. Reader exits (including device revalidation) before publication.
+    """
     key_digest = _keyfile_digest(Path(keyfile) if keyfile is not None else None)
     dek = secrets.token_bytes(32)
     salt = secrets.token_bytes(16)
@@ -313,7 +317,7 @@ def encrypt_file(source: str | Path, output: str | Path, password: str,
         out.write(MAGIC)
         out.write(struct.pack('>I', len(header)))
         out.write(header)
-        with _open_checked_file(source) as inp:
+        with reader_factory() as inp:
             index = 0
             while chunk := inp.read(CHUNK_SIZE):
                 if index >= 2**64 - 1:
@@ -329,6 +333,12 @@ def encrypt_file(source: str | Path, output: str | Path, password: str,
             out.write(final_tag)
     _atomic_write(output, write)
 
+
+
+def encrypt_file(source: str | Path, output: str | Path, password: str,
+                 keyfile: str | Path | None = None) -> None:
+    source, output = _prepare_paths(source, output)
+    _encrypt_reader(lambda: _open_checked_file(source), output, password, keyfile)
 
 def _decrypt_stream(inp: BinaryIO, data_aead: AESGCM, nonce_prefix: bytes,
                     header_hash: bytes, output: BinaryIO | None = None) -> None:

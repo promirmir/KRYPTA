@@ -24,6 +24,10 @@ def main(argv=None):
     sub.add_parser('physical-disks', help='List real physical disks, read-only (never writes/formats)')
     probe = sub.add_parser('physical-probe', help='Linux USB raw 4KiB read-only diagnostic; NEVER writes')
     probe.add_argument('device', help='Explicit whole-disk path, e.g. /dev/sdb')
+    backup = sub.add_parser('physical-backup', help='Linux USB READ-ONLY encrypted backup to new .krypta archive (development)')
+    backup.add_argument('device', help='Whole unmounted USB disk, e.g. /dev/sdb')
+    backup.add_argument('destination', type=Path, help='New .krypta encrypted archive on another disk')
+    backup.add_argument('--keyfile', type=Path, required=True, help='Existing independent secret keyfile (required)')
     args = parser.parse_args(argv)
     try:
         if args.cmd == 'gui':
@@ -44,6 +48,20 @@ def main(argv=None):
                 result = probe_linux_usb_readonly(args.device)
             except PhysicalProbeError as exc:
                 raise ValueError(str(exc)) from exc
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        elif args.cmd == 'physical-backup':
+            from .physical_backup import backup_linux_usb_encrypted
+            pw = getpass.getpass('Hasło do zaszyfrowanej kopii USB: ')
+            confirm = getpass.getpass('Powtórz hasło: ')
+            if pw != confirm:
+                raise CryptoError('Hasła nie są identyczne')
+            try:
+                result = backup_linux_usb_encrypted(args.device, args.destination, pw, args.keyfile)
+            except Exception as exc:
+                from .physical_read_probe import PhysicalProbeError
+                if isinstance(exc, PhysicalProbeError):
+                    raise ValueError(str(exc)) from exc
+                raise
             print(json.dumps(result, indent=2, ensure_ascii=False))
         elif args.cmd == 'info':
             print(json.dumps(file_info(args.source), indent=2, ensure_ascii=False))
