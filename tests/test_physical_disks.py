@@ -103,3 +103,21 @@ def test_query_failure_never_returns_synthetic_drives():
 def test_unsupported_platform_fails():
     with pytest.raises(DeviceInspectionError):
         inspect_physical_disks(system="Android")
+
+
+def test_windows_slow_inventory_is_bounded_and_never_authorizes_writes():
+    from subprocess import TimeoutExpired
+    observed = []
+
+    def slow_runner(argv, **kwargs):
+        observed.append(kwargs["timeout"])
+        raise TimeoutExpired(argv, kwargs["timeout"])
+
+    with pytest.raises(DeviceInspectionError, match="OS device query failed"):
+        inspect_physical_disks(system="Windows", runner=slow_runner)
+    assert observed == [60]
+
+    observed.clear()
+    with pytest.raises(DeviceInspectionError, match="OS device query failed"):
+        inspect_physical_disks(system="Linux", runner=slow_runner)
+    assert observed == [18]
