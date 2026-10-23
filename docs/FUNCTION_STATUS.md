@@ -9,6 +9,11 @@
 - Gałąź `feat/verified-usb-backup-20261023`: pełna weryfikacja autentyczności KRYPTA-FILE/2 w strumieniu bez utworzenia pliku plaintext, porównanie odszyfrowanego SHA-256 i liczby bajtów z rzeczywiście odczytanym strumieniem USB, tryb `python -m krypta verify ARCHIWUM --keyfile KLUCZ` oraz wybór `Verify` w Windows/Linux GUI. Wynik **wymaga CI i scalenia PR**; nie jest potwierdzeniem spójnej migawki ani gotowości pełnodyskowej.
 - **Niezmienne obowiązkowe cele:** pełne szyfrowanie Windows (wraz z boot), Linux (wraz z boot), Androida (integracja z uprzywilejowanym OS), fizycznych nośników i niezależny autorski silnik/format KRYPTA. Żadna obecna kopia USB czy File Vault nie zastępuje tych celów. Nie usuwać już działających funkcji.
 
+## Aktualny etap: bezpieczne montowanie Linux PFS/2 (PR weryfikacyjny)
+
+- Nowa opcja `--read-only` dla Linux PFS/2: istniejący obraz z wymaganym niezależnym `expected-receipt`, wyłącznie odczytowy deskryptor, jądrowa flaga `ro`, odmowa zapisów i zmian nazw, brak publikacji nowego receipt. Kod i testy w PR; gotowość dopiero po jego zielonym CI i scaleniu. Praca na zwykłym testowym `.kpv`, **nie na fizycznym dysku ani systemowej partycji**.
+- Wszystkie pozostałe funkcje, w szczególności poprzedni zapisowy eksperymentalny FUSE, pozostają zachowane. Windows i Android nie uzyskują w tym PR nowych możliwości systemowego szyfrowania.
+
 ## Co działa obecnie
 
 | Obszar | Windows | Linux | Android | Ważne ograniczenie |

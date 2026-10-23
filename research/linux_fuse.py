@@ -72,11 +72,17 @@ class KryptaFuseOps(Operations):
     malware with root privileges, untrusted FUSE peers or a compromised host.
     """
 
-    def __init__(self, fs: ResearchFileSystem | PagedFileSystem | PagedFS2):
+    def __init__(self, fs: ResearchFileSystem | PagedFileSystem | PagedFS2,
+                 *, read_only: bool = False):
         if not isinstance(fs, (ResearchFileSystem, PagedFileSystem, PagedFS2)):
             raise TypeError("Expected KRYPTA authenticated filesystem")
+        if type(read_only) is not bool:
+            raise TypeError("Read-only policy must be explicit boolean")
         fs._check()
+        if read_only and not getattr(fs._volume, "read_only", False):
+            raise PermissionError("Read-only mount requires a read-only encrypted volume descriptor")
         self._fs = fs
+        self._read_only = read_only
         self._lock = threading.RLock()
         self._handles = {}  # fh: (filename, access mode, append flag)
         self._next_handle = 1
@@ -121,6 +127,10 @@ class KryptaFuseOps(Operations):
             raise FuseOSError(errno.EBADF)
         return entry
 
+    def _require_writable(self):
+        if self._read_only:
+            raise FuseOSError(errno.EROFS)
+
     def _alloc(self, name, mode, append):
         fh = self._next_handle
         self._next_handle += 1
@@ -158,6 +168,9 @@ class KryptaFuseOps(Operations):
         # no path-only FDs, no tmpfiles, no exclusive-create on an old path.
         if any(flags & getattr(os, name, 0) for name in ("O_PATH", "O_TMPFILE", "O_DIRECTORY")):
             raise FuseOSError(errno.EOPNOTSUPP)
+        if self._read_only and (flags & (os.O_CREAT | os.O_TRUNC | os.O_APPEND)
+                                or (flags & 0o3) != os.O_RDONLY):
+            raise FuseOSError(errno.EROFS)
         if flags & os.O_CREAT and flags & os.O_EXCL:
             raise FuseOSError(errno.EEXIST)
         # POSIX access-mode mask uses low two bits. Python for Windows does
@@ -173,6 +186,7 @@ class KryptaFuseOps(Operations):
 
     @_api
     def create(self, path, mode, fi=None):
+        self._require_writable()
         if type(mode) is not int or mode < 0:
             raise FuseOSError(errno.EINVAL)
         if stat.S_IFMT(mode) not in (0, stat.S_IFREG):
@@ -196,6 +210,7 @@ class KryptaFuseOps(Operations):
 
     @_api
     def write(self, path, data, offset, fh):
+        self._require_writable()
         name, mode, append = self._fh(fh, path)
         if mode == os.O_RDONLY:
             raise FuseOSError(errno.EBADF)
@@ -223,6 +238,7 @@ class KryptaFuseOps(Operations):
 
     @_api
     def truncate(self, path, length, fh=None):
+        self._require_writable()
         name = self._file_exists(path)
         if fh is not None:
             handle_name, mode, _ = self._fh(fh, path)
@@ -241,6 +257,7 @@ class KryptaFuseOps(Operations):
 
     @_api
     def unlink(self, path):
+        self._require_writable()
         name = self._file_exists(path)
         if any(entry[0] == name for entry in self._handles.values()):
             # POSIX's unlink-while-open semantics are not implemented yet.
@@ -250,6 +267,7 @@ class KryptaFuseOps(Operations):
 
     @_api
     def rename(self, old, new):
+        self._require_writable()
         name = self._file_exists(old)
         if any(entry[0] == name for entry in self._handles.values()):
             raise FuseOSError(errno.EBUSY)
@@ -289,6 +307,8 @@ class KryptaFuseOps(Operations):
             physical_used = os.fstat(self._fs._volume._f.fileno()).st_size
             physical_left = max(0, (MAX_IMAGE_BYTES - physical_used) // (BLOCK_BYTES + 256))
             available = min(available, physical_left)
+        if self._read_only:
+            available = 0
         return {"f_bsize": BLOCK_BYTES, "f_frsize": BLOCK_BYTES,
                 "f_blocks": total, "f_bfree": available, "f_bavail": available,
                 "f_files": self._max_files,
@@ -358,7 +378,8 @@ def mount_research_image(volume: ResearchVolume, mountpoint: str):
                 foreground=True, nothreads=True, allow_other=False,
                 default_permissions=True, fsname="KRYPTA-RESEARCH")
 
-def mount_paged_image(volume: PagedResearchVolume, mountpoint: str):
+def mount_paged_image(volume: PagedResearchVolume, mountpoint: str,
+                      *, read_only: bool = False):
     """Mount an existing formatted PVIMG-PFS/1 *file* on disposable Linux.
 
     Uses the same private non-root no-follow mountpoint policy as VIMG-FS/0.
@@ -371,6 +392,8 @@ def mount_paged_image(volume: PagedResearchVolume, mountpoint: str):
     if not isinstance(volume, PagedResearchVolume):
         raise TypeError("Expected existing KRYPTA PVIMG/1 image")
     volume._check()
+    if type(read_only) is not bool or volume.read_only is not read_only:
+        raise PermissionError("Encrypted descriptor mode must match the explicit mount policy")
     folder = os.fspath(mountpoint)
     if os.getuid() == 0:
         raise PermissionError("Never mount an unvalidated PVIMG development image as root")
@@ -385,6 +408,10 @@ def mount_paged_image(volume: PagedResearchVolume, mountpoint: str):
     # PFS/1 stays fully backward compatible; PFS/2 uses an independent marker.
     header = volume.read(0)
     fs = PagedFS2(volume) if header.startswith(PFS2_MAGIC) else PagedFileSystem(volume)
-    return FUSE(KryptaFuseOps(fs), folder, foreground=True, nothreads=True,
+    # Do not forward ro=False as a kernel mount option: retain exact legacy
+    # writable FUSE behavior, while adding the explicit ro flag ONLY for R/O.
+    readonly_options = {"ro": True} if read_only else {}
+    return FUSE(KryptaFuseOps(fs, read_only=read_only), folder,
+                foreground=True, nothreads=True,
                 allow_other=False, default_permissions=True,
-                fsname="KRYPTA-PVIMG-DEVELOPMENT")
+                fsname="KRYPTA-PVIMG-DEVELOPMENT", **readonly_options)
