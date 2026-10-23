@@ -1,5 +1,7 @@
 # KRYPTA
 
+**Protokół kontynuacji prac i odbioru PR:** [AGENTS.md](AGENTS.md). Priorytetem pozostaje bezpieczne szyfrowanie fizycznych nośników; każdy etap wymaga rzeczywistego kodu i zielonych testów.
+
 **System szyfrowania plików i rozwijany własny silnik zaszyfrowanych woluminów.** Windows · Linux · Android.
 
 KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Linux i Android umożliwiają lokalne szyfrowanie oraz odszyfrowywanie **wskazanych plików**. Rozwój obejmuje także własne zaszyfrowane woluminy, system plików, odzyskiwanie oraz zabezpieczanie kluczy.

@@ -22,6 +22,9 @@
 | Linux/Windows — wymiana tego samego zaszyfrowanego obrazu PFS/2 | Test CI PASS | Test CI PASS | Brak | Integracja z GUI nie oznacza przenoszenia zaufanego stanu i kluczy |
 | Rozpoznawanie rzeczywistych fizycznych dysków i ich metadanych | Kod + CI PASS | Kod + CI PASS | Brak | Tylko odczyt metadanych; brak otwierania i szyfrowania urządzeń, zawsze write_authorized=false |
 | Testowy zaszyfrowany silnik sektorowy AES-256-GCM, COW, weryfikacja receipt | Test CI PASS (PR #64) | Test CI PASS (PR #64) | Brak | Tylko zwykły obraz .kdevtest, do 32 sektorów logicznych, bez sterownika fizycznego dysku i zabezpieczenia klucza |
+| Stronicowany silnik AEAD v2: adresowanie 1024 sektorów, zapis bajtowy i transakcje COW | Test CI PASS (PR #67) | Test CI PASS (PR #67) | Brak | Wyłącznie zaszyfrowany obraz testowy .kdevtest; 4 MiB przestrzeni logicznej, brak sterownika nośnika fizycznego |
+| Kompakcja i odzyskiwanie przestrzeni po zapisach v2 | Test CI PASS (PR #68) | Test CI PASS (PR #68) | Brak | Zweryfikowane kopiowanie do NOWEGO obrazu, bez nadpisania źródła; brak garbage collection na stałym fizycznym dysku |
+| Argon2id + oddzielny losowy klucz recovery dla sektora v2 | Kod i testy PR #69 | Kod i testy PR #69 | Brak | Osobna koperta związana z ID woluminu i receipt; nadal bez TPM, krótkiego PIN-u i integracji z głównym programem |
 | Diagnostyka kandydatów do odzyskania sektora po awarii | W kodzie PR #65, CI do weryfikacji | W kodzie PR #65, CI do weryfikacji | Brak | Tylko odczyt, bez wydawania zaufanego receipt i bez automatycznej zgody na dalszy zapis |
 | Szyfrowanie całego dysku, partycji, nośnika USB/SSD/HDD | Brak | Brak | Brak | Niezbędne bezpieczne sterowniki/adaptery urządzeń, przywracanie po awarii, klucze i testy rzeczywistych nośników |
 | Szyfrowanie dysku systemowego i rozruchu | Brak | Brak | Zwykły APK nie ma uprawnień do podmiany systemowego FBE | Nie wolno reklamować jako istniejącej funkcji |
@@ -39,6 +42,13 @@
 6. **Android:** opracować przenośny format plików i interoperacyjność z desktopem, pełny test odzyskania kluczy na innym telefonie i podpisane APK. Ochrona całego urządzenia wymaga osobnej, uprzywilejowanej integracji z OS.
 7. **Sejf haseł i krótki PIN:** bezpieczny osobny Password Shield, weryfikowane odblokowanie i rzeczywisty sprzętowy limit prób; brak deklarowania bezpieczeństwa krótkiego PIN-u bez takiego mechanizmu.
 8. **Dystrybucja:** instalatory i podpisy, aktualizacje, testy różnych wersji OS, kontrola zależności, fuzzing, benchmarking, audyt niezależny, plan migracji/odtwarzania i dopiero potem wersja 1.0.
+
+## Dalszy postęp silnika nośników v2
+
+- [PR #67](https://github.com/promirmir/KRYPTA/pull/67): stronicowane uwierzytelnione metadane oraz częściowe zapisy bajtowe dla izolowanego formatu v2; CI PASS.
+- [PR #68](https://github.com/promirmir/KRYPTA/pull/68): weryfikowana kompakcja poza oryginalnym nośnikiem; CI PASS.
+- [PR #69](https://github.com/promirmir/KRYPTA/pull/69): koperta hasła Argon2id i niezależny sekret odzyskiwania v2; wyniki CI tego PR stanowią oddzielną bramkę.
+- **Bez zmian w statusie głównego celu:** szyfrowanie rzeczywistych fizycznych dysków, partycji i dysków systemowych nie jest wdrożone.
 
 ## Aktualne dowody kamieni milowych P0 (23.10.2026)
 
