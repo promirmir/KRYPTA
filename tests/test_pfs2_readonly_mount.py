@@ -51,6 +51,7 @@ def test_readonly_callbacks_cannot_modify_ciphertext_or_advance_receipt(tmp_path
     assert image.read_bytes() == original
 
 
+@pytest.mark.skipif(os.name != "posix", reason="Kernel FUSE mount policy is POSIX-only")
 def test_readonly_mount_requires_matching_volume_descriptor(tmp_path, monkeypatch):
     from research import linux_fuse
     image, key, receipt = make_image(tmp_path)
