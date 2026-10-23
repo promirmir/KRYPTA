@@ -16,4 +16,6 @@
     <string name="vault_recovery_title">स्वतंत्र रिकवरी कुंजी</string>
     <string name="vault_recovery_warning">नई 32-बाइट रिकवरी कुंजी को किसी अलग भरोसेमंद डिवाइस पर सुरक्षित रखें। जिसके पास यह कुंजी होगी वह फ़ाइल डिक्रिप्ट कर सकता है। फ़ोन और कुंजी दोनों खोने पर रिकवरी असंभव है। केवल परीक्षण डेटा इस्तेमाल करें।</string>
     <string name="vault_recovery_failed">निर्यात की गई रिकवरी कुंजी की पुष्टि नहीं हो सकी। एन्क्रिप्शन रद्द किया गया।</string>
+    <string name="vault_recover_external">ऑफ़लाइन कुंजी से MOBILE/2 पुनर्प्राप्त करें</string>
+    <string name="vault_recovery_import_warning">अलग रखी गई 32-बाइट रिकवरी कुंजी फ़ाइल चुनें। कुंजी रखने वाला कोई भी व्यक्ति एन्क्रिप्ट की गई फ़ाइल पढ़ सकता है। यह मोड केवल KRYPTA-MOBILE/2 के लिए है। स्रोत और गंतव्य जाँचें।</string>
 </resources>
