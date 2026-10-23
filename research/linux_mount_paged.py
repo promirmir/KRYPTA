@@ -35,6 +35,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="Latest trusted 64-hex receipt held OUTSIDE the image")
     parser.add_argument("--final-receipt-out",
                         help="Optional NEW no-overwrite file for receipt AFTER successful unmount")
+    parser.add_argument("--read-only", action="store_true",
+                        help="Strict read-only kernel FUSE mount (no encrypted data writes)")
     parser.add_argument("--accept-development-risk", action="store_true",
                         help="Acknowledge this is NOT a production filesystem")
     args = parser.parse_args(argv)
@@ -43,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Explicit risk acknowledgement is required")
     if platform.system() != "Linux":
         parser.error("The FUSE adapter runs only on Linux")
+    if args.read_only and args.final_receipt_out:
+        parser.error("Read-only mount must not publish an advanced receipt")
     if args.key_fd is not None:
         if args.password_fd is not None or args.recovery is not None:
             parser.error("Raw key descriptor cannot be mixed with password/recovery")
@@ -59,11 +63,12 @@ def main(argv: list[str] | None = None) -> int:
                 args.envelope, read_password_fd(args.password_fd)
             )
     with PagedResearchVolume(
-        args.image, key, create=False, expected_receipt=args.expected_receipt
+        args.image, key, create=False, expected_receipt=args.expected_receipt,
+        read_only=args.read_only
     ) as volume:
         if expected_image_id is not None and volume.id != expected_image_id:
             raise PagedKeyError("Encrypted credential belongs to a different volume")
-        mount_paged_image(volume, args.mountpoint)
+        mount_paged_image(volume, args.mountpoint, read_only=args.read_only)
         # A fresh receipt is mandatory for the NEXT trusted open after writes.
         # The selected location is not automatically a trusted anti-rollback
         # store. Users must transfer it to independent protected storage.
@@ -80,7 +85,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise PagedKeyError("Unsafe external receipt destination")
             _new_private_file(dest, (final_receipt + "\n").encode("ascii"))
         print("FINAL RECEIPT:", final_receipt)
-        print("Store the latest receipt in independently trusted storage before the next mount.")
+        if args.read_only:
+            print("READ ONLY: ciphertext and receipt were not advanced.")
+        else:
+            print("Store the latest receipt in independently trusted storage before the next mount.")
     return 0
 
 
