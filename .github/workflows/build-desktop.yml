@@ -55,7 +55,7 @@ jobs:
         run: python -m tools.test_windows_gui_isolated --repeat 3
       - name: Require native Linux Tk USB backup window before packaging
         if: runner.os == 'Linux'
-        run: xvfb-run -a python -m pytest -q tests/test_volume_lab_gui.py::test_linux_backup_is_real_window_and_root_refuses_to_close_active_copy
+        run: xvfb-run -a python -m pytest -q tests/test_volume_lab_gui.py -k linux_
       - name: Build local GUI executable
         run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name KRYPTA krypta/desktop_entry.py
       - name: Verify Windows output
