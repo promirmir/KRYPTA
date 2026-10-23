@@ -259,7 +259,7 @@ def test_linux_backup_is_real_window_and_root_refuses_to_close_active_copy(monke
     try:
         app._show_module(1)
         app.update_idletasks()
-        assert app.linux_usb_backup_button.winfo_ismapped()
+        assert app.linux_usb_backup_button.winfo_manager() == 'pack'
         app.linux_usb_backup_button.invoke()
         windows = [w for w in app.winfo_children()
                    if isinstance(w, LinuxUSBBackupWindow)]
