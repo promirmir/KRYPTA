@@ -4,6 +4,11 @@
 
 **Znaczenie statusów:** "Działa w dev" = dostępne w uruchamialnym wydaniu rozwojowym, nie oznacza gotowości produkcyjnej. "Test CI" = istnieje kod i kontrolowane testy, ale funkcja nie jest jeszcze użyteczna dla ogólnego użytkownika. "Brak" = wymaganie pierwotnego produktu nie zostało spełnione.
 
+## Kamień milowy w realizacji: weryfikacja kopii bez eksportu jawnych danych
+
+- Gałąź `feat/verified-usb-backup-20261023`: pełna weryfikacja autentyczności KRYPTA-FILE/2 w strumieniu bez utworzenia pliku plaintext, porównanie odszyfrowanego SHA-256 i liczby bajtów z rzeczywiście odczytanym strumieniem USB, tryb `python -m krypta verify ARCHIWUM --keyfile KLUCZ` oraz wybór `Verify` w Windows/Linux GUI. Wynik **wymaga CI i scalenia PR**; nie jest potwierdzeniem spójnej migawki ani gotowości pełnodyskowej.
+- **Niezmienne obowiązkowe cele:** pełne szyfrowanie Windows (wraz z boot), Linux (wraz z boot), Androida (integracja z uprzywilejowanym OS), fizycznych nośników i niezależny autorski silnik/format KRYPTA. Żadna obecna kopia USB czy File Vault nie zastępuje tych celów. Nie usuwać już działających funkcji.
+
 ## Co działa obecnie
 
 | Obszar | Windows | Linux | Android | Ważne ograniczenie |

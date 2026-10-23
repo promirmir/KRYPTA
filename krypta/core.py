@@ -378,23 +378,56 @@ def _decrypt_stream(inp: BinaryIO, data_aead: AESGCM, nonce_prefix: bytes,
         index += 1
 
 
+def _unlock_data_stream(inp: BinaryIO, password: str,
+                        keyfile: str | Path | None):
+    """Authenticate the header and unlock one streaming AEAD data key."""
+    meta, _, header_hash, notice = _read_header(inp)
+    digest = _keyfile_digest(Path(keyfile) if keyfile is not None else None)
+    if (digest is not None) != meta['keyfile_required']:
+        raise CryptoError('Niewłaściwy tryb: wymagany lub zbędny plik klucza')
+    wrap_key = _derive_wrap_key(password, _unb64(meta['salt'], 16), digest, version=meta['version'])
+    protected = {k: v for k, v in meta.items() if k != 'wrapped_dek'}
+    try:
+        dek = AESGCM(wrap_key).decrypt(_unb64(meta['wrap_nonce'], 12),
+                                        _unb64(meta['wrapped_dek'], 48), _json(protected) + notice)
+    except InvalidTag as exc:
+        raise CryptoError('Błędny PIN/hasło, plik klucza albo uszkodzone dane') from exc
+    return AESGCM(dek), _unb64(meta['stream_nonce_prefix'], 4), header_hash
+
+
+def verify_file(source: str | Path, password: str,
+                keyfile: str | Path | None = None) -> dict:
+    """Authenticate every ciphertext chunk and final marker without writing plaintext.
+
+    The streamed SHA-256 is a comparison aid, not an independent trust anchor
+    or a proof that a physical source was crash-consistent.
+    """
+    class DigestSink:
+        def __init__(self):
+            self.digest = hashlib.sha256()
+            self.byte_count = 0
+
+        def write(self, chunk: bytes) -> None:
+            self.digest.update(chunk)
+            self.byte_count += len(chunk)
+
+    with _open_checked_file(Path(source)) as inp:
+        data_aead, nonce_prefix, header_hash = _unlock_data_stream(inp, password, keyfile)
+        sink = DigestSink()
+        _decrypt_stream(inp, data_aead, nonce_prefix, header_hash, sink)
+        return {
+            "authenticated": True,
+            "plaintext_bytes": sink.byte_count,
+            "plaintext_sha256": sink.digest.hexdigest(),
+            "plaintext_written": False,
+        }
+
+
 def decrypt_file(source: str | Path, output: str | Path, password: str,
                  keyfile: str | Path | None = None) -> None:
     source, output = _prepare_paths(source, output)
     with _open_checked_file(source) as inp:
-        meta, raw_header, header_hash, notice = _read_header(inp)
-        digest = _keyfile_digest(Path(keyfile) if keyfile is not None else None)
-        if (digest is not None) != meta['keyfile_required']:
-            raise CryptoError('Niewłaściwy tryb: wymagany lub zbędny plik klucza')
-        wrap_key = _derive_wrap_key(password, _unb64(meta['salt'], 16), digest, version=meta['version'])
-        protected = {k: v for k, v in meta.items() if k != 'wrapped_dek'}
-        try:
-            dek = AESGCM(wrap_key).decrypt(_unb64(meta['wrap_nonce'], 12),
-                                            _unb64(meta['wrapped_dek'], 48), _json(protected) + notice)
-        except InvalidTag as exc:
-            raise CryptoError('Błędny PIN/hasło, plik klucza albo uszkodzone dane') from exc
-        data_aead = AESGCM(dek)
-        nonce_prefix = _unb64(meta['stream_nonce_prefix'], 4)
+        data_aead, nonce_prefix, header_hash = _unlock_data_stream(inp, password, keyfile)
         payload_offset = inp.tell()
 
         # Pass 1: no plaintext file is opened or created if stored ciphertext

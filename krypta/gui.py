@@ -14,7 +14,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 
-from .core import CryptoError, decrypt_file, encrypt_file, file_info, generate_keyfile
+from .core import CryptoError, decrypt_file, encrypt_file, file_info, generate_keyfile, verify_file
 from .i18n import LANGUAGES, normalize_language, translate
 from .volume_status import inspect_volumes
 from .physical_devices import inspect_physical_disks
@@ -251,7 +251,9 @@ class KryptaApp(tk.Tk):
         modebar = tk.Frame(pad, bg=PANEL)
         modebar.pack(fill='x', pady=(0, 14))
         self._label(modebar, self._t('operation'), GREEN_DIM, 9, True).pack(side='left', padx=(0, 15))
-        for value, label in [('encrypt', self._t('encrypt')), ('decrypt', self._t('decrypt')), ('info', self._t('inspect'))]:
+        for value, label in [('encrypt', self._t('encrypt')), ('decrypt', self._t('decrypt')),
+                             ('verify', 'Weryfikuj' if self.language_code == 'pl' else 'Verify'),
+                             ('info', self._t('inspect'))]:
             ttk.Radiobutton(modebar, text=label, variable=self.mode, value=value,
                             style='KRadio.TRadiobutton').pack(side='left', padx=2)
         self._field(pad, self._t('source'), self.source, 'source')
@@ -438,12 +440,20 @@ class KryptaApp(tk.Tk):
 
     def _set_mode(self):
         mode = self.mode.get()
-        if mode == 'info':
+        if mode in ('info', 'verify'):
             self.dest_row.pack_forget()
-            self.key_row.pack_forget()
             self.confirm_row.pack_forget()
-            self.pwd_entry.configure(state='disabled')
-            self.action.configure(text=self._t('inspect_action'))
+            if mode == 'info':
+                self.key_row.pack_forget()
+                self.pwd_entry.configure(state='disabled')
+                self.action.configure(text=self._t('inspect_action'))
+            else:
+                self.key_row.pack(fill='x', pady=(0, 12),
+                                  before=self.pwd_entry.master.master)
+                self.pwd_entry.configure(state='normal')
+                self.action.configure(text=('WERYFIKUJ BEZ ZAPISU DANYCH  →'
+                                            if self.language_code == 'pl'
+                                            else 'VERIFY WITHOUT PLAINTEXT FILE  →'))
         else:
             # Avoid reordering by explicitly packing each row ahead of the PIN section.
             self.dest_row.pack(fill='x', pady=(0, 12), before=self.pwd_entry.master.master)
@@ -494,7 +504,7 @@ class KryptaApp(tk.Tk):
         dst = self.destination.get().strip()
         key = self.keyfile.get().strip() or None
         pw = self.password.get()
-        if not src or (mode != 'info' and not dst):
+        if not src or (mode in ('encrypt', 'decrypt') and not dst):
             messagebox.showwarning('KRYPTA', self._t('missing_path'))
             return
         if mode != 'info' and not pw:
@@ -507,7 +517,7 @@ class KryptaApp(tk.Tk):
             if not messagebox.askyesno('KRYPTA / ' + self._t('risk_title'),
                     self._t('risk_confirm')):
                 return
-        if mode != 'info' and Path(dst).exists():
+        if mode in ('encrypt', 'decrypt') and Path(dst).exists():
             messagebox.showerror('KRYPTA', self._t('exists'))
             return
         self._set_busy(True, self._t('processing'))
@@ -523,6 +533,12 @@ class KryptaApp(tk.Tk):
                 elif mode == 'encrypt':
                     encrypt_file(src, dst, pw, key)
                     msg = self._t('encrypt_ok')
+                elif mode == 'verify':
+                    result = verify_file(src, pw, key)
+                    msg = (('WERYFIKACJA OK: {} bajtów; bez zapisu danych jawnych.'
+                            if self.language_code == 'pl'
+                            else 'VERIFIED: {} bytes; no plaintext file created.')
+                           .format(result['plaintext_bytes']))
                 else:
                     decrypt_file(src, dst, pw, key)
                     msg = self._t('decrypt_ok')

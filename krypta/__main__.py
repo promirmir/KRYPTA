@@ -4,7 +4,7 @@ import getpass
 import json
 import sys
 from pathlib import Path
-from .core import (CryptoError, decrypt_file, encrypt_file, file_info, generate_keyfile)
+from .core import (CryptoError, decrypt_file, encrypt_file, file_info, generate_keyfile, verify_file)
 
 
 def main(argv=None):
@@ -15,6 +15,9 @@ def main(argv=None):
         p.add_argument('source', type=Path)
         p.add_argument('destination', type=Path)
         p.add_argument('--keyfile', type=Path, help='Opcjonalny drugi, losowy składnik klucza')
+    p = sub.add_parser('verify', help='Authenticate full .krypta archive without writing any plaintext')
+    p.add_argument('source', type=Path)
+    p.add_argument('--keyfile', type=Path)
     p = sub.add_parser('gen-keyfile')
     p.add_argument('destination', type=Path)
     p = sub.add_parser('info')
@@ -65,6 +68,9 @@ def main(argv=None):
             print(json.dumps(result, indent=2, ensure_ascii=False))
         elif args.cmd == 'info':
             print(json.dumps(file_info(args.source), indent=2, ensure_ascii=False))
+        elif args.cmd == 'verify':
+            pw = getpass.getpass('Hasło do weryfikacji archiwum: ')
+            print(json.dumps(verify_file(args.source, pw, args.keyfile), indent=2, ensure_ascii=False))
         else:
             pw = getpass.getpass('PIN / hasło: ')
             if args.cmd == 'encrypt':

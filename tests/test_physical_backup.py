@@ -84,6 +84,9 @@ def test_whole_disk_encrypted_readonly_and_decryptable(tmp_path):
     result = run(tmp_path, device)
     assert result["source_write_authorized"] is False
     assert result["physical_disk_encrypted"] is False
+    assert result["backup_verified"] is True
+    assert result["verified_plaintext_bytes"] == CAPACITY
+    assert result["verification_plaintext_written"] is False
     assert result["format"] == "KRYPTA-FILE/2"
     assert device.opens == [DEVICE] and device.closes == 1
     assert device.reads == [(1024 * 1024, 0), (1024 * 1024, 1024 * 1024)]
@@ -171,3 +174,19 @@ def test_archive_tampering_rejected_before_plaintext_export(tmp_path):
         decrypt_file(output(tmp_path), target, "long strong password sample",
                      tmp_path / "independent.secret")
     assert not target.exists()
+
+
+def test_postwrite_archive_verification_failure_never_claims_success(tmp_path, monkeypatch):
+    """A failed authenticated second read must not return a success report."""
+    from krypta import physical_backup
+    device = FakeReadOnlyDevice()
+
+    def verification_failure(*_args):
+        raise CryptoError("simulated post-publication archive corruption")
+
+    monkeypatch.setattr(physical_backup, "verify_file", verification_failure)
+    with pytest.raises(PhysicalProbeError, match="verification failed"):
+        run(tmp_path, device)
+    assert device.closes == 1
+    # Preserve a suspect archive for inspection, never claim it is valid.
+    assert output(tmp_path).exists()
