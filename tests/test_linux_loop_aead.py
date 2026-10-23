@@ -210,10 +210,12 @@ def test_short_sector_read_poisoned_and_closed(tmp_path):
     with open_lab_loop_v2(LOOP, path, KEY, receipt,
                           system="Linux", kernel=fake) as image:
         fake.short_read = True
+        # Logical sparse sector 0 returns authenticated zero without block I/O.
+        # Read physical header sector 0 to exercise a genuinely short pread.
         with pytest.raises(LoopLabError, match="Uncertain"):
-            image.read_sector(0)
+            image._io.read_sector(0)
         with pytest.raises(LoopLabError, match="Uncertain"):
-            image.read_sector(0)
+            image._io.read_sector(0)
 
 
 @pytest.mark.parametrize("fault", ["short_write", "fail_flush"])
