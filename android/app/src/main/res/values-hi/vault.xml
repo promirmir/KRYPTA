@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">अनुसंधान संस्करण / चुनी हुई फ़ाइलें</string>
-    <string name="vault_warning">KRYPTA पूरे फ़ोन को एन्क्रिप्ट नहीं करता। केवल परीक्षण; Android Keystore कुंजी खोने पर पुनर्प्राप्ति नहीं।</string>
-    <string name="vault_body">AES-256-GCM और Android Keystore। KRYPTA-MOBILE/1 डेस्कटॉप .kry से संगत नहीं है।</string>
+    <string name="vault_warning">KRYPTA पूरे फ़ोन को एन्क्रिप्ट नहीं करता। नई MOBILE/2 फ़ाइलों के लिए अलग से सुरक्षित रखी 32-बाइट रिकवरी कुंजी आवश्यक है। पुरानी MOBILE/1 फ़ाइलें डिवाइस से जुड़ी रहती हैं।</string>
+    <string name="vault_body">AES-256-GCM और Android Keystore। नया MOBILE/2 स्वतंत्र रिकवरी कुंजी के साथ आता है; पुरानी MOBILE/1 फ़ाइलें पढ़ी जा सकती हैं। यह डेस्कटॉप .kry नहीं है।</string>
     <string name="vault_encrypt">परीक्षण फ़ाइल एन्क्रिप्ट करें</string>
     <string name="vault_decrypt">परीक्षण फ़ाइल डिक्रिप्ट करें</string>
     <string name="vault_idle">स्रोत फ़ाइल चुनें।</string>
@@ -13,4 +13,7 @@
     <string name="vault_auth_title">KRYPTA अधिकृत करें</string>
     <string name="vault_auth_body">स्थानीय कुंजी के लिए स्क्रीन लॉक की पुष्टि करें। पूरा फ़ोन एन्क्रिप्ट नहीं होता।</string>
     <string name="vault_same_file">स्रोत और गंतव्य अलग होने चाहिए।</string>
+    <string name="vault_recovery_title">स्वतंत्र रिकवरी कुंजी</string>
+    <string name="vault_recovery_warning">नई 32-बाइट रिकवरी कुंजी को किसी अलग भरोसेमंद डिवाइस पर सुरक्षित रखें। जिसके पास यह कुंजी होगी वह फ़ाइल डिक्रिप्ट कर सकता है। फ़ोन और कुंजी दोनों खोने पर रिकवरी असंभव है। केवल परीक्षण डेटा इस्तेमाल करें।</string>
+    <string name="vault_recovery_failed">निर्यात की गई रिकवरी कुंजी की पुष्टि नहीं हो सकी। एन्क्रिप्शन रद्द किया गया।</string>
 </resources>

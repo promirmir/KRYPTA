@@ -7,7 +7,8 @@ FOLDERS = ["values", "values-pl", "values-ru", "values-zh-rCN", "values-es",
 REQUIRED = {"vault_status", "vault_warning", "vault_body", "vault_encrypt",
             "vault_decrypt", "vault_idle", "vault_success", "vault_failed",
             "vault_cancelled", "vault_need_lock", "vault_auth_title",
-            "vault_auth_body", "vault_same_file"}
+            "vault_auth_body", "vault_same_file", "vault_recovery_title",
+            "vault_recovery_warning", "vault_recovery_failed"}
 def main():
     for folder in FOLDERS:
         path = ROOT / folder / "vault.xml"

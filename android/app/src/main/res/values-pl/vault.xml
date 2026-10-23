@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">ALFA BADAWCZA / TYLKO WYBRANE PLIKI</string>
-    <string name="vault_warning">KRYPTA nie szyfruje całego telefonu. Tylko pliki testowe; brak odzyskiwania po utracie klucza Android Keystore.</string>
-    <string name="vault_body">AES-256-GCM i Android Keystore. Własny format KRYPTA-MOBILE/1, niezgodny z plikami .kry na komputerze.</string>
+    <string name="vault_warning">KRYPTA nie szyfruje całego telefonu. Nowe pliki MOBILE/2 odzyskasz za pomocą osobno przechowanego klucza 32-bajtowego. Stare pliki MOBILE/1 pozostają powiązane z telefonem.</string>
+    <string name="vault_body">AES-256-GCM i Android Keystore. Nowy format KRYPTA-MOBILE/2 ma niezależny klucz odzyskiwania; stare MOBILE/1 nadal można odczytać. To nie jest format .kry na komputerze.</string>
     <string name="vault_encrypt">SZYFRUJ WYBRANY PLIK TESTOWY</string>
     <string name="vault_decrypt">ODSZYFRUJ WYBRANY PLIK TESTOWY</string>
     <string name="vault_idle">Wybierz plik źródłowy.</string>
@@ -13,4 +13,7 @@
     <string name="vault_auth_title">Autoryzuj sejf plików KRYPTA</string>
     <string name="vault_auth_body">Potwierdź blokadę urządzenia, aby użyć powiązanego klucza. Telefon nie jest szyfrowany w całości.</string>
     <string name="vault_same_file">Źródło i cel muszą być różne.</string>
+    <string name="vault_recovery_title">Niezależny klucz odzyskiwania</string>
+    <string name="vault_recovery_warning">Zapisz NOWY 32-bajtowy klucz odzyskiwania na osobnym, zaufanym urządzeniu. Posiadacz tego klucza może odszyfrować plik. Utrata telefonu i klucza uniemożliwi odzyskanie. Używaj tylko danych testowych.</string>
+    <string name="vault_recovery_failed">Nie udało się sprawdzić zapisanego klucza odzyskiwania. Szyfrowanie anulowano.</string>
 </resources>

@@ -25,6 +25,49 @@ def run_self_test() -> int:
         decrypt_file(encrypted, restored, "1234", keyfile)
         if restored.read_bytes() != original.read_bytes():
             raise RuntimeError("Packaged-file round trip failed")
+    run_mobile_recovery_self_test()
+    return 0
+
+
+def run_mobile_recovery_self_test() -> int:
+    """Test the packaged desktop path with a real authenticated MOBILE/2 file.
+
+    Uses disposable synthetic keys and ciphertext; no Android hardware or
+    physical disk touched. Ensures the PyInstaller bundle contains the decoder.
+    """
+    import struct
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from krypta.mobile_recovery import MAGIC, verify_mobile_archive, recover_mobile_file
+    with tempfile.TemporaryDirectory(prefix="krypta-mobile-recovery-smoke-") as folder:
+        root = Path(folder)
+        recovery = bytes(range(32))
+        device = bytes(range(32, 64))
+        dek = bytes(range(64, 96))
+        prefix = bytes(range(96, 104))
+        d_iv, r_iv = bytes(range(104, 116)), bytes(range(116, 128))
+        header = (MAGIC + prefix + d_iv +
+                  AESGCM(device).encrypt(d_iv, dek, MAGIC + prefix) +
+                  r_iv + AESGCM(recovery).encrypt(
+                      r_iv, dek, MAGIC + prefix + b"RECOVERY/2"))
+        plaintext = b"KRYPTA synthetic Android recovery / no hardware" * 57
+        sealed = AESGCM(dek).encrypt(
+            prefix + (0).to_bytes(4, "big"), plaintext,
+            header + struct.pack(">IIB", 0, len(plaintext), 0))
+        eof = AESGCM(dek).encrypt(
+            prefix + (1).to_bytes(4, "big"), b"",
+            header + struct.pack(">IIB", 1, 0, 1))
+        archive = root / "test.km2"
+        archive.write_bytes(header + struct.pack(">I", len(sealed)) + sealed +
+                            struct.pack(">I", len(eof)) + eof)
+        keyfile = root / "separate.krc"
+        keyfile.write_bytes(recovery)
+        result = verify_mobile_archive(archive, keyfile)
+        if not result["authenticated"] or result["plaintext_bytes"] != len(plaintext):
+            raise RuntimeError("Packaged Android archive verification failed")
+        output = root / "recovered-test.bin"
+        recover_mobile_file(archive, output, keyfile)
+        if output.read_bytes() != plaintext:
+            raise RuntimeError("Packaged Android recovery failed")
     return 0
 
 
@@ -309,6 +352,8 @@ def run_usb_backup_self_test() -> int:
 def main() -> int:
     if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
         return run_self_test()
+    if len(sys.argv) == 2 and sys.argv[1] == "--mobile-recovery-self-test":
+        return run_mobile_recovery_self_test()
     if len(sys.argv) == 2 and sys.argv[1] == "--volume-self-test":
         return run_volume_self_test()
     if len(sys.argv) == 2 and sys.argv[1] == "--filesystem-self-test":

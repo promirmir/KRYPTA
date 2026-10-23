@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">RESEARCH ALPHA / SELECTED FILES ONLY</string>
-    <string name="vault_warning">KRYPTA does not encrypt this phone. Test files only; no key recovery if Android Keystore is lost.</string>
-    <string name="vault_body">AES-256-GCM and Android Keystore. Independent KRYPTA-MOBILE/1 format, incompatible with desktop .kry.</string>
+    <string name="vault_warning">KRYPTA does not encrypt the entire phone. New MOBILE/2 files can be recovered only with a separately backed-up 32-byte recovery key; old MOBILE/1 files remain device-bound.</string>
+    <string name="vault_body">AES-256-GCM with Android Keystore. New KRYPTA-MOBILE/2 is recoverable with an independent key; old MOBILE/1 files remain readable here. Not the desktop .kry format.</string>
     <string name="vault_encrypt">ENCRYPT SELECTED TEST FILE</string>
     <string name="vault_decrypt">DECRYPT SELECTED TEST FILE</string>
     <string name="vault_idle">Choose a source file to begin.</string>
@@ -13,4 +13,7 @@
     <string name="vault_auth_title">Authorize KRYPTA file vault</string>
     <string name="vault_auth_body">Confirm device credential to access this device-bound key. No whole-phone encryption.</string>
     <string name="vault_same_file">Source and destination must differ.</string>
+    <string name="vault_recovery_title">Portable recovery key</string>
+    <string name="vault_recovery_warning">Save the NEW 32-byte recovery key on a separate trusted device before relying on this archive. Whoever has this key can decrypt the file. If both phone and key are lost, recovery is impossible. Use only test data.</string>
+    <string name="vault_recovery_failed">Could not verify the exported recovery key. Encryption has been cancelled.</string>
 </resources>

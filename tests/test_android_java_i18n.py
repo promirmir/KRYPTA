@@ -8,6 +8,7 @@ SRC = ANDROID / "src/main/java/io/krypta/research"
 JAVA = (SRC / "MainActivity.java").read_text(encoding="utf-8")
 KEY = (SRC / "AndroidVaultKey.java").read_text(encoding="utf-8")
 FORMAT = (SRC / "VaultFormat.java").read_text(encoding="utf-8")
+RECOVERY_FORMAT = (SRC / "MobileRecoveryFormat.java").read_text(encoding="utf-8")
 MANIFEST = (ANDROID / "src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 
 
@@ -15,7 +16,9 @@ def test_android_ui_exposes_selected_file_vault_without_claiming_device_encrypti
     assert "getString(R.string.vault_warning)" in JAVA
     assert "getString(R.string.vault_encrypt)" in JAVA
     assert "getString(R.string.vault_decrypt)" in JAVA
-    assert "VaultFormat.encrypt(" in JAVA
+    assert "MobileRecoveryFormat.encrypt(" in JAVA
+    assert "MobileRecoveryFormat.decrypt(" in JAVA
+    assert "R.string.vault_recovery_warning" in JAVA
     assert "VaultFormat.decrypt(" in JAVA
     assert "AndroidVaultKey.getOrCreate(" in JAVA
     assert "Intent.ACTION_OPEN_DOCUMENT" in JAVA
@@ -49,14 +52,28 @@ def test_android_all_locales_warn_about_scope_and_lost_keystore_key():
                "values-es", "values-ar", "values-hi", "values-pt",
                "values-fr", "values-de", "values-in")
     required = {"vault_warning", "vault_body", "vault_encrypt", "vault_decrypt",
-                "vault_failed", "vault_need_lock", "vault_auth_body"}
+                "vault_failed", "vault_need_lock", "vault_auth_body",
+                "vault_recovery_title", "vault_recovery_warning", "vault_recovery_failed"}
     for folder in folders:
         root = ET.parse(base / folder / "vault.xml").getroot()
         items = {node.attrib["name"]: node.text for node in root.findall("string")}
         assert required <= set(items)
         assert all(items[name] and items[name].strip() for name in required)
-        assert "Keystore" in items["vault_warning"]
-        assert "KRYPTA-MOBILE/1" in items["vault_body"]
+        assert "MOBILE/2" in items["vault_warning"]
+        assert "MOBILE/1" in items["vault_warning"]
+        assert "MOBILE/1" in items["vault_body"]
+        assert "MOBILE/2" in items["vault_body"]
+
+
+def test_new_mobile_recovery_format_keeps_legacy_compatible_and_secrets_separate():
+    assert '"KRYPTA-MOBILE/2' in RECOVERY_FORMAT
+    assert "RECOVERY/2" in RECOVERY_FORMAT
+    assert "Android Keystore" in RECOVERY_FORMAT
+    assert "MobileRecoveryFormat.recover(" not in JAVA  # Keystore path stays default
+    assert "VaultFormat.decrypt(" in JAVA  # legacy v1 survives
+    assert "MessageDigest.isEqual" in JAVA  # exported 32-byte recovery key read-back
+    assert "exportedRecoveryUri.equals(destinationUri)" in JAVA
+    assert "clearPendingRecoveryKey()" in JAVA
 
 
 def test_android_language_selector_and_rtl():

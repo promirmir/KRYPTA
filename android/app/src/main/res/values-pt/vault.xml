@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">ALFA DE PESQUISA / ARQUIVOS</string>
-    <string name="vault_warning">KRYPTA não cifra todo o telefone. Apenas testes; sem recuperação se a chave Android Keystore for perdida.</string>
-    <string name="vault_body">AES-256-GCM e Android Keystore. KRYPTA-MOBILE/1 não é compatível com .kry desktop.</string>
+    <string name="vault_warning">KRYPTA não cifra todo o telefone. Ficheiros MOBILE/2 novos exigem uma chave de recuperação de 32 bytes guardada em separado. Ficheiros MOBILE/1 antigos permanecem associados ao dispositivo.</string>
+    <string name="vault_body">AES-256-GCM e Android Keystore. Novo MOBILE/2 com chave de recuperação independente; ficheiros MOBILE/1 antigos continuam legíveis. Diferente do formato desktop .kry.</string>
     <string name="vault_encrypt">CRIPTOGRAFAR ARQUIVO DE TESTE</string>
     <string name="vault_decrypt">DESCRIPTOGRAFAR ARQUIVO DE TESTE</string>
     <string name="vault_idle">Escolha o arquivo de origem.</string>
@@ -13,4 +13,7 @@
     <string name="vault_auth_title">Autorizar KRYPTA</string>
     <string name="vault_auth_body">Confirme o bloqueio para usar a chave local. Não cifra todo o telefone.</string>
     <string name="vault_same_file">Origem e destino devem diferir.</string>
+    <string name="vault_recovery_title">Chave de recuperação independente</string>
+    <string name="vault_recovery_warning">Guarde a NOVA chave de recuperação de 32 bytes noutro dispositivo de confiança. Quem possuir a chave pode desencriptar o ficheiro. Se perder o telefone e a chave, a recuperação será impossível. Use apenas dados de teste.</string>
+    <string name="vault_recovery_failed">Não foi possível verificar a chave de recuperação exportada. Encriptação cancelada.</string>
 </resources>
