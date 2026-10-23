@@ -13,4 +13,7 @@
     <string name="vault_auth_title">KRYPTA अधिकृत करें</string>
     <string name="vault_auth_body">स्थानीय कुंजी के लिए स्क्रीन लॉक की पुष्टि करें। पूरा फ़ोन एन्क्रिप्ट नहीं होता।</string>
     <string name="vault_same_file">स्रोत और गंतव्य अलग होने चाहिए।</string>
+    <string name="vault_recovery_title">स्वतंत्र रिकवरी कुंजी</string>
+    <string name="vault_recovery_warning">नई 32-बाइट रिकवरी कुंजी को किसी अलग भरोसेमंद डिवाइस पर सुरक्षित रखें। जिसके पास यह कुंजी होगी वह फ़ाइल डिक्रिप्ट कर सकता है। फ़ोन और कुंजी दोनों खोने पर रिकवरी असंभव है। केवल परीक्षण डेटा इस्तेमाल करें।</string>
+    <string name="vault_recovery_failed">निर्यात की गई रिकवरी कुंजी की पुष्टि नहीं हो सकी। एन्क्रिप्शन रद्द किया गया।</string>
 </resources>
