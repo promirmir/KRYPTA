@@ -18,6 +18,13 @@ def main(argv=None):
     p = sub.add_parser('verify', help='Authenticate full .krypta archive without writing any plaintext')
     p.add_argument('source', type=Path)
     p.add_argument('--keyfile', type=Path)
+    p = sub.add_parser('mobile-recover', help='Recover portable KRYPTA-MOBILE/2 Android file using its offline 32-byte keyfile')
+    p.add_argument('source', type=Path)
+    p.add_argument('destination', type=Path)
+    p.add_argument('--recovery-keyfile', type=Path, required=True)
+    p = sub.add_parser('mobile-verify', help='Verify portable Android file without writing plaintext')
+    p.add_argument('source', type=Path)
+    p.add_argument('--recovery-keyfile', type=Path, required=True)
     p = sub.add_parser('gen-keyfile')
     p.add_argument('destination', type=Path)
     p = sub.add_parser('info')
@@ -36,6 +43,12 @@ def main(argv=None):
         if args.cmd == 'gui':
             from .gui import main as gui_main
             gui_main()
+        elif args.cmd == 'mobile-recover':
+            from .mobile_recovery import recover_mobile_file
+            print(json.dumps(recover_mobile_file(args.source, args.destination, args.recovery_keyfile), indent=2))
+        elif args.cmd == 'mobile-verify':
+            from .mobile_recovery import verify_mobile_archive
+            print(json.dumps(verify_mobile_archive(args.source, args.recovery_keyfile), indent=2))
         elif args.cmd == 'gen-keyfile':
             generate_keyfile(args.destination)
             print('Utworzono klucz. Przechowuj go poza zaszyfrowanym nośnikiem i wykonaj kopię zapasową.')
