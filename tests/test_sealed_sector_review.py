@@ -38,7 +38,9 @@ def test_forged_ciphertext_is_detected_not_promoted(tmp_path):
         phys = image._state["map"]["0"][0]
     with open(p, "r+b") as writer:
         writer.seek(phys * SECTOR_BYTES + 10)
-        writer.write(b"\xAA")
+        original = writer.read(1)
+        writer.seek(phys * SECTOR_BYTES + 10)
+        writer.write(bytes([original[0] ^ 1]))
     before = p.read_bytes()
     review = inspect_untrusted_roots(p, key, physical_sectors=128)
     assert review["candidates"][0]["all_live_sectors_authenticated"] is False
