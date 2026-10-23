@@ -53,11 +53,14 @@ def test_failed_staging_flush_preserves_previous_commit(tmp_path, monkeypatch):
         def failed_flush():
             raise OSError("no durable staging flush")
 
-        monkeypatch.setattr(image._io, "flush", failed_flush)
-        with pytest.raises(OSError, match="durable"):
-            image.write_sector(0, b"B" * SECTOR_BYTES)
-        with pytest.raises(PagedAEADError, match="Uncertain"):
-            image.read_sector(0)
+        # Restore the injected flush before the context manager closes its
+        # writer; otherwise Windows retries our fake failure during cleanup.
+        with monkeypatch.context() as injected:
+            injected.setattr(image._io, "flush", failed_flush)
+            with pytest.raises(OSError, match="durable"):
+                image.write_sector(0, b"B" * SECTOR_BYTES)
+            with pytest.raises(PagedAEADError, match="Uncertain"):
+                image.read_sector(0)
     with PagedAEADImage.open(path, key, physical_sectors=64,
                              expected_receipt=anchor) as recovered:
         assert recovered.read_sector(0) == b"A" * SECTOR_BYTES
