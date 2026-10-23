@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="vault_status">研究版 / 仅选定文件</string>
-    <string name="vault_warning">KRYPTA 不加密整个手机。仅用于测试文件；丢失 Android Keystore 密钥后无法恢复。</string>
-    <string name="vault_body">AES-256-GCM 与 Android Keystore。KRYPTA-MOBILE/1 与桌面 .kry 不兼容。</string>
+    <string name="vault_warning">KRYPTA 不加密整个手机。新的 MOBILE/2 文件需要单独备份的32字节恢复密钥。旧的 MOBILE/1 文件仍绑定原设备。</string>
+    <string name="vault_body">AES-256-GCM 和 Android Keystore。新版 MOBILE/2 支持独立恢复密钥；旧版 MOBILE/1 文件仍可读取。它不是桌面 .kry 格式。</string>
     <string name="vault_encrypt">加密测试文件</string>
     <string name="vault_decrypt">解密测试文件</string>
     <string name="vault_idle">选择源文件。</string>
