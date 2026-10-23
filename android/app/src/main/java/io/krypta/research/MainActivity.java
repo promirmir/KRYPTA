@@ -12,6 +12,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import java.io.File;
 import java.io.InputStream;
+import java.io.BufferedInputStream;
 import java.io.OutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -50,6 +51,8 @@ public final class MainActivity extends Activity {
     private static final int PICK_SOURCE = 101;
     private static final int AUTHENTICATE = 102;
     private static final int PICK_OUTPUT = 103;
+    private static final int PICK_RECOVERY_EXPORT = 104;
+    private byte[] pendingRecoveryKey;
     private Uri sourceUri;
     private Uri destinationUri;
     private boolean decryptMode;
@@ -124,8 +127,16 @@ public final class MainActivity extends Activity {
         return button;
     }
 
+    private void clearPendingRecoveryKey() {
+        if (pendingRecoveryKey != null) {
+            java.util.Arrays.fill(pendingRecoveryKey, (byte) 0);
+            pendingRecoveryKey = null;
+        }
+    }
+
     private void startVaultOperation(boolean decrypt) {
         if (busy) return;
+        clearPendingRecoveryKey();
         KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
         if (keyguard == null || !keyguard.isDeviceSecure()) {
             showError(getString(R.string.vault_need_lock));
@@ -144,6 +155,7 @@ public final class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK) {
+            clearPendingRecoveryKey();
             if (vaultResult != null) vaultResult.setText(getString(R.string.vault_cancelled));
             return;
         }
@@ -163,12 +175,61 @@ public final class MainActivity extends Activity {
             }
             startActivityForResult(confirm, AUTHENTICATE);
         } else if (requestCode == AUTHENTICATE) {
-            Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-            save.addCategory(Intent.CATEGORY_OPENABLE);
-            save.setType("application/octet-stream");
-            save.putExtra(Intent.EXTRA_TITLE, decryptMode
-                    ? "KRYPTA-restored-TEST.bin" : "KRYPTA-encrypted-TEST.kma");
-            startActivityForResult(save, PICK_OUTPUT);
+            if (decryptMode) {
+                requestEncryptedOutput();
+            } else {
+                new AlertDialog.Builder(this)
+                        .setTitle(R.string.vault_recovery_title)
+                        .setMessage(R.string.vault_recovery_warning)
+                        .setNegativeButton(android.R.string.cancel,
+                                (dialog, which) -> clearPendingRecoveryKey())
+                        .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                            Intent saveKey = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                            saveKey.addCategory(Intent.CATEGORY_OPENABLE);
+                            saveKey.setType("application/octet-stream");
+                            saveKey.putExtra(Intent.EXTRA_TITLE, "KRYPTA-independent-recovery-KEY.krc");
+                            startActivityForResult(saveKey, PICK_RECOVERY_EXPORT);
+                        }).show();
+            }
+        } else if (requestCode == PICK_RECOVERY_EXPORT) {
+            if (data == null || data.getData() == null) return;
+            try {
+                byte[] freshKey = new byte[32];
+                new SecureRandom().nextBytes(freshKey);
+                Uri uri = data.getData();
+                if (uri.equals(sourceUri)) throw new java.io.IOException("Recovery destination equals source");
+                try (OutputStream out = getContentResolver().openOutputStream(uri, "w")) {
+                    if (out == null) throw new java.io.IOException("No keyfile output");
+                    out.write(freshKey);
+                    out.flush();
+                }
+                // Require read-back of all bytes, including EOF. Refuse providers
+                // that cannot prove the exported secret was persisted intact.
+                byte[] check = new byte[33];
+                int total = 0;
+                try (InputStream in = getContentResolver().openInputStream(uri)) {
+                    if (in == null) throw new java.io.IOException("No keyfile read-back");
+                    while (total < check.length) {
+                        int n = in.read(check, total, check.length - total);
+                        if (n < 0) break;
+                        if (n == 0) {
+                            int c = in.read();
+                            if (c < 0) break;
+                            check[total++] = (byte) c;
+                        } else total += n;
+                    }
+                }
+                if (total != 32 || !java.security.MessageDigest.isEqual(
+                        freshKey, java.util.Arrays.copyOf(check, 32)))
+                    throw new java.io.IOException("Recovery keyfile read-back mismatch");
+                clearPendingRecoveryKey();
+                pendingRecoveryKey = freshKey;
+                java.util.Arrays.fill(check, (byte) 0);
+                requestEncryptedOutput();
+            } catch (Exception exc) {
+                clearPendingRecoveryKey();
+                showError(getString(R.string.vault_recovery_failed));
+            }
         } else if (requestCode == PICK_OUTPUT) {
             if (data == null || data.getData() == null || sourceUri == null) return;
             destinationUri = data.getData();
@@ -180,6 +241,15 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void requestEncryptedOutput() {
+        Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        save.addCategory(Intent.CATEGORY_OPENABLE);
+        save.setType("application/octet-stream");
+        save.putExtra(Intent.EXTRA_TITLE, decryptMode
+                ? "KRYPTA-restored-TEST.bin" : "KRYPTA-encrypted-recoverable-TEST.km2");
+        startActivityForResult(save, PICK_OUTPUT);
+    }
+
     private void runVaultWorker() {
         if (busy || sourceUri == null || destinationUri == null) return;
         busy = true;
@@ -187,6 +257,13 @@ public final class MainActivity extends Activity {
         final Uri input = sourceUri;
         final Uri output = destinationUri;
         final boolean decrypt = decryptMode;
+        final byte[] recoveryKey = pendingRecoveryKey;
+        pendingRecoveryKey = null;
+        if (!decrypt && (recoveryKey == null || recoveryKey.length != 32)) {
+            busy = false;
+            showError(getString(R.string.vault_recovery_failed));
+            return;
+        }
         new Thread(() -> {
             File temp = null;
             boolean success = false;
@@ -199,7 +276,23 @@ public final class MainActivity extends Activity {
                     try (InputStream in = getContentResolver().openInputStream(input);
                          FileOutputStream tempOut = new FileOutputStream(temp)) {
                         if (in == null) throw new java.io.IOException("No input stream");
-                        VaultFormat.decrypt(wrapping, in, tempOut);
+                        BufferedInputStream inspected = new BufferedInputStream(in);
+                        inspected.mark(MobileRecoveryFormat.MAGIC.length);
+                        byte[] magic = new byte[MobileRecoveryFormat.MAGIC.length];
+                        int length = 0;
+                        while (length < magic.length) {
+                            int n = inspected.read(magic, length, magic.length - length);
+                            if (n < 0) break;
+                            if (n == 0) {
+                                int one = inspected.read();
+                                if (one < 0) break;
+                                magic[length++] = (byte) one;
+                            } else length += n;
+                        }
+                        inspected.reset();
+                        if (java.util.Arrays.equals(magic, MobileRecoveryFormat.MAGIC))
+                            MobileRecoveryFormat.decrypt(wrapping, inspected, tempOut);
+                        else VaultFormat.decrypt(wrapping, inspected, tempOut);
                         tempOut.getFD().sync();
                     }
                     try (FileInputStream verified = new FileInputStream(temp);
@@ -215,7 +308,7 @@ public final class MainActivity extends Activity {
                     try (InputStream in = getContentResolver().openInputStream(input);
                          OutputStream out = getContentResolver().openOutputStream(output, "w")) {
                         if (in == null || out == null) throw new java.io.IOException("Document provider unavailable");
-                        VaultFormat.encrypt(wrapping, in, out, new SecureRandom());
+                        MobileRecoveryFormat.encrypt(wrapping, recoveryKey, in, out, new SecureRandom());
                     }
                 }
                 success = true;
@@ -223,6 +316,7 @@ public final class MainActivity extends Activity {
                 // Do not include URIs, user data, cryptographic internals or secrets in logs.
                 errorText = getString(R.string.vault_failed);
             } finally {
+                if (recoveryKey != null) java.util.Arrays.fill(recoveryKey, (byte) 0);
                 if (temp != null && temp.exists()) {
                     // Best effort only: this is NOT a guarantee of secure deletion from flash.
                     temp.delete();
