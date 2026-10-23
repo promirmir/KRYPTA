@@ -28,6 +28,19 @@ KRYPTA-FILE/2 (Argon2id + AES-256-GCM, uwierzytelniony znacznik końca);
 wymaga dodatkowego pliku klucza. Awaria odczytu, zmiana urządzenia albo
 montowanie przed zakończeniem powoduje odmowę opublikowania backupu.
 
+**Dwufazowa publikacja archiwum (P0):** zaszyfrowane bajty trafiają
+najpierw do losowo nazwanego pliku tymczasowego w docelowym katalogu,
+nie do widocznej ścieżki `backup.krypta`. Następuje pełne, uwierzytelnione
+ponowne odczytanie AES-GCM i porównanie SHA-256 oraz długości plaintextu
+ze strumieniem wejściowym — bez wypisywania plaintextu. Dopiero wtedy
+system publikuje wynik przez atomowe dowiązanie `os.link` bez nadpisania
+cudzego pliku. W Linuksie synchronizowany jest również katalog docelowy.
+Niepowodzenie weryfikacji usuwa tymczasowy plik i **nie publikuje** backupu.
+Jeżeli zawiedzie synchronizacja katalogu już po utworzeniu dowiązania,
+wynik zostaje oznaczony jako niepewny i wymaga niezależnej weryfikacji.
+Nie stanowi to pełnej ochrony przed złośliwym procesem posiadającym te
+same uprawnienia ani gwarancji trwałości po rzeczywistej utracie zasilania.
+
 Przywrócenie do **zwykłego pliku** `.img` można testować przez
 `python -m krypta decrypt backup.krypta restored.img --keyfile /osobny/sekret`.
 Nie ma i nie wolno używać komendy przywracania na dysk fizyczny.
