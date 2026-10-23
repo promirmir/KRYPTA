@@ -22,6 +22,8 @@ def main(argv=None):
     sub.add_parser('gui', help='Offline desktop UI (Tkinter)')
     sub.add_parser('volume-status', help='Read-only OS transparent encryption inventory; no disk changes')
     sub.add_parser('physical-disks', help='List real physical disks, read-only (never writes/formats)')
+    probe = sub.add_parser('physical-probe', help='Linux USB raw 4KiB read-only diagnostic; NEVER writes')
+    probe.add_argument('device', help='Explicit whole-disk path, e.g. /dev/sdb')
     args = parser.parse_args(argv)
     try:
         if args.cmd == 'gui':
@@ -36,6 +38,13 @@ def main(argv=None):
         elif args.cmd == 'physical-disks':
             from .physical_devices import inspect_physical_disks
             print(json.dumps(inspect_physical_disks(), indent=2, ensure_ascii=False))
+        elif args.cmd == 'physical-probe':
+            from .physical_read_probe import probe_linux_usb_readonly, PhysicalProbeError
+            try:
+                result = probe_linux_usb_readonly(args.device)
+            except PhysicalProbeError as exc:
+                raise ValueError(str(exc)) from exc
+            print(json.dumps(result, indent=2, ensure_ascii=False))
         elif args.cmd == 'info':
             print(json.dumps(file_info(args.source), indent=2, ensure_ascii=False))
         else:

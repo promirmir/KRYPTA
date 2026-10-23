@@ -11,7 +11,7 @@ import re
 import subprocess
 
 LINUX_CMD = ("lsblk", "--json", "--bytes", "--tree",
-             "--output", "NAME,PATH,SIZE,TYPE,TRAN,RM,RO,MODEL,MOUNTPOINTS")
+             "--output", "NAME,PATH,SIZE,TYPE,TRAN,RM,RO,MODEL,MOUNTPOINTS,FSTYPE")
 WINDOWS_SCRIPT = r"""
 $ErrorActionPreference = 'Stop'
 $items = @(Get-Disk | ForEach-Object {
@@ -91,7 +91,7 @@ def _tree_mounts(node: dict, depth: int = 0) -> tuple[bool, bool, bool]:
     if not isinstance(mounts, list):
         raise DeviceInspectionError("Invalid Linux mountpoint list")
     values = [_text(m) for m in mounts]
-    mounted = any(values)
+    mounted = any(values) or node.get("fstype") == "swap"
     system = any(v in {"/", "/boot", "/boot/efi", "/usr", "/var"}
                  for v in values)
     children = node.get("children", [])
