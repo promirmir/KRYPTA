@@ -235,8 +235,11 @@ class PagedAEADImage:
         try:
             plaintext = AESGCM(self._leaf_key).decrypt(
                 nonce, cipher + tag, aad)
-            leaf = json.loads(plaintext.decode("ascii"))
-            if _canonical(leaf) != plaintext or type(leaf) is not dict:
+            # Metadata ciphertext is a FULL sector. Remove authenticated
+            # NUL padding only after GCM has verified the complete sector.
+            canonical = plaintext.rstrip(b"\x00")
+            leaf = json.loads(canonical.decode("ascii"))
+            if _canonical(leaf) != canonical or type(leaf) is not dict:
                 raise PagedAEADError("Invalid leaf metadata")
             if len(leaf) > LEAF_ENTRIES:
                 raise PagedAEADError("Leaf entry count exceeded")
@@ -332,9 +335,12 @@ class PagedAEADImage:
             aad = (b"KRYPTA-PAGED-LEAF/2" + self._vid +
                    struct.pack(">II", page, address))
             plain = _canonical(leaves[page])
-            cipher = AESGCM(self._leaf_key).encrypt(nonce, plain, aad)
-            if len(cipher) > SECTOR_BYTES + 16:
+            if len(plain) > SECTOR_BYTES:
                 raise PagedAEADError("Leaf map exceeds sector bound")
+            # Test transport only permits 4096-byte physical sector writes.
+            # Zero padding is part of the AEAD-authenticated plaintext.
+            cipher = AESGCM(self._leaf_key).encrypt(
+                nonce, plain.ljust(SECTOR_BYTES, b"\x00"), aad)
             newroot[str(page)] = [address, nonce.hex(), cipher[-16:].hex()]
             staged_leaves[page] = (address, cipher[:-16])
             address += 1
