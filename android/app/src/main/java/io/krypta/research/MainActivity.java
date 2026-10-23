@@ -52,8 +52,11 @@ public final class MainActivity extends Activity {
     private static final int AUTHENTICATE = 102;
     private static final int PICK_OUTPUT = 103;
     private static final int PICK_RECOVERY_EXPORT = 104;
+    private static final int PICK_RECOVERY_IMPORT = 105;
     private byte[] pendingRecoveryKey;
     private Uri exportedRecoveryUri;
+    private Uri recoveryInputUri;
+    private boolean independentRecoveryMode;
     private Uri sourceUri;
     private Uri destinationUri;
     private boolean decryptMode;
@@ -108,6 +111,9 @@ public final class MainActivity extends Activity {
         Button dec = actionButton(getString(R.string.vault_decrypt));
         content.addView(dec);
         dec.setOnClickListener(v -> startVaultOperation(true));
+        Button recover = actionButton(getString(R.string.vault_recover_external));
+        content.addView(recover);
+        recover.setOnClickListener(v -> startIndependentRecovery());
         vaultResult = label(content, getString(R.string.vault_idle), 12, PHOSPHOR, false);
         panel(content, "03 / " + getString(R.string.password_shield), getString(R.string.planned),
                 getString(R.string.mobile_password_body));
@@ -139,6 +145,8 @@ public final class MainActivity extends Activity {
     private void startVaultOperation(boolean decrypt) {
         if (busy) return;
         clearPendingRecoveryKey();
+        recoveryInputUri = null;
+        independentRecoveryMode = false;
         KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
         if (keyguard == null || !keyguard.isDeviceSecure()) {
             showError(getString(R.string.vault_need_lock));
@@ -153,11 +161,33 @@ public final class MainActivity extends Activity {
         startActivityForResult(pick, PICK_SOURCE);
     }
 
+    private void startIndependentRecovery() {
+        startVaultOperation(true);
+        // startVaultOperation rejects insecure devices and then launches SAF.
+        // No AndroidKeyStore wrapping secret is required for the offline key.
+        if (sourceUri == null) independentRecoveryMode = true;
+    }
+
+    private void requestRecoveryKeyInput() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.vault_recovery_title)
+                .setMessage(R.string.vault_recovery_import_warning)
+                .setNegativeButton(android.R.string.cancel,
+                        (dialog, which) -> recoveryInputUri = null)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    pick.addCategory(Intent.CATEGORY_OPENABLE);
+                    pick.setType("application/octet-stream");
+                    startActivityForResult(pick, PICK_RECOVERY_IMPORT);
+                }).show();
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK) {
             clearPendingRecoveryKey();
+            recoveryInputUri = null;
             if (vaultResult != null) vaultResult.setText(getString(R.string.vault_cancelled));
             return;
         }
@@ -177,7 +207,9 @@ public final class MainActivity extends Activity {
             }
             startActivityForResult(confirm, AUTHENTICATE);
         } else if (requestCode == AUTHENTICATE) {
-            if (decryptMode) {
+            if (independentRecoveryMode) {
+                requestRecoveryKeyInput();
+            } else if (decryptMode) {
                 requestEncryptedOutput();
             } else {
                 new AlertDialog.Builder(this)
@@ -193,6 +225,15 @@ public final class MainActivity extends Activity {
                             startActivityForResult(saveKey, PICK_RECOVERY_EXPORT);
                         }).show();
             }
+        } else if (requestCode == PICK_RECOVERY_IMPORT) {
+            if (data == null || data.getData() == null || sourceUri == null) return;
+            recoveryInputUri = data.getData();
+            if (sourceUri.equals(recoveryInputUri)) {
+                recoveryInputUri = null;
+                showError(getString(R.string.vault_same_file));
+                return;
+            }
+            requestEncryptedOutput();
         } else if (requestCode == PICK_RECOVERY_EXPORT) {
             if (data == null || data.getData() == null) return;
             byte[] freshKey = new byte[32];
@@ -241,7 +282,8 @@ public final class MainActivity extends Activity {
             if (data == null || data.getData() == null || sourceUri == null) return;
             destinationUri = data.getData();
             if (sourceUri.equals(destinationUri) ||
-                    (exportedRecoveryUri != null && exportedRecoveryUri.equals(destinationUri))) {
+                    (exportedRecoveryUri != null && exportedRecoveryUri.equals(destinationUri)) ||
+                    (recoveryInputUri != null && recoveryInputUri.equals(destinationUri))) {
                 clearPendingRecoveryKey();
                 showError(getString(R.string.vault_same_file));
                 return;
@@ -266,9 +308,17 @@ public final class MainActivity extends Activity {
         final Uri input = sourceUri;
         final Uri output = destinationUri;
         final boolean decrypt = decryptMode;
+        final boolean recover = independentRecoveryMode;
+        final Uri keyUri = recoveryInputUri;
+        recoveryInputUri = null;
         final byte[] recoveryKey = pendingRecoveryKey;
         pendingRecoveryKey = null;
         exportedRecoveryUri = null;
+        if (recover && (keyUri == null || !decrypt)) {
+            busy = false;
+            showError(getString(R.string.vault_recovery_failed));
+            return;
+        }
         if (!decrypt && (recoveryKey == null || recoveryKey.length != 32)) {
             busy = false;
             showError(getString(R.string.vault_recovery_failed));
@@ -279,7 +329,7 @@ public final class MainActivity extends Activity {
             boolean success = false;
             String errorText = null;
             try {
-                javax.crypto.SecretKey wrapping = AndroidVaultKey.getOrCreate(this);
+                javax.crypto.SecretKey wrapping = recover ? null : AndroidVaultKey.getOrCreate(this);
                 if (decrypt) {
                     // Authenticate ENTIRE source before exporting any plaintext to SAF.
                     temp = File.createTempFile("krypta-mobile-", ".tmp", getCacheDir());
@@ -300,9 +350,21 @@ public final class MainActivity extends Activity {
                             } else length += n;
                         }
                         inspected.reset();
-                        if (java.util.Arrays.equals(magic, MobileRecoveryFormat.MAGIC))
+                        if (recover) {
+                            if (!java.util.Arrays.equals(magic, MobileRecoveryFormat.MAGIC))
+                                throw new java.io.IOException("Only portable MOBILE/2 files support offline recovery");
+                            byte[] imported = null;
+                            try (InputStream keyIn = getContentResolver().openInputStream(keyUri)) {
+                                imported = MobileRecoveryKeyReader.readExact(keyIn);
+                                MobileRecoveryFormat.recover(imported, inspected, tempOut);
+                            } finally {
+                                if (imported != null) java.util.Arrays.fill(imported, (byte) 0);
+                            }
+                        } else if (java.util.Arrays.equals(magic, MobileRecoveryFormat.MAGIC)) {
                             MobileRecoveryFormat.decrypt(wrapping, inspected, tempOut);
-                        else VaultFormat.decrypt(wrapping, inspected, tempOut);
+                        } else {
+                            VaultFormat.decrypt(wrapping, inspected, tempOut);
+                        }
                         tempOut.getFD().sync();
                     }
                     try (FileInputStream verified = new FileInputStream(temp);
