@@ -4,6 +4,11 @@
 
 **Znaczenie statusów:** "Działa w dev" = dostępne w uruchamialnym wydaniu rozwojowym, nie oznacza gotowości produkcyjnej. "Test CI" = istnieje kod i kontrolowane testy, ale funkcja nie jest jeszcze użyteczna dla ogólnego użytkownika. "Brak" = wymaganie pierwotnego produktu nie zostało spełnione.
 
+## Aktualny kamień milowy — sprawdzony odczyt kopii USB do pliku .img
+
+- Kod na gałęzi rozwojowej: `physical-restore-image` (Windows/Linux, źródłowy CLI) przywraca archiwum `KRYPTA-FILE/2` **wyłącznie do nowego zwykłego pliku .img**, po pełnej weryfikacji AEAD i ponownym sprawdzeniu zapisanego obrazu względem SHA-256 i rozmiaru. Pozostawia fizyczne nośniki niezmienione, nie nadpisuje istniejących danych; wyjściowy obraz jest jawny. PR/CI wymagane przed oznaczeniem tej funkcji jako dostępnej w wydaniu.
+- Wciąż nie ma przywracania obrazu na fizyczny dysk, transparentnego szyfrowania partycji, szyfrowania boot/systemu ani całego telefonu.
+
 ## Etap P0: brak publikacji niezweryfikowanej kopii USB
 
 - `krypta.physical_backup`: publikacja nowej archiwalnej kopii `.krypta` dopiero po pełnej weryfikacji AES-GCM, zgodności długości i SHA-256 z odczytanym strumieniem fizycznego USB. Brak finalnej ścieżki po nieudanej weryfikacji, brak nadpisania istniejącej ścieżki, kontrola tożsamości pliku staging i synchronizacja katalogu (POSIX). Testy awarii i wyścigu przy publikacji. **Nie oznacza szyfrowania USB na miejscu ani spójnej migawki.** Nowy kod w bieżącym PR wymaga CI i scalenia.
