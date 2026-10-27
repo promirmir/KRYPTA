@@ -4,6 +4,21 @@
 
 **Znaczenie statusów:** "Działa w dev" = dostępne w uruchamialnym wydaniu rozwojowym, nie oznacza gotowości produkcyjnej. "Test CI" = istnieje kod i kontrolowane testy, ale funkcja nie jest jeszcze użyteczna dla ogólnego użytkownika. "Brak" = wymaganie pierwotnego produktu nie zostało spełnione.
 
+## Password Shield — pierwsza użytkowa wersja desktop (PR, wymaga testów)
+
+- Windows/Linux: okno `04 / Password Shield`, osobny plik `.ksecrets` opakowany
+  przez istniejący `KRYPTA-FILE/2`. Tworzenie, lista nazw, dodawanie i
+  usuwanie wpisów, ujawnienie sekretu na maks. 15 sekund (bez kopiowania
+  do schowka); jeden zapis aktualizuje całą zaszyfrowaną bazę atomowo
+  na lokalnym FS. Odczyt wyłącznie do pamięci, limit 256 KiB/128 wpisów.
+- Brak nowego algorytmu szyfrującego. Odrzucenie haseł głównych
+  krótszych niż 12 znaków, brak automatycznego nadpisywania wpisów.
+- Nie zaimplementowano Android Password Shield, autouzupełniania przeglądarek,
+  sprzętowej kontroli liczby prób, niezależnej ochrony anti-rollback.
+  Program wymaga audytu. [Instrukcja](PASSWORD_SHIELD.md).
+- Pozytywny CI i spakowane testy EXE/ELF są wymagane, aby uznać moduł
+  za dostępny w wydaniu. Nie domyka to pełnego szyfrowania urządzeń.
+
 ## Etap P0: jednorazowy buforowany zapis Linux FUSE z zewnętrznym pinem
 
 - Zmiany w bieżącym PR (testy CI wymagane): `OneShotStagedFuseOps` wymusza
@@ -76,7 +91,7 @@
 | Diagnostyka kandydatów do odzyskania sektora po awarii | W kodzie PR #65, CI do weryfikacji | W kodzie PR #65, CI do weryfikacji | Brak | Tylko odczyt, bez wydawania zaufanego receipt i bez automatycznej zgody na dalszy zapis |
 | Linux /dev/loopN: uwierzytelniony zapis sektorowy do istniejącego obrazu testowego .kdevtest | — | Kod badawczy PR #72 + osobny test rzeczywistego kernel-loop w CI nowego PR | — | Odmawia fizycznych dysków; kernel-loop na sprzęcie niezweryfikowany, 256 MiB limit testowy, zewnętrzny receipt obowiązkowy; to nie jest pełnodyskowe szyfrowanie |\n| Szyfrowanie całego dysku, partycji, nośnika USB/SSD/HDD | Brak | Brak | Brak | Niezbędne bezpieczne sterowniki/adaptery urządzeń, przywracanie po awarii, klucze i testy rzeczywistych nośników |
 | Szyfrowanie dysku systemowego i rozruchu | Brak | Brak | Zwykły APK nie ma uprawnień do podmiany systemowego FBE | Nie wolno reklamować jako istniejącej funkcji |
-| Password Shield — osobny sejf haseł | Brak potwierdzonego kompletnego modułu | Brak potwierdzonego kompletnego modułu | Brak potwierdzonego kompletnego modułu | Wymagany przez Project Charter |
+| Password Shield — osobny sejf haseł | Nowy moduł desktop w PR, wymaga CI | Nowy moduł desktop w PR, wymaga CI | Brak | Lokalny format .ksecrets; brak audytu, synchronizacji, sprzętowego PIN i niezależnego anti-rollback |
 | Krótki PIN wsparty nieeksportowalnym sekretem sprzętowym | Brak | Brak | Brak rozwiązania międzyplatformowego | Krótki PIN bez silnego sprzętowego czynnika jest podatny na zgadywanie offline |
 | Niezależny audyt i podpisane wydanie produkcyjne | Brak | Brak | Brak | Nie deklarować gotowości wojskowej, certyfikacji ani odporności na wszystkie ataki |
 

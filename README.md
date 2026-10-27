@@ -64,6 +64,18 @@ produkcyjny dysk ani ochrona systemowego boot/Androida. Po sukcesie
 testów CI kod będzie dostępny w gałęzi `main`; nie należy uruchamiać
 go na danych użytkownika.
 
+## Password Shield (Windows / Linux — lokalny sejf w wersji rozwojowej)
+
+Moduł 04 otwiera okno tworzenia, odczytu i aktualizacji zaszyfrowanego
+sejfu haseł `.ksecrets`. Reużywa istniejący format KRYPTA-FILE/2,
+uwierzytelnia pełen dokument i w trakcie zapisu używa zaszyfrowanego
+pliku tymczasowego — bez tworzenia jawnego pliku z bazą.
+Dozwolone są tylko długie hasła główne (co najmniej 12 znaków);
+nie ma sprzętowego ograniczania prób PIN. Wynik PR i testów CI
+musi zostać potwierdzony przed oznaczeniem funkcji jako wydanej.
+[Instrukcja, odzyskiwanie i ograniczenia](docs/PASSWORD_SHIELD.md).
+**Android Password Shield i szyfrowanie całych urządzeń nadal są do zrobienia.**
+
 ## Możliwości KRYPTA
 
 Poniższa tabela jest skrótem. Szczegóły, potwierdzenia i braki: [stan funkcji i droga do 1.0](docs/FUNCTION_STATUS.md).

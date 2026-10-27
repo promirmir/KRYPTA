@@ -65,7 +65,8 @@ class KryptaApp(tk.Tk):
         from .volume_lab_gui import VolumeLabWindow
         from .usb_backup_gui import LinuxUSBBackupWindow
         from .usb_restore_gui import USBImageRestoreWindow
-        if any(isinstance(window, (VolumeLabWindow, LinuxUSBBackupWindow, USBImageRestoreWindow)) and window.busy
+        from .password_shield_gui import PasswordShieldWindow
+        if any(isinstance(window, (VolumeLabWindow, LinuxUSBBackupWindow, USBImageRestoreWindow, PasswordShieldWindow)) and window.busy
                for window in self.winfo_children()):
             messagebox.showwarning(
                 'KRYPTA', 'Trwa zapis zaszyfrowanego obrazu. Poczekaj na wynik.',
@@ -177,7 +178,9 @@ class KryptaApp(tk.Tk):
             ('01', self._t('file_vault'), self._t('available'), True),
             ('02', self._t('drive_shield'), self._t('planned'), False),
             ('03', self._t('system_shield'), self._t('planned'), False),
-            ('04', self._t('password_shield'), self._t('planned'), False),
+            ('04', self._t('password_shield'),
+             'lokalny sejf dev' if self.language_code == 'pl'
+             else 'offline vault dev', True),
             ('05', self._t('android_shield'), self._t('planned'), False),
             ('06', 'Woluminy / Volume Lab' if self.language_code == 'pl'
              else 'Volume Lab (PFS/2)',
@@ -314,6 +317,11 @@ class KryptaApp(tk.Tk):
 
     def _show_module(self, index):
         if self.busy:
+            return
+        if index == 3:
+            # Standalone offline vault, with no system-storage or boot claims.
+            from .password_shield_gui import open_password_shield
+            open_password_shield(self)
             return
         if index == 5:
             # Volume Lab opens a separate, explicitly labeled disposable-image

@@ -26,6 +26,34 @@ def run_self_test() -> int:
         if restored.read_bytes() != original.read_bytes():
             raise RuntimeError("Packaged-file round trip failed")
     run_mobile_recovery_self_test()
+    run_password_shield_self_test()
+    return 0
+
+
+def run_password_shield_self_test() -> int:
+    """Actual packaged API smoke test, disposable encrypted vault only."""
+    from krypta.password_shield import (
+        create_vault, store_entry, read_entry, remove_entry, list_entries,
+    )
+    from krypta.core import generate_keyfile
+    with tempfile.TemporaryDirectory(prefix="krypta-password-shield-smoke-") as folder:
+        root = Path(folder)
+        path = root / "only-test.ksecrets"
+        keyfile = root / "independent.bin"
+        generate_keyfile(keyfile)
+        pw = "Packaged Test Passphrase - 2026!"
+        create_vault(path, pw, keyfile)
+        store_entry(path, pw, "test-site", "test-user",
+                    "test-secret-should-not-leak", keyfile=keyfile)
+        if list_entries(path, pw, keyfile) != ["test-site"]:
+            raise RuntimeError("Packaged Password Shield list failed")
+        if read_entry(path, pw, "test-site", keyfile)["secret"] != "test-secret-should-not-leak":
+            raise RuntimeError("Packaged Password Shield authenticated read failed")
+        if b"test-secret-should-not-leak" in path.read_bytes():
+            raise RuntimeError("Packaged Password Shield ciphertext leak")
+        remove_entry(path, pw, "test-site", keyfile)
+        if list_entries(path, pw, keyfile) != []:
+            raise RuntimeError("Packaged Password Shield delete failed")
     return 0
 
 
