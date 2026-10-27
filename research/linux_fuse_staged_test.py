@@ -38,6 +38,8 @@ class OneShotStagedFuseOps(KryptaFuseOps):
         if path.suffix.lower() != ".kpv" or path.is_symlink():
             raise ReceiptPinError("Only private .kpv regular images are accepted")
         try:
+            if Path(test_root).is_symlink():
+                raise ReceiptPinError("Symlink test root is forbidden")
             root = Path(test_root).resolve(strict=True)
             image = path.resolve(strict=True)
             tempbase = Path(tempfile.gettempdir()).resolve(strict=True)
@@ -54,6 +56,9 @@ class OneShotStagedFuseOps(KryptaFuseOps):
                 os.getuid() == 0 or root_info.st_uid != os.getuid()
                 or root_info.st_mode & 0o077):
             raise ReceiptPinError("Non-root, owned 0700 test directory required")
+        if (root == Path(trusted_pin_path).resolve(strict=False).parent or
+                root in Path(trusted_pin_path).resolve(strict=False).parents):
+            raise ReceiptPinError("External receipt pin must be outside test image directory")
         pin = load_sealed_pin(trusted_pin_path, independently_trusted_seal)
         if (pin["image_id"] != volume.id.hex()
                 or pin["sequence"] != volume.sequence
