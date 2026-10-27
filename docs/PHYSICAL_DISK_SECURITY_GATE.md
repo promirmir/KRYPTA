@@ -49,6 +49,12 @@ odczytu mimo braku mountpointu. Weryfikacja i niezależne odtworzenie są
 obowiązkowe; nie usuwać oryginału. Nie testowano na fizycznym USB ani
 nie przeprowadzono niezależnego audytu. To nie jest szyfrowanie dysku w locie.
 
+## Przywracanie kopii USB do bezpiecznego pliku .img (Windows / Linux)
+
+`python -m krypta physical-restore-image backup.krypta fresh.img --keyfile independent.secret`
+
+Nowy moduł `krypta.physical_restore` udostępnia odrębny krok ćwiczenia odzyskiwania: pełna weryfikacja AEAD przed odszyfrowaniem, kontrolowane odszyfrowanie do ukrytej losowej ścieżki, niezależne sprawdzenie bajtów odtworzonego pliku SHA-256 i długością, atomowa publikacja nowej ścieżki bez nadpisania oraz sprzątanie własnego staging. Plik wynikowy `.img` zawiera **jawne dane**. Odmowa zapisu na urządzenia fizyczne, do katalogów jądra, na symboliczne linki i do istniejących plików. Nie jest obsługiwany zapis wynikowego obrazu na USB/SSD/HDD, nie gwarantuje spójności odczytu pierwotnego USB, odporność przed atakami samego konta użytkownika wymaga dalszej oceny. Wymaga pozytywnych CI i oddzielnych testów odtworzenia na docelowych systemach.
+
 ## Linux: zapisy blokowe przez wyłącznie testowy /dev/loopN (P0)
 
 Moduł `research/linux_loop_aead.py` umożliwia otwarcie **już istniejącego**
