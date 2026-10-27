@@ -284,7 +284,8 @@ def run_usb_backup_self_test() -> int:
     import os
     import stat
     from types import SimpleNamespace
-    from krypta.core import decrypt_file, generate_keyfile
+    from krypta.core import generate_keyfile
+    from krypta.physical_restore import restore_usb_archive_to_image
     from krypta.physical_backup import backup_linux_usb_encrypted
 
     device = "/dev/sdz"
@@ -343,7 +344,11 @@ def run_usb_backup_self_test() -> int:
         )
         if info.get("source_write_authorized") is not False or not backup.exists():
             raise RuntimeError("Packaged USB safety/creation check failed")
-        decrypt_file(backup, recovered, "Disposable packaged test password!", key)
+        restored = restore_usb_archive_to_image(
+            backup, recovered, "Disposable packaged test password!", key
+        )
+        if not restored["independent_readback_verified"] or restored["physical_disk_written"]:
+            raise RuntimeError("Packaged independent restored-image verification failed")
         if recovered.read_bytes() != sample or source.read_bytes() != sample:
             raise RuntimeError("Packaged USB full-size authenticated roundtrip failed")
     return 0
