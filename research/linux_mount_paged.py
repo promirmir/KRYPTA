@@ -37,6 +37,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="Optional NEW no-overwrite file for receipt AFTER successful unmount")
     parser.add_argument("--read-only", action="store_true",
                         help="Strict read-only kernel FUSE mount (no encrypted data writes)")
+    parser.add_argument("--one-shot-staged-write", action="store_true",
+                        help="TEST-ONLY: one bounded staged PFS/2 writer, exactly one flush commit")
+    parser.add_argument("--test-root", help="Dedicated private direct child of system temp dir")
+    parser.add_argument("--trusted-pin", help="Independent .kpin in another directory")
+    parser.add_argument("--trusted-seal", help="Externally held SHA-256 seal of .kpin")
     parser.add_argument("--accept-development-risk", action="store_true",
                         help="Acknowledge this is NOT a production filesystem")
     args = parser.parse_args(argv)
@@ -47,6 +52,12 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("The FUSE adapter runs only on Linux")
     if args.read_only and args.final_receipt_out:
         parser.error("Read-only mount must not publish an advanced receipt")
+    if args.one_shot_staged_write:
+        if (args.read_only or args.final_receipt_out or not args.test_root
+                or not args.trusted_pin or not args.trusted_seal):
+            parser.error("One-shot lab mount requires separate test root, trusted pin and seal, no auto-receipt")
+    elif args.test_root or args.trusted_pin or args.trusted_seal:
+        parser.error("One-shot pin/test-root flags require --one-shot-staged-write")
     if args.key_fd is not None:
         if args.password_fd is not None or args.recovery is not None:
             parser.error("Raw key descriptor cannot be mixed with password/recovery")
@@ -68,7 +79,22 @@ def main(argv: list[str] | None = None) -> int:
     ) as volume:
         if expected_image_id is not None and volume.id != expected_image_id:
             raise PagedKeyError("Encrypted credential belongs to a different volume")
-        mount_paged_image(volume, args.mountpoint, read_only=args.read_only)
+        if args.one_shot_staged_write:
+            _, staged = mount_paged_image(
+                volume, args.mountpoint, read_only=False, staged_one_shot=True,
+                test_root=args.test_root, trusted_pin_path=args.trusted_pin,
+                independently_trusted_seal=args.trusted_seal
+            )
+            candidate = staged.observed_receipt_UNTRUSTED
+            if candidate is not None:
+                print("OBSERVED RECEIPT — UNTRUSTED:", candidate)
+                print("Un-mount completed. Independently authenticate and seal before next mount.")
+            elif staged._ever_attempted:
+                print("UNCERTAIN COMMIT: no receipt trusted. Preserve image and prior pin.")
+            else:
+                print("NO COMMIT: externally trusted receipt unchanged.")
+        else:
+            mount_paged_image(volume, args.mountpoint, read_only=args.read_only)
         # A fresh receipt is mandatory for the NEXT trusted open after writes.
         # The selected location is not automatically a trusted anti-rollback
         # store. Users must transfer it to independent protected storage.
@@ -84,8 +110,11 @@ def main(argv: list[str] | None = None) -> int:
                     (args.recovery and resolved == Path(args.recovery).resolve(strict=False))):
                 raise PagedKeyError("Unsafe external receipt destination")
             _new_private_file(dest, (final_receipt + "\n").encode("ascii"))
-        print("FINAL RECEIPT:", final_receipt)
-        if args.read_only:
+        if not args.one_shot_staged_write:
+            print("FINAL RECEIPT:", final_receipt)
+        if args.one_shot_staged_write:
+            print("One-shot mount never promotes an observed receipt into trust.")
+        elif args.read_only:
             print("READ ONLY: ciphertext and receipt were not advanced.")
         else:
             print("Store the latest receipt in independently trusted storage before the next mount.")

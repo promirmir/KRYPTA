@@ -16,6 +16,14 @@
 
 W przygotowaniu znajduje się awaryjny CLI dla PFS/2 z podaniem niezależnego klucza recovery i zaufanego potwierdzenia stanu. Umożliwia sprawdzenie wszystkich plików i eksport jednej kopii plaintext bez GUI i bez nadpisywania. Tworzenie woluminu jest uznawane za udane dopiero po odblokowaniu **hasłem i kluczem odzyskiwania z nowo otwartego obrazu**. Są to funkcje badawcze i **nie zamykają kryteriów P0/P2**: potrzebne są dowody na drugim urządzeniu, z wyłączeniem zasilania, po awariach oraz z niezależną kopią narzędzia i dokumentacji. [Procedura](OFFLINE_RECOVERY_CLI.md).
 
+### Postęp testowego Linux FUSE — 27.10.2026
+
+Dodano laboratoryjny adapter jednorazowego buforowanego zapisu do PFS/2,
+z osobnym pinem/seal, testami no-flush, granicy zatwierdzenia,
+utraty ACK i kwarantanny. **Nie zamyka** żadnej z bramek P0/P1/P3.
+Wymagana pozostaje zgodność rzeczywistych montowań FUSE, testy zaników
+zasilania oraz niezależna trwała kotwica zaufania.
+
 ## P1 — własny produkcyjny silnik zaszyfrowanego woluminu
 
 - [ ] Ostateczna, wersjonowana specyfikacja on-disk z jawnie zdefiniowaną polityką kryptograficzną i niezależnym przeglądem.

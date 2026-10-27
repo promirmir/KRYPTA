@@ -53,6 +53,17 @@ W aktualizowanym Volume Lab istnieją osobne działania **Utwórz pin .kpin** or
 
 **Istotne ograniczenia:** interfejs WinFsp to wciąż prototyp **tylko do odczytu**, wykonywany na zwykłym pliku testowym `.kpv`. Nie obsługuje zapisu przez zamontowany system plików, montowania fizycznych dysków lub partycji ani transparentnego szyfrowania Windows. Nie jest to gotowa funkcja z plików wydania `krypta-dev-34-1`; wyniki dotyczą kodu źródłowego i CI. Wymagane są dalsze testy, przegląd ACL i niezależny audyt przed korzystaniem z rzeczywistych danych.
 
+## P0 Linux — jednorazowy buforowany zapis FUSE PFS/2 (testy)
+
+Nowy izolowany adapter [one-shot staged FUSE](docs/LINUX_ONE_SHOT_FUSE.md)
+wprowadza potwierdzenie zewnętrznie zapieczętowanego stanu wejściowego,
+maksymalnie jeden atomowy COW commit po `flush/fsync` i blokadę
+dalszego dostępu po próbie zatwierdzenia. Działa wyłącznie na prywatnych
+obrazach `.kpv` w katalogu laboratoryjnym. Nie jest to montowany
+produkcyjny dysk ani ochrona systemowego boot/Androida. Po sukcesie
+testów CI kod będzie dostępny w gałęzi `main`; nie należy uruchamiać
+go na danych użytkownika.
+
 ## Możliwości KRYPTA
 
 Poniższa tabela jest skrótem. Szczegóły, potwierdzenia i braki: [stan funkcji i droga do 1.0](docs/FUNCTION_STATUS.md).
