@@ -379,7 +379,9 @@ def mount_research_image(volume: ResearchVolume, mountpoint: str):
                 default_permissions=True, fsname="KRYPTA-RESEARCH")
 
 def mount_paged_image(volume: PagedResearchVolume, mountpoint: str,
-                      *, read_only: bool = False):
+                      *, read_only: bool = False, staged_one_shot: bool = False,
+                      test_root=None, trusted_pin_path=None,
+                      independently_trusted_seal=None):
     """Mount an existing formatted PVIMG-PFS/1 *file* on disposable Linux.
 
     Uses the same private non-root no-follow mountpoint policy as VIMG-FS/0.
@@ -392,6 +394,11 @@ def mount_paged_image(volume: PagedResearchVolume, mountpoint: str,
     if not isinstance(volume, PagedResearchVolume):
         raise TypeError("Expected existing KRYPTA PVIMG/1 image")
     volume._check()
+    if type(staged_one_shot) is not bool or (staged_one_shot and read_only):
+        raise ValueError("One-shot write and read-only mount are mutually exclusive")
+    if not staged_one_shot and any(x is not None for x in
+                                    (test_root, trusted_pin_path, independently_trusted_seal)):
+        raise ValueError("Sealed pin flags apply only to one-shot test mounts")
     if type(read_only) is not bool or volume.read_only is not read_only:
         raise PermissionError("Encrypted descriptor mode must match the explicit mount policy")
     folder = os.fspath(mountpoint)
@@ -411,6 +418,18 @@ def mount_paged_image(volume: PagedResearchVolume, mountpoint: str,
     # Do not forward ro=False as a kernel mount option: retain exact legacy
     # writable FUSE behavior, while adding the explicit ro flag ONLY for R/O.
     readonly_options = {"ro": True} if read_only else {}
+    if staged_one_shot:
+        if not isinstance(fs, PagedFS2):
+            raise ValueError("One-shot staged writes require PFS/2")
+        from .linux_fuse_staged_test import OneShotStagedFuseOps
+        bridge = OneShotStagedFuseOps(
+            fs, test_root=test_root, trusted_pin_path=trusted_pin_path,
+            independently_trusted_seal=independently_trusted_seal
+        )
+        outcome = FUSE(bridge, folder, foreground=True, nothreads=True,
+                       allow_other=False, default_permissions=True,
+                       fsname="KRYPTA-PFS2-ONE-SHOT-LAB")
+        return outcome, bridge
     return FUSE(KryptaFuseOps(fs, read_only=read_only), folder,
                 foreground=True, nothreads=True,
                 allow_other=False, default_permissions=True,
