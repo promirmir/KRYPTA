@@ -1,12 +1,24 @@
 # KRYPTA — stan funkcji i droga do wersji 1.0
 
-**Stan na 23.10.2026.** Ten plik jest aktualną tabelą postępu. Pierwotne wymagania pozostają w [PROJECT_CHARTER.md](PROJECT_CHARTER.md). Obowiązkowe kryteria ukończenia znajdują się w [PRODUCT_ACCEPTANCE.md](PRODUCT_ACCEPTANCE.md). Aktualne pliki dla użytkowników: [GitHub Releases](https://github.com/promirmir/KRYPTA/releases).
+**Stan weryfikowany 27.10.2026.** Ten plik jest aktualną tabelą postępu. Pierwotne wymagania pozostają w [PROJECT_CHARTER.md](PROJECT_CHARTER.md). Obowiązkowe kryteria ukończenia znajdują się w [PRODUCT_ACCEPTANCE.md](PRODUCT_ACCEPTANCE.md). Aktualne pliki dla użytkowników: [GitHub Releases](https://github.com/promirmir/KRYPTA/releases).
 
 **Znaczenie statusów:** "Działa w dev" = dostępne w uruchamialnym wydaniu rozwojowym, nie oznacza gotowości produkcyjnej. "Test CI" = istnieje kod i kontrolowane testy, ale funkcja nie jest jeszcze użyteczna dla ogólnego użytkownika. "Brak" = wymaganie pierwotnego produktu nie zostało spełnione.
 
+## Etap P0: jednorazowy buforowany zapis Linux FUSE z zewnętrznym pinem
+
+- Zmiany w bieżącym PR (testy CI wymagane): `OneShotStagedFuseOps` wymusza
+  istniejący prywatny `.kpv` i niezależny `.kpin` z zaufaną pieczęcią,
+  bufor do 4 MiB, jeden otwarty writer oraz maksymalnie jedno zatwierdzenie
+  COW na `flush/fsync`. Po próbie zatwierdzenia adapter blokuje dalszy
+  odczyt i zapis. Niepromowany wynik `observed_receipt_UNTRUSTED` wymaga
+  ponownej niezależnej weryfikacji przed następną sesją.
+- Komponent nie montuje fizycznego dysku i nie spełnia wymagań
+  wieloplikowej zgodności POSIX, full-disk/boot lub produkcyjnego recovery.
+  [Dokumentacja i ograniczenia](LINUX_ONE_SHOT_FUSE.md).
+
 ## Aktualny kamień milowy — sprawdzony odczyt kopii USB do pliku .img
 
-- Kod na gałęzi rozwojowej: `physical-restore-image` (Windows/Linux, źródłowy CLI) przywraca archiwum `KRYPTA-FILE/2` **wyłącznie do nowego zwykłego pliku .img**, po pełnej weryfikacji AEAD i ponownym sprawdzeniu zapisanego obrazu względem SHA-256 i rozmiaru. Pozostawia fizyczne nośniki niezmienione, nie nadpisuje istniejących danych; wyjściowy obraz jest jawny. PR/CI wymagane przed oznaczeniem tej funkcji jako dostępnej w wydaniu.
+- Wdrożone w `main` i wydaniu `krypta-dev-57-1` po CI dla PR #80: `physical-restore-image` (Windows/Linux, źródłowy CLI) przywraca archiwum `KRYPTA-FILE/2` **wyłącznie do nowego zwykłego pliku .img**, po pełnej weryfikacji AEAD i ponownym sprawdzeniu zapisanego obrazu względem SHA-256 i rozmiaru. Pozostawia fizyczne nośniki niezmienione, nie nadpisuje istniejących danych; wyjściowy obraz jest jawny. Potwierdzono testy CI i kompilacje aplikacji; nie przeprowadzono odzyskania na fizycznym nośniku.
 - Wciąż nie ma przywracania obrazu na fizyczny dysk, transparentnego szyfrowania partycji, szyfrowania boot/systemu ani całego telefonu.
 
 ## Etap P0: brak publikacji niezweryfikowanej kopii USB
