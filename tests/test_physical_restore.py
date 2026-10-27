@@ -88,7 +88,10 @@ def test_no_physical_device_paths_and_no_symlink_output(bundle, tmp_path):
     with pytest.raises(PhysicalProbeError):
         restore_usb_archive_to_image(archive, "/dev/forbidden.img", PASSWORD, secret)
     link = tmp_path / "linked.img"
-    link.symlink_to(tmp_path / "other.img")
+    try:
+        link.symlink_to(tmp_path / "other.img")
+    except (OSError, NotImplementedError):
+        pytest.skip("Creating symlinks requires elevated permissions on this runner")
     with pytest.raises(PhysicalProbeError):
         restore_usb_archive_to_image(archive, link, PASSWORD, secret)
     assert not (tmp_path / "other.img").exists()
