@@ -23,6 +23,16 @@ KRYPTA działa niezależnie, bez obowiązkowego konta. Aplikacje na Windows, Lin
 
 W Linuksie nowa kopia USB to operacja `Drive Shield → ENCRYPTED USB COPY (READ ONLY)` z osobnym plikiem klucza i hasłem. Zapisuje nowe `.krypta` na dysku docelowym, **nie szyfruje źródłowego urządzenia w miejscu**. Nie jest migawką atomową; nie należy usuwać źródła bez niezależnego testu pełnego odzyskania danych. Program musi mieć uprawnienia do odczytu wybranego urządzenia i nie powinien pracować na jedynych kopiach danych.
 
+### Przywrócenie zaszyfrowanej kopii całego USB do pliku obrazu
+
+Windows/Linux (tryb CLI, **nie** zapis na dysk fizyczny):
+
+```bash
+python -m krypta physical-restore-image backup.krypta restored.img --keyfile independent.secret
+```
+
+Polecenie ponownie uwierzytelnia cały strumień KRYPTA-FILE/2, odzyskuje dane do prywatnego pliku tymczasowego, wykonuje oddzielny pełny odczyt pliku obrazu, porównuje SHA-256 i długość z uwierzytelnionymi danymi, a dopiero potem publikuje **nowy** `.img` bez nadpisywania. Odmówi zapisu do urządzeń fizycznych i istniejących ścieżek. Odtworzony `.img` zawiera jawne dane, więc wybierz zaszyfrowane miejsce docelowe. Niezależnie sprawdź odczyt z kopii na drugim komputerze, zanim zaczniesz polegać na backupie. Ten etap nie jest szyfrowaniem dysku w miejscu ani procedurą przywracania na prawdziwy nośnik.
+
 **Zewnętrzne narzędzia Rescue** wymagają pasującego `.pvkey`, oddzielnego 32-bajtowego klucza odzyskiwania i niezależnie przechowanego zaufanego `receipt`. Tworzą jawne pliki w nowym folderze; [instrukcja](docs/OFFLINE_RESCUE_ALL.md). Pliki kontrolne `.sha256` służą do sprawdzenia integralności pobrania.
 
 **Status: kompilacje rozwojowe, a nie certyfikowane wydania produkcyjne.** Korzystaj wyłącznie z kopii danych testowych. Aplikacje nie szyfrują jeszcze całego dysku systemowego ani całego telefonu.
