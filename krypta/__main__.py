@@ -38,6 +38,13 @@ def main(argv=None):
     backup.add_argument('device', help='Whole unmounted USB disk, e.g. /dev/sdb')
     backup.add_argument('destination', type=Path, help='New .krypta encrypted archive on another disk')
     backup.add_argument('--keyfile', type=Path, required=True, help='Existing independent secret keyfile (required)')
+    recovery = sub.add_parser(
+        'physical-restore-image',
+        help='Independently verify and restore .krypta USB archive into a NEW .img (NEVER a physical disk)'
+    )
+    recovery.add_argument('source', type=Path)
+    recovery.add_argument('destination', type=Path)
+    recovery.add_argument('--keyfile', type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.cmd == 'gui':
@@ -65,6 +72,17 @@ def main(argv=None):
             except PhysicalProbeError as exc:
                 raise ValueError(str(exc)) from exc
             print(json.dumps(result, indent=2, ensure_ascii=False))
+        elif args.cmd == 'physical-restore-image':
+            from .physical_restore import restore_usb_archive_to_image
+            from .physical_read_probe import PhysicalProbeError
+            pw = getpass.getpass('Hasło do przywrócenia archiwum USB: ')
+            try:
+                report = restore_usb_archive_to_image(
+                    args.source, args.destination, pw, args.keyfile
+                )
+            except PhysicalProbeError as exc:
+                raise ValueError(str(exc)) from exc
+            print(json.dumps(report, indent=2, ensure_ascii=False))
         elif args.cmd == 'physical-backup':
             from .physical_backup import backup_linux_usb_encrypted
             pw = getpass.getpass('Hasło do zaszyfrowanej kopii USB: ')

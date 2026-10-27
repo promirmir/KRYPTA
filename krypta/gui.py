@@ -64,7 +64,8 @@ class KryptaApp(tk.Tk):
         """Never kill a running encrypted-image write by closing the root UI."""
         from .volume_lab_gui import VolumeLabWindow
         from .usb_backup_gui import LinuxUSBBackupWindow
-        if any(isinstance(window, (VolumeLabWindow, LinuxUSBBackupWindow)) and window.busy
+        from .usb_restore_gui import USBImageRestoreWindow
+        if any(isinstance(window, (VolumeLabWindow, LinuxUSBBackupWindow, USBImageRestoreWindow)) and window.busy
                for window in self.winfo_children()):
             messagebox.showwarning(
                 'KRYPTA', 'Trwa zapis zaszyfrowanego obrazu. Poczekaj na wynik.',
@@ -235,6 +236,12 @@ class KryptaApp(tk.Tk):
                   if self.language_code == 'pl'
                   else 'LINUX: ENCRYPTED USB COPY (SOURCE READ ONLY)'),
             command=self._open_linux_usb_backup, style='KV.TButton')
+        self.usb_restore_button = ttk.Button(
+            self.future_panel,
+            text=('PRZYWRÓĆ ZASZYFROWANĄ KOPIĘ USB DO PLIKU .IMG'
+                  if self.language_code == 'pl'
+                  else 'RESTORE ENCRYPTED USB BACKUP TO NEW .IMG'),
+            command=self._open_usb_restore, style='KV.TButton')
         self.volume_scan_results = tk.Text(
             self.future_panel, height=9, bg=PANEL_ALT, fg=TEXT,
             font=(self._font_family(), 9), wrap='word', relief='flat',
@@ -325,6 +332,7 @@ class KryptaApp(tk.Tk):
         self.volume_scan_button.pack_forget()
         self.physical_scan_button.pack_forget()
         self.linux_usb_backup_button.pack_forget()
+        self.usb_restore_button.pack_forget()
         self.volume_scan_results.pack_forget()
         self.volume_scan_note.pack_forget()
         for i, btn in enumerate(self.module_buttons):
@@ -351,11 +359,19 @@ class KryptaApp(tk.Tk):
                 self.volume_scan_button.pack(anchor='w', padx=25, pady=(0, 12))
                 if index == 1:
                     self.physical_scan_button.pack(anchor='w', padx=25, pady=(0, 12))
+                    self.usb_restore_button.pack(anchor='w', padx=25, pady=(0, 12))
                     if platform.system() == 'Linux':
                         self.linux_usb_backup_button.pack(anchor='w', padx=25, pady=(0, 12))
                 self.volume_scan_results.pack(fill='x', padx=25)
                 self.volume_scan_note.pack(fill='x', padx=25, pady=(10, 20))
 
+
+    def _open_usb_restore(self):
+        """Recover verified plaintext image only, never a hardware disk."""
+        if self.busy:
+            return
+        from .usb_restore_gui import open_usb_restore_dialog
+        open_usb_restore_dialog(self)
 
     def _open_linux_usb_backup(self):
         """Only an opt-in new encrypted COPY; physical disk writes remain disabled."""
