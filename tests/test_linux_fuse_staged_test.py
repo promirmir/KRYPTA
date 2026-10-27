@@ -185,3 +185,53 @@ def test_noop_flush_and_readonly_mount_path_remain_safe(harness):
     assert ops.release("/sample.txt", writer) == 0
     assert fs.list_files() == ["sample.txt"]
     assert image.read_bytes() == before
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Linux FUSE requires POSIX")
+def test_native_mount_wires_sealed_staging_without_changing_legacy_mount(
+        harness, monkeypatch):
+    from research import linux_fuse
+    image, key, fs, volume, ops, pin, sealed, root = harness
+    destination = root / "mount"
+    destination.mkdir(mode=0o700)
+    passed = []
+
+    def fake_fuse(handler, folder, **options):
+        passed.append((handler, options))
+        return 333
+
+    monkeypatch.setattr(linux_fuse, "FUSE", fake_fuse)
+    result, bridge = linux_fuse.mount_paged_image(
+        volume, str(destination), staged_one_shot=True,
+        test_root=root, trusted_pin_path=pin,
+        independently_trusted_seal=sealed["seal_sha256"]
+    )
+    assert result == 333
+    assert bridge is passed[0][0]
+    assert isinstance(bridge, OneShotStagedFuseOps)
+    assert passed[0][1]["nothreads"] is True
+    assert passed[0][1]["allow_other"] is False
+    assert passed[0][1]["default_permissions"] is True
+    assert "ro" not in passed[0][1]
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        linux_fuse.mount_paged_image(
+            volume, str(destination), read_only=True, staged_one_shot=True,
+            test_root=root, trusted_pin_path=pin,
+            independently_trusted_seal=sealed["seal_sha256"]
+        )
+    with pytest.raises(ValueError, match="pin flags"):
+        linux_fuse.mount_paged_image(
+            volume, str(destination), trusted_pin_path=pin
+        )
+
+
+def test_explicit_cli_does_not_allow_ambiguous_one_shot_options():
+    from research.linux_mount_paged import main
+    with pytest.raises(SystemExit):
+        main(["--image", "unused.kpv", "--mountpoint", "unused",
+              "--key-fd", "7", "--expected-receipt", "0" * 64,
+              "--accept-development-risk", "--one-shot-staged-write"])
+    with pytest.raises(SystemExit):
+        main(["--image", "unused.kpv", "--mountpoint", "unused",
+              "--key-fd", "7", "--expected-receipt", "0" * 64,
+              "--accept-development-risk", "--trusted-seal", "0" * 64])
