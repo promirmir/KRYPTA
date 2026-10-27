@@ -101,6 +101,10 @@ def test_append_sparse_and_bounded_staging_with_no_immediate_disk_write(harness)
     writer = ops.open("/sample.txt", os.O_RDWR | os.O_APPEND)
     assert ops.write("/sample.txt", b"END", 0, writer) == 3
     assert ops.read("/sample.txt", 99, 0, writer) == b"originalEND"
+    # O_APPEND ignores the provided offset by POSIX design; test the absolute
+    # quota with an explicitly non-appending descriptor.
+    assert ops.release("/sample.txt", writer) == 0
+    writer = ops.open("/sample.txt", os.O_RDWR)
     fails(errno.EFBIG, ops.write, "/sample.txt", b"x", MAX_STAGED_BYTES, writer)
     fails(errno.EFBIG, ops.truncate, "/sample.txt", MAX_STAGED_BYTES + 1, writer)
     fails(errno.EINVAL, ops.write, "/sample.txt", "not bytes", 0, writer)
